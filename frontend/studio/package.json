@@ -1,0 +1,19 @@
+{
+  "name": "sandman-digital-loop-studio",
+  "version": "6.8.0",
+  "private": true,
+  "description": "SandMan Digital Loop Studio \u2014 design, simulate and publish green-sand loops: animated equipment library (148 drawings, 5 colour styles, Control & IT, water tank), line routing, valves into lines, live data from customer databases, group control, Create Loop from Image, traceability and sand balance",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "serve": "npx --yes http-server dist -p 8080 -c-1",
+    "format": "npx --yes prettier@3 --print-width 110 --single-quote --arrow-parens avoid --write \"src/**/*.{js,css}\"",
+    "test": "python3 tests/run_all.py",
+    "library": "python3 tools/make_sandman_library.py",
+    "extra": "python3 tools/make_extra_assets.py"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

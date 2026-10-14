@@ -1,0 +1,44 @@
+node_modules/
+dist/
+
+# Generated at runtime by the API: the SQLite database and uploaded artwork.
+# Back these two up together — the database alone is not enough.
+data/
+uploads/
+
+# The SandMan stand-in's own record of every loop it was told about. Stands in
+# for a table on SandMan's side; regenerated whenever a loop is saved.
+frontend/tools/sandman_store/
+
+# Secrets live in the environment and never in the repository. `.env.example`
+# documents the names and holds no values; everything else is ignored, so a
+# file created from it cannot be committed by accident.
+.env
+.env.*
+!.env.example
+
+# Database copies carry whatever the live one carried — designs, and the
+# credentials of any registered plant database.
+*.bak.db
+*.db
+*.db-wal
+*.db-shm
+
+# Build output. `frontend/app/` holds two different things: `sandman/` and
+# `equipment/` are source and belong in the repository, while these three are
+# produced by `npm run build` from `frontend/studio/src`. Committing them means
+# every drop shows up as a 10 MB diff nobody can read, and a stale copy on a
+# deployment that forgot to rebuild.
+frontend/app/app.js
+frontend/app/app.css
+frontend/app/index.html
+
+# Copies of the vendored studio taken before each drop, so a bad one can be
+# backed out. Local safety net, not history — the repository already has it.
+_backup/
+
+*.local
+.DS_Store
+
+# Claude Code's own session settings — not part of the project.
+.claude/

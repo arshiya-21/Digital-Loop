@@ -1,0 +1,1181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="18.54 101.00 1716.46 285.00" width="425" height="71"><g class="mould-box-line-art">
+<defs>
+<linearGradient id="ml-metal"><stop offset="0.0" stop-color="#686e72" /><stop offset="0.3333333333333333" stop-color="#999fa2" /><stop offset="0.6666666666666666" stop-color="#afb3b6" /><stop offset="1.0" stop-color="#81878c" /></linearGradient>
+<linearGradient id="ml-face" x1="0" y1="0" x2="0" y2="1"><stop offset="0.0" stop-color="#acb0b3" /><stop offset="0.5" stop-color="#9ca1a4" /><stop offset="1.0" stop-color="#878d91" /></linearGradient>
+<linearGradient id="ml-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0.0" stop-color="#a0a5a8" /><stop offset="0.5" stop-color="#898f93" /><stop offset="1.0" stop-color="#6c7277" /></linearGradient>
+<linearGradient id="ml-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0.0" stop-color="#63686c" /><stop offset="0.5" stop-color="#424649" /><stop offset="1.0" stop-color="#2f3234" /></linearGradient>
+<linearGradient id="ml-sand" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#bdb3a0" /><stop offset="1" stop-color="#948874" /></linearGradient>
+<radialGradient id="ml-bearing"><stop stop-color="#9ea3a7" /><stop offset=".4" stop-color="#7e8589" /><stop offset=".76" stop-color="#4a4e51" /><stop offset="1" stop-color="#2a2d2e" /></radialGradient>
+<g id="ml-bolt"><circle r="3.4" fill="#53585b" /><path d="M-2.5 -1.4V1.4L0 2.9L2.5 1.4V-1.4L0 -2.9Z" fill="#9ba0a4" stroke="#4b4f52" stroke-width=".5" /><path d="M-1 -1H1" stroke="#fff" stroke-width=".5" /></g>
+<clipPath id="ml-train-clip"><rect x="79" y="97" width="1632" height="152" /></clipPath>
+</defs>
+<style>
+.mould-box-line-art .indexed-train{animation:ml-index 4s linear infinite;animation-play-state:paused}
+.mould-box-line-art .drive-rotation{transform-box:fill-box;transform-origin:center;animation:ml-turn 2s linear infinite;animation-play-state:paused}
+body.simulating .mould-box-line-art .indexed-train,body.simulating .mould-box-line-art .drive-rotation{animation-play-state:running}
+@keyframes ml-index{to{transform:translateX(102px)}}
+@keyframes ml-turn{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.mould-box-line-art *{animation:none!important}}
+</style>
+<g stroke="#3d4143" stroke-width="1" stroke-linejoin="round" stroke-linecap="round">
+<g id="mould-box-line--support-frame" data-part="support-frame">
+<rect x="110" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="114" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M111 288H151L134 319H111Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="98" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="104" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(105 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(140 374) scale(0.72)" />
+<rect x="310" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="314" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M311 288H351L334 319H311Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="298" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="304" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(305 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(340 374) scale(0.72)" />
+<rect x="510" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="514" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M511 288H551L534 319H511Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="498" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="504" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(505 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(540 374) scale(0.72)" />
+<rect x="710" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="714" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M711 288H751L734 319H711Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="698" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="704" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(705 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(740 374) scale(0.72)" />
+<rect x="910" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="914" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M911 288H951L934 319H911Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="898" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="904" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(905 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(940 374) scale(0.72)" />
+<rect x="1110" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1114" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1111 288H1151L1134 319H1111Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="1098" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1104" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1105 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(1140 374) scale(0.72)" />
+<rect x="1310" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1314" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1311 288H1351L1334 319H1311Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="1298" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1304" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1305 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(1340 374) scale(0.72)" />
+<rect x="1510" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1514" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1511 288H1551L1534 319H1511Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="1498" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1504" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1505 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(1540 374) scale(0.72)" />
+<rect x="1670" y="287" width="24" height="82" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1674" y="294" width="15" height="72" rx="1" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1671 288H1711L1694 319H1671Z" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="1658" y="369" width="49" height="9" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1664" y="378" width="36" height="4" rx="1" fill="#64696d" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1665 374) scale(0.72)" />
+<use xlink:href="#ml-bolt" transform="translate(1700 374) scale(0.72)" />
+<rect x="109" y="345" width="1588" height="13" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M114 348H1692" fill="none" stroke="#7e8589" stroke-width="0.8" />
+</g>
+<g id="mould-box-line--roller-bed" data-part="roller-bed">
+<rect x="59" y="246" width="1675" height="43" rx="6" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="66" y="243" width="1661" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<circle cx="78" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="78" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="78" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M70 263Q78 256 86 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="101" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="101" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="101" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M93 263Q101 256 109 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="124" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="124" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="124" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M116 263Q124 256 132 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="147" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="147" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="147" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M139 263Q147 256 155 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="170" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="170" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="170" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M162 263Q170 256 178 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="193" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="193" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="193" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M185 263Q193 256 201 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="216" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="216" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="216" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M208 263Q216 256 224 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="239" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="239" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="239" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M231 263Q239 256 247 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="262" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="262" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="262" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M254 263Q262 256 270 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="285" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="285" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="285" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M277 263Q285 256 293 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="308" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="308" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="308" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M300 263Q308 256 316 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="331" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="331" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="331" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M323 263Q331 256 339 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="354" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="354" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="354" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M346 263Q354 256 362 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="377" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="377" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="377" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M369 263Q377 256 385 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="400" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="400" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="400" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M392 263Q400 256 408 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="423" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="423" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="423" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M415 263Q423 256 431 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="446" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="446" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="446" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M438 263Q446 256 454 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="469" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="469" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="469" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M461 263Q469 256 477 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="492" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="492" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="492" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M484 263Q492 256 500 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="515" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="515" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="515" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M507 263Q515 256 523 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="538" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="538" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="538" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M530 263Q538 256 546 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="561" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="561" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="561" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M553 263Q561 256 569 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="584" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="584" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="584" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M576 263Q584 256 592 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="607" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="607" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="607" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M599 263Q607 256 615 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="630" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="630" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="630" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M622 263Q630 256 638 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="653" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="653" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="653" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M645 263Q653 256 661 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="676" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="676" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="676" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M668 263Q676 256 684 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="699" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="699" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="699" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M691 263Q699 256 707 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="722" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="722" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="722" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M714 263Q722 256 730 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="745" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="745" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="745" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M737 263Q745 256 753 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="768" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="768" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="768" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M760 263Q768 256 776 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="791" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="791" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="791" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M783 263Q791 256 799 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="814" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="814" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="814" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M806 263Q814 256 822 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="837" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="837" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="837" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M829 263Q837 256 845 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="860" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="860" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="860" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M852 263Q860 256 868 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="883" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="883" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="883" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M875 263Q883 256 891 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="906" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="906" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="906" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M898 263Q906 256 914 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="929" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="929" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="929" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M921 263Q929 256 937 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="952" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="952" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="952" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M944 263Q952 256 960 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="975" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="975" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="975" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M967 263Q975 256 983 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="998" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="998" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="998" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M990 263Q998 256 1006 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1021" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1021" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1021" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1013 263Q1021 256 1029 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1044" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1044" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1044" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1036 263Q1044 256 1052 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1067" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1067" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1067" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1059 263Q1067 256 1075 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1090" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1090" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1090" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1082 263Q1090 256 1098 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1113" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1113" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1113" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1105 263Q1113 256 1121 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1136" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1136" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1136" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1128 263Q1136 256 1144 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1159" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1159" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1159" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1151 263Q1159 256 1167 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1182" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1182" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1182" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1174 263Q1182 256 1190 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1205" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1205" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1205" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1197 263Q1205 256 1213 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1228" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1228" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1228" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1220 263Q1228 256 1236 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1251" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1251" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1251" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1243 263Q1251 256 1259 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1274" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1274" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1274" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1266 263Q1274 256 1282 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1297" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1297" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1297" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1289 263Q1297 256 1305 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1320" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1320" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1320" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1312 263Q1320 256 1328 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1343" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1343" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1343" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1335 263Q1343 256 1351 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1366" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1366" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1366" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1358 263Q1366 256 1374 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1389" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1389" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1389" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1381 263Q1389 256 1397 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1412" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1412" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1412" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1404 263Q1412 256 1420 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1435" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1435" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1435" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1427 263Q1435 256 1443 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1458" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1458" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1458" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1450 263Q1458 256 1466 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1481" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1481" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1481" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1473 263Q1481 256 1489 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1504" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1504" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1504" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1496 263Q1504 256 1512 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1527" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1527" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1527" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1519 263Q1527 256 1535 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1550" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1550" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1550" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1542 263Q1550 256 1558 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1573" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1573" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1573" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1565 263Q1573 256 1581 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1596" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1596" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1596" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1588 263Q1596 256 1604 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1619" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1619" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1619" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1611 263Q1619 256 1627 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1642" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1642" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1642" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1634 263Q1642 256 1650 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1665" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1665" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1665" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1657 263Q1665 256 1673 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1688" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1688" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1688" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1680 263Q1688 256 1696 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+<circle cx="1711" cy="265" r="12.5" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1711" cy="265" r="8" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1711" cy="265" r="3.7" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1703 263Q1711 256 1719 263" fill="none" stroke="#a6abae" stroke-width="0.6" />
+</g>
+<g id="mould-box-line--front-rail" data-part="front-rail">
+<rect x="58" y="280" width="1677" height="27" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="58" y="279" width="1677" height="5" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M65 301H1727" fill="none" stroke="#4e5255" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(80 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(131 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(182 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(233 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(284 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(335 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(386 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(437 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(488 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(539 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(590 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(641 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(692 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(743 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(794 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(845 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(896 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(947 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(998 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1049 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1100 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1151 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1202 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1253 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1304 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1355 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1406 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1457 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1508 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1559 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1610 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1661 291) scale(0.9)" />
+<use xlink:href="#ml-bolt" transform="translate(1712 291) scale(0.9)" />
+<rect x="395" y="281" width="21" height="22" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(400 287) scale(0.62)" />
+<use xlink:href="#ml-bolt" transform="translate(411 299) scale(0.62)" />
+<rect x="722" y="281" width="21" height="22" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(727 287) scale(0.62)" />
+<use xlink:href="#ml-bolt" transform="translate(738 299) scale(0.62)" />
+<rect x="1049" y="281" width="21" height="22" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1054 287) scale(0.62)" />
+<use xlink:href="#ml-bolt" transform="translate(1065 299) scale(0.62)" />
+<rect x="1376" y="281" width="21" height="22" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1381 287) scale(0.62)" />
+<use xlink:href="#ml-bolt" transform="translate(1392 299) scale(0.62)" />
+</g>
+<g clip-path="url(#ml-train-clip)">
+<g id="mould-box-line--mould-train" data-part="mould-train" class="indexed-train">
+<g aria-hidden="true">
+<rect x="-23" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="-20" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="-16" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="-12" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="-20" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="-14" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="-14" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M-7 131H59M-7 185H59" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="-19" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M-17 171H69" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="-19" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="-15" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="-15" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="-13" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="-12" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="-10.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="-10.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="58" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="58" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="60" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="61" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="62.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="62.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="14" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M14 145V141Q14 139 17 139H35Q38 139 38 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="14" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M14 198V194Q14 192 17 192H35Q38 192 38 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(-1 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(-1 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(-1 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(-1 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(53 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(53 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(53 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(53 214) scale(0.64)" />
+<rect x="0" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="3.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="52" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="55.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-01" data-part="mould-box-01">
+<rect x="79" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="82" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="86" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="90" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="82" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="88" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="88" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M95 131H161M95 185H161" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="83" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M85 171H171" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="83" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="87" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="87" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="89" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="90" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="91.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="91.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="160" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="160" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="162" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="163" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="164.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="164.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="116" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M116 145V141Q116 139 119 139H137Q140 139 140 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="116" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M116 198V194Q116 192 119 192H137Q140 192 140 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(101 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(101 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(101 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(101 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(155 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(155 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(155 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(155 214) scale(0.64)" />
+<rect x="102" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="105.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="154" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="157.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-02" data-part="mould-box-02">
+<rect x="181" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="184" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="188" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="192" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="184" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="190" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="190" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M197 131H263M197 185H263" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="185" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M187 171H273" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="185" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="189" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="189" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="191" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="192" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="193.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="193.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="262" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="262" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="264" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="265" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="266.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="266.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="218" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M218 145V141Q218 139 221 139H239Q242 139 242 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="218" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M218 198V194Q218 192 221 192H239Q242 192 242 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(203 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(203 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(203 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(203 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(257 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(257 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(257 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(257 214) scale(0.64)" />
+<rect x="204" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="207.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="256" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="259.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-03" data-part="mould-box-03">
+<rect x="283" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="286" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="290" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="294" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="286" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="292" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="292" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M299 131H365M299 185H365" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="287" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M289 171H375" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="287" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="291" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="291" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="293" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="294" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="295.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="295.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="364" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="364" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="366" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="367" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="368.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="368.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="320" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M320 145V141Q320 139 323 139H341Q344 139 344 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="320" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M320 198V194Q320 192 323 192H341Q344 192 344 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(305 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(305 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(305 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(305 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(359 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(359 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(359 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(359 214) scale(0.64)" />
+<rect x="306" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="309.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="358" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="361.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-04" data-part="mould-box-04">
+<rect x="385" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="388" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="392" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="396" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="388" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="394" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="394" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M401 131H467M401 185H467" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="389" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M391 171H477" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="389" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="393" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="393" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="395" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="396" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="397.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="397.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="466" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="466" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="468" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="469" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="470.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="470.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="422" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M422 145V141Q422 139 425 139H443Q446 139 446 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="422" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M422 198V194Q422 192 425 192H443Q446 192 446 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(407 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(407 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(407 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(407 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(461 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(461 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(461 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(461 214) scale(0.64)" />
+<rect x="408" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="411.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="460" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="463.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-05" data-part="mould-box-05">
+<rect x="487" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="490" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="494" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="498" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="490" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="496" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="496" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M503 131H569M503 185H569" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="491" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M493 171H579" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="491" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="495" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="495" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="497" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="498" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="499.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="499.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="568" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="568" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="570" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="571" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="572.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="572.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="524" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M524 145V141Q524 139 527 139H545Q548 139 548 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="524" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M524 198V194Q524 192 527 192H545Q548 192 548 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(509 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(509 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(509 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(509 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(563 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(563 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(563 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(563 214) scale(0.64)" />
+<rect x="510" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="513.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="562" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="565.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-06" data-part="mould-box-06">
+<rect x="589" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="592" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="596" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="600" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="592" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="598" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="598" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M605 131H671M605 185H671" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="593" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M595 171H681" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="593" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="597" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="597" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="599" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="600" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="601.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="601.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="670" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="670" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="672" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="673" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="674.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="674.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="626" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M626 145V141Q626 139 629 139H647Q650 139 650 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="626" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M626 198V194Q626 192 629 192H647Q650 192 650 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(611 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(611 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(611 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(611 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(665 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(665 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(665 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(665 214) scale(0.64)" />
+<rect x="612" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="615.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="664" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="667.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-07" data-part="mould-box-07">
+<rect x="691" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="694" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="698" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="702" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="694" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="700" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="700" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M707 131H773M707 185H773" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="695" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M697 171H783" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="695" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="699" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="699" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="701" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="702" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="703.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="703.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="772" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="772" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="774" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="775" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="776.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="776.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="728" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M728 145V141Q728 139 731 139H749Q752 139 752 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="728" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M728 198V194Q728 192 731 192H749Q752 192 752 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(713 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(713 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(713 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(713 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(767 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(767 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(767 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(767 214) scale(0.64)" />
+<rect x="714" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="717.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="766" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="769.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-08" data-part="mould-box-08">
+<rect x="793" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="796" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="800" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="804" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="796" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="802" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="802" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M809 131H875M809 185H875" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="797" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M799 171H885" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="797" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="801" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="801" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="803" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="804" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="805.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="805.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="874" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="874" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="876" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="877" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="878.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="878.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="830" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M830 145V141Q830 139 833 139H851Q854 139 854 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="830" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M830 198V194Q830 192 833 192H851Q854 192 854 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(815 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(815 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(815 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(815 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(869 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(869 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(869 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(869 214) scale(0.64)" />
+<rect x="816" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="819.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="868" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="871.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-09" data-part="mould-box-09">
+<rect x="895" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="898" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="902" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="906" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="898" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="904" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="904" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M911 131H977M911 185H977" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="899" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M901 171H987" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="899" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="903" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="903" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="905" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="906" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="907.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="907.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="976" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="976" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="978" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="979" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="980.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="980.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="932" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M932 145V141Q932 139 935 139H953Q956 139 956 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="932" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M932 198V194Q932 192 935 192H953Q956 192 956 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(917 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(917 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(917 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(917 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(971 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(971 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(971 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(971 214) scale(0.64)" />
+<rect x="918" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="921.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="970" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="973.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-10" data-part="mould-box-10">
+<rect x="997" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1000" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1004" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1008" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="1000" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1006" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1006" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1013 131H1079M1013 185H1079" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="1001" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M1003 171H1089" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="1001" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1005" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1005" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1007" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1008" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1009.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1009.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1078" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1078" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1080" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1081" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1082.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1082.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1034" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1034 145V141Q1034 139 1037 139H1055Q1058 139 1058 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="1034" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1034 198V194Q1034 192 1037 192H1055Q1058 192 1058 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(1019 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1019 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1019 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1019 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1073 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1073 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1073 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1073 214) scale(0.64)" />
+<rect x="1020" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1023.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="1072" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1075.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-11" data-part="mould-box-11">
+<rect x="1099" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1102" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1106" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1110" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="1102" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1108" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1108" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1115 131H1181M1115 185H1181" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="1103" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M1105 171H1191" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="1103" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1107" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1107" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1109" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1110" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1111.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1111.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1180" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1180" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1182" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1183" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1184.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1184.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1136" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1136 145V141Q1136 139 1139 139H1157Q1160 139 1160 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="1136" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1136 198V194Q1136 192 1139 192H1157Q1160 192 1160 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(1121 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1121 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1121 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1121 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1175 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1175 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1175 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1175 214) scale(0.64)" />
+<rect x="1122" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1125.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="1174" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1177.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-12" data-part="mould-box-12">
+<rect x="1201" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1204" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1208" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1212" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="1204" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1210" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1210" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1217 131H1283M1217 185H1283" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="1205" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M1207 171H1293" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="1205" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1209" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1209" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1211" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1212" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1213.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1213.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1282" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1282" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1284" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1285" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1286.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1286.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1238" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1238 145V141Q1238 139 1241 139H1259Q1262 139 1262 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="1238" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1238 198V194Q1238 192 1241 192H1259Q1262 192 1262 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(1223 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1223 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1223 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1223 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1277 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1277 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1277 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1277 214) scale(0.64)" />
+<rect x="1224" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1227.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="1276" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1279.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-13" data-part="mould-box-13">
+<rect x="1303" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1306" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1310" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1314" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="1306" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1312" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1312" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1319 131H1385M1319 185H1385" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="1307" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M1309 171H1395" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="1307" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1311" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1311" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1313" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1314" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1315.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1315.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1384" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1384" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1386" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1387" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1388.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1388.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1340" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1340 145V141Q1340 139 1343 139H1361Q1364 139 1364 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="1340" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1340 198V194Q1340 192 1343 192H1361Q1364 192 1364 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(1325 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1325 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1325 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1325 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1379 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1379 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1379 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1379 214) scale(0.64)" />
+<rect x="1326" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1329.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="1378" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1381.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-14" data-part="mould-box-14">
+<rect x="1405" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1408" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1412" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1416" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="1408" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1414" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1414" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1421 131H1487M1421 185H1487" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="1409" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M1411 171H1497" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="1409" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1413" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1413" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1415" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1416" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1417.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1417.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1486" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1486" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1488" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1489" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1490.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1490.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1442" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1442 145V141Q1442 139 1445 139H1463Q1466 139 1466 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="1442" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1442 198V194Q1442 192 1445 192H1463Q1466 192 1466 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(1427 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1427 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1427 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1427 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1481 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1481 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1481 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1481 214) scale(0.64)" />
+<rect x="1428" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1431.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="1480" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1483.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-15" data-part="mould-box-15">
+<rect x="1507" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1510" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1514" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1518" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="1510" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1516" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1516" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1523 131H1589M1523 185H1589" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="1511" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M1513 171H1599" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="1511" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1515" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1515" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1517" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1518" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1519.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1519.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1588" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1588" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1590" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1591" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1592.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1592.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1544" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1544 145V141Q1544 139 1547 139H1565Q1568 139 1568 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="1544" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1544 198V194Q1544 192 1547 192H1565Q1568 192 1568 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(1529 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1529 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1529 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1529 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1583 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1583 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1583 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1583 214) scale(0.64)" />
+<rect x="1530" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1533.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="1582" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1585.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+<g id="mould-box-line--mould-box-16" data-part="mould-box-16">
+<rect x="1609" y="233" width="98" height="10" rx="2" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1612" y="226" width="92" height="8" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1616" y="111" width="84" height="115" rx="3" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1620" y="107" width="76" height="8" rx="1" fill="url(#ml-sand)" stroke-width="0.6" />
+<rect x="1612" y="115" width="92" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1618" y="124" width="80" height="42" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1618" y="178" width="80" height="40" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<path d="M1625 131H1691M1625 185H1691" fill="none" stroke="#9ea3a6" stroke-width="0.65" />
+<rect x="1613" y="166" width="90" height="10" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<path d="M1615 171H1701" fill="none" stroke="#2f3233" stroke-width="0.85" />
+<rect x="1613" y="220" width="90" height="8" rx="1" fill="url(#ml-rim)" stroke-width="1" />
+<rect x="1617" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1617" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1619" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1620" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1621.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1621.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1690" y="119" width="9" height="45" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1690" y="177" width="9" height="41" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1692" y="152" width="5" height="43" rx="1" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1693" y="151" width="3" height="42" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<circle cx="1694.5" cy="155" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<circle cx="1694.5" cy="191" r="2" fill="url(#ml-metal)" stroke-width="0.5" />
+<rect x="1646" y="141" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1646 145V141Q1646 139 1649 139H1667Q1670 139 1670 141V145" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<rect x="1646" y="194" width="24" height="9" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1646 198V194Q1646 192 1649 192H1667Q1670 192 1670 194V198" fill="none" stroke="#9da2a5" stroke-width="2.2" />
+<use xlink:href="#ml-bolt" transform="translate(1631 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1631 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1631 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1631 214) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1685 132) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1685 159) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1685 186) scale(0.64)" />
+<use xlink:href="#ml-bolt" transform="translate(1685 214) scale(0.64)" />
+<rect x="1632" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1635.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+<rect x="1684" y="101" width="7" height="12" rx="1" fill="url(#ml-metal)" stroke-width="0.7" />
+<circle cx="1687.5" cy="103" r="1.2" fill="#515558" stroke-width="0.4" />
+</g>
+</g>
+</g>
+<g id="mould-box-line--drive-mount" data-part="drive-mount">
+<rect x="1524" y="310" width="196" height="13" rx="2" fill="url(#ml-dark)" stroke-width="1" />
+<path d="M1540 310V300H1554V311M1691 310V300H1705V311" fill="url(#ml-metal)" stroke="#3d4143" stroke-width="1" />
+<rect x="1537" y="325" width="98" height="51" rx="4" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1628" y="335" width="86" height="34" rx="3" fill="url(#ml-dark)" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1546 333) scale(0.85)" />
+<use xlink:href="#ml-bolt" transform="translate(1546 369) scale(0.85)" />
+<use xlink:href="#ml-bolt" transform="translate(1626 333) scale(0.85)" />
+<use xlink:href="#ml-bolt" transform="translate(1626 369) scale(0.85)" />
+</g>
+<g id="mould-box-line--drive-coupling" data-part="drive-coupling" class="drive-rotation">
+<circle cx="1557" cy="350" r="16" fill="url(#ml-bearing)" stroke-width="1" />
+<circle cx="1557" cy="350" r="10" fill="url(#ml-metal)" stroke-width="1" />
+<path d="M1547 350H1567M1557 340V360" fill="none" stroke="#575c5f" stroke-width="1.8" />
+<circle cx="1557" cy="350" r="4" fill="url(#ml-dark)" stroke-width="1" />
+</g>
+<g id="mould-box-line--drive-motor" data-part="drive-motor">
+<rect x="1590" y="330" width="116" height="51" rx="7" fill="url(#ml-dark)" stroke-width="1" />
+<rect x="1598" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1604" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1610" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1616" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1622" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1628" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1634" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1640" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1646" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1652" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1658" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1664" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1670" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1676" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1682" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1688" y="335" width="3" height="41" rx="1" fill="url(#ml-metal)" stroke-width="0.6" />
+<rect x="1689" y="334" width="20" height="44" rx="6" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1615" y="318" width="28" height="15" rx="2" fill="url(#ml-face)" stroke-width="1" />
+<rect x="1602" y="379" width="18" height="7" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+<rect x="1667" y="379" width="18" height="7" rx="1" fill="url(#ml-metal)" stroke-width="1" />
+</g>
+<g id="mould-box-line--end-bearing-guards" data-part="end-bearing-guards">
+<rect x="56" y="248" width="19" height="30" rx="4" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="65.5" cy="263" r="6" fill="url(#ml-bearing)" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(65 252) scale(0.55)" />
+<use xlink:href="#ml-bolt" transform="translate(65 274) scale(0.55)" />
+<rect x="1711" y="248" width="19" height="30" rx="4" fill="url(#ml-metal)" stroke-width="1" />
+<circle cx="1720.5" cy="263" r="6" fill="url(#ml-bearing)" stroke-width="1" />
+<use xlink:href="#ml-bolt" transform="translate(1720 252) scale(0.55)" />
+<use xlink:href="#ml-bolt" transform="translate(1720 274) scale(0.55)" />
+</g>
+</g><g id="mould-box-line--clean-finish" data-part="clean-finish"><path d="M65 302H1725" stroke="#278e96" stroke-width="2" fill="none" /></g><metadata>{"equipment": "mould-box-line", "style": "Clean Industrial", "revision": "2026-09-30", "design_note": "Sixteen separate cope-and-drag flasks on one long conveyor.", "geometry_status": "representative", "placement": "preserveAspectRatio; do not stretch to a common square", "animation_status": "addressable parts; operating sequences require integration and validation"}</metadata></g></svg>

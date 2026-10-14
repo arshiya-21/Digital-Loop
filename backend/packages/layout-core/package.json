@@ -1,0 +1,12 @@
+{
+  "name": "@sandman/layout-core",
+  "version": "1.0.0",
+  "description": "Layout document model shared by the Digital Loop studio and API: geometry, routing, validation and the mandatory data-tag rules.",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./*": "./src/*"
+  }
+}

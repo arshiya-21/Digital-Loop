@@ -1,0 +1,19 @@
+{
+  "name": "@sandman/database",
+  "version": "1.0.0",
+  "description": "Digital Loop schema and seed data.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node --env-file-if-exists=../backend/.env seed.js",
+    "seed:reset": "node --env-file-if-exists=../backend/.env seed.js --reset",
+    "db": "node --env-file-if-exists=../backend/.env inspect.js"
+  },
+  "dependencies": {
+    "@sandman/layout-core": "file:../backend/packages/layout-core",
+    "mysql2": "^3.24.5"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

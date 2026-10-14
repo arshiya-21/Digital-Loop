@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="46 22 890 1090" width="120" height="147">
+<defs>
+ <linearGradient id="panel" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#006abf"/><stop offset=".17" stop-color="#078ef3"/><stop offset=".56" stop-color="#0989eb"/><stop offset=".87" stop-color="#007ddb"/><stop offset="1" stop-color="#004986"/></linearGradient>
+ <linearGradient id="cone" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#0065c4"/><stop offset=".48" stop-color="#006bd0"/><stop offset="1" stop-color="#0054aa"/></linearGradient>
+ <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#169cf5"/><stop offset=".2" stop-color="#007bda"/><stop offset=".75" stop-color="#0064bc"/><stop offset="1" stop-color="#003568"/></linearGradient>
+ <linearGradient id="rib"><stop stop-color="#003961"/><stop offset=".3" stop-color="#008ee8"/><stop offset=".7" stop-color="#007bcf"/><stop offset="1" stop-color="#003566"/></linearGradient>
+ <radialGradient id="bolt" cx=".35" cy=".25"><stop stop-color="#fff"/><stop offset=".38" stop-color="#e7f6ff"/><stop offset=".7" stop-color="#91b7d1"/><stop offset="1" stop-color="#234968"/></radialGradient>
+ <radialGradient id="hole"><stop stop-color="#00040a"/><stop offset=".65" stop-color="#000812"/><stop offset="1" stop-color="#00325a"/></radialGradient>
+ <g id="b"><circle r="4.3" fill="#002444"/><circle cy="-.6" r="3.2" fill="url(#bolt)"/><circle cx="-.8" cy="-1.5" r=".8" fill="#fff"/></g>
+</defs>
+<g stroke="#00182a" stroke-width="2" stroke-linejoin="round">
+<path id="body" d="M66 48H918V641H900L520 1094H461L82 641H66Z" fill="url(#panel)"/>
+<path id="taper" d="M82 641H900L520 1094H461Z" fill="url(#cone)"/>
+<path d="M82 641L461 1094H474L97 641Z M900 641L520 1094H507L884 641Z" fill="url(#rib)"/>
+<rect x="66" y="50" width="15" height="182" fill="url(#rib)"/>
+<path d="M69 52V230" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="73.5" y="60"/>
+<use href="#b" x="73.5" y="102"/>
+<use href="#b" x="73.5" y="144"/>
+<use href="#b" x="73.5" y="186"/>
+<use href="#b" x="73.5" y="228"/>
+<rect x="265" y="50" width="15" height="182" fill="url(#rib)"/>
+<path d="M268 52V230" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="272.5" y="60"/>
+<use href="#b" x="272.5" y="102"/>
+<use href="#b" x="272.5" y="144"/>
+<use href="#b" x="272.5" y="186"/>
+<use href="#b" x="272.5" y="228"/>
+<rect x="423" y="50" width="15" height="182" fill="url(#rib)"/>
+<path d="M426 52V230" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="430.5" y="60"/>
+<use href="#b" x="430.5" y="102"/>
+<use href="#b" x="430.5" y="144"/>
+<use href="#b" x="430.5" y="186"/>
+<use href="#b" x="430.5" y="228"/>
+<rect x="602" y="50" width="15" height="182" fill="url(#rib)"/>
+<path d="M605 52V230" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="609.5" y="60"/>
+<use href="#b" x="609.5" y="102"/>
+<use href="#b" x="609.5" y="144"/>
+<use href="#b" x="609.5" y="186"/>
+<use href="#b" x="609.5" y="228"/>
+<rect x="751" y="50" width="15" height="182" fill="url(#rib)"/>
+<path d="M754 52V230" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="758.5" y="60"/>
+<use href="#b" x="758.5" y="102"/>
+<use href="#b" x="758.5" y="144"/>
+<use href="#b" x="758.5" y="186"/>
+<use href="#b" x="758.5" y="228"/>
+<rect x="899" y="50" width="15" height="182" fill="url(#rib)"/>
+<path d="M902 52V230" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="906.5" y="60"/>
+<use href="#b" x="906.5" y="102"/>
+<use href="#b" x="906.5" y="144"/>
+<use href="#b" x="906.5" y="186"/>
+<use href="#b" x="906.5" y="228"/>
+<rect x="66" y="251" width="15" height="181" fill="url(#rib)"/>
+<path d="M69 253V430" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="73.5" y="261"/>
+<use href="#b" x="73.5" y="303"/>
+<use href="#b" x="73.5" y="345"/>
+<use href="#b" x="73.5" y="387"/>
+<rect x="307" y="251" width="15" height="181" fill="url(#rib)"/>
+<path d="M310 253V430" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="314.5" y="261"/>
+<use href="#b" x="314.5" y="303"/>
+<use href="#b" x="314.5" y="345"/>
+<use href="#b" x="314.5" y="387"/>
+<rect x="510" y="251" width="15" height="181" fill="url(#rib)"/>
+<path d="M513 253V430" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="517.5" y="261"/>
+<use href="#b" x="517.5" y="303"/>
+<use href="#b" x="517.5" y="345"/>
+<use href="#b" x="517.5" y="387"/>
+<rect x="704" y="251" width="15" height="181" fill="url(#rib)"/>
+<path d="M707 253V430" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="711.5" y="261"/>
+<use href="#b" x="711.5" y="303"/>
+<use href="#b" x="711.5" y="345"/>
+<use href="#b" x="711.5" y="387"/>
+<rect x="899" y="251" width="15" height="181" fill="url(#rib)"/>
+<path d="M902 253V430" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="906.5" y="261"/>
+<use href="#b" x="906.5" y="303"/>
+<use href="#b" x="906.5" y="345"/>
+<use href="#b" x="906.5" y="387"/>
+<rect x="66" y="452" width="15" height="189" fill="url(#rib)"/>
+<path d="M69 454V639" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="73.5" y="462"/>
+<use href="#b" x="73.5" y="504"/>
+<use href="#b" x="73.5" y="546"/>
+<use href="#b" x="73.5" y="588"/>
+<use href="#b" x="73.5" y="630"/>
+<rect x="375" y="452" width="15" height="369" fill="url(#rib)"/>
+<path d="M378 454V819" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="382.5" y="462"/>
+<use href="#b" x="382.5" y="504"/>
+<use href="#b" x="382.5" y="546"/>
+<use href="#b" x="382.5" y="588"/>
+<use href="#b" x="382.5" y="630"/>
+<use href="#b" x="382.5" y="672"/>
+<use href="#b" x="382.5" y="714"/>
+<use href="#b" x="382.5" y="756"/>
+<use href="#b" x="382.5" y="798"/>
+<rect x="619" y="452" width="15" height="369" fill="url(#rib)"/>
+<path d="M622 454V819" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="626.5" y="462"/>
+<use href="#b" x="626.5" y="504"/>
+<use href="#b" x="626.5" y="546"/>
+<use href="#b" x="626.5" y="588"/>
+<use href="#b" x="626.5" y="630"/>
+<use href="#b" x="626.5" y="672"/>
+<use href="#b" x="626.5" y="714"/>
+<use href="#b" x="626.5" y="756"/>
+<use href="#b" x="626.5" y="798"/>
+<rect x="899" y="452" width="15" height="189" fill="url(#rib)"/>
+<path d="M902 454V639" stroke="#40adf5" stroke-opacity=".5" stroke-width="1"/>
+<use href="#b" x="906.5" y="462"/>
+<use href="#b" x="906.5" y="504"/>
+<use href="#b" x="906.5" y="546"/>
+<use href="#b" x="906.5" y="588"/>
+<use href="#b" x="906.5" y="630"/>
+<rect x="54" y="32" width="875" height="19" fill="url(#rail)"/>
+<path d="M54 51H929L925 61H57Z" fill="#004b87"/><path d="M58 35H925" stroke="#4eb9fc" stroke-width="2"/>
+<use href="#b" x="77" y="41"/>
+<use href="#b" x="907" y="41"/>
+<rect x="54" y="232" width="875" height="19" fill="url(#rail)"/>
+<path d="M54 251H929L925 261H57Z" fill="#004b87"/><path d="M58 235H925" stroke="#4eb9fc" stroke-width="2"/>
+<use href="#b" x="77" y="241"/>
+<use href="#b" x="907" y="241"/>
+<rect x="54" y="433" width="875" height="19" fill="url(#rail)"/>
+<path d="M54 452H929L925 462H57Z" fill="#004b87"/><path d="M58 436H925" stroke="#4eb9fc" stroke-width="2"/>
+<use href="#b" x="77" y="442"/>
+<use href="#b" x="907" y="442"/>
+<rect x="240" y="820" width="500" height="17" fill="url(#rail)"/>
+<path d="M243 823H737" stroke="#2dacff" stroke-width="1"/>
+<use href="#b" x="252" y="829"/>
+<use href="#b" x="728" y="829"/>
+<rect x="393" y="1004" width="195" height="16" fill="url(#rail)"/>
+<path d="M396 1007H585" stroke="#2dacff" stroke-width="1"/>
+<use href="#b" x="405" y="1013"/>
+<use href="#b" x="576" y="1013"/>
+<rect x="460" y="1089" width="62" height="19" fill="url(#rail)"/>
+<path d="M463 1092H519" stroke="#2dacff" stroke-width="1"/>
+<use href="#b" x="472" y="1098"/>
+<use href="#b" x="510" y="1098"/>
+<circle cx="103.00" cy="657.63" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="878.00" cy="657.63" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="117.00" cy="674.26" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="864.00" cy="674.26" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="131.00" cy="690.89" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="850.00" cy="690.89" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="145.00" cy="707.52" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="836.00" cy="707.52" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="159.00" cy="724.15" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="822.00" cy="724.15" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="173.00" cy="740.78" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="808.00" cy="740.78" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="187.00" cy="757.41" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="794.00" cy="757.41" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="201.00" cy="774.04" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="780.00" cy="774.04" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="215.00" cy="790.67" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="766.00" cy="790.67" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="229.00" cy="807.30" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="752.00" cy="807.30" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="271.00" cy="857.19" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="710.00" cy="857.19" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="285.00" cy="873.81" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="696.00" cy="873.81" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="299.00" cy="890.44" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="682.00" cy="890.44" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="313.00" cy="907.07" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="668.00" cy="907.07" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="327.00" cy="923.70" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="654.00" cy="923.70" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="341.00" cy="940.33" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="640.00" cy="940.33" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="355.00" cy="956.96" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="626.00" cy="956.96" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="369.00" cy="973.59" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="612.00" cy="973.59" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="383.00" cy="990.22" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="598.00" cy="990.22" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="425.00" cy="1040.11" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="556.00" cy="1040.11" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="439.00" cy="1056.74" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="542.00" cy="1056.74" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="453.00" cy="1073.37" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<circle cx="528.00" cy="1073.37" r="2" fill="url(#bolt)" stroke-width=".8"/>
+<g id="inspection-port"><ellipse cx="521" cy="127" rx="38" ry="34" fill="#003a76"/><path d="M486 107L485 129Q521 177 556 130L558 110Z" fill="url(#rail)"/><ellipse cx="523" cy="113" rx="35" ry="34" fill="#0788d9"/><ellipse cx="523" cy="113" rx="20" ry="21" fill="url(#hole)"/><path d="M493 98Q515 70 543 90" fill="none" stroke="#49bdff" stroke-width="1"/>
+<circle cx="551.00" cy="113.00" r="2.3" fill="#00274c" stroke-width="1"/>
+<circle cx="542.80" cy="132.09" r="2.3" fill="#00274c" stroke-width="1"/>
+<circle cx="523.00" cy="140.00" r="2.3" fill="#00274c" stroke-width="1"/>
+<circle cx="503.20" cy="132.09" r="2.3" fill="#00274c" stroke-width="1"/>
+<circle cx="495.00" cy="113.00" r="2.3" fill="#00274c" stroke-width="1"/>
+<circle cx="503.20" cy="93.91" r="2.3" fill="#00274c" stroke-width="1"/>
+<circle cx="523.00" cy="86.00" r="2.3" fill="#00274c" stroke-width="1"/>
+<circle cx="542.80" cy="93.91" r="2.3" fill="#00274c" stroke-width="1"/>
+</g></g></svg>

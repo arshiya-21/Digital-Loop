@@ -1,0 +1,18 @@
+{
+  "name": "@sandman/frontend",
+  "version": "2.0.0",
+  "description": "Digital Loop — the SandMan Digital Loop Studio (vendored in studio/) plus the integration that makes it this application (app/sandman/).",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node studio/patch.mjs --watch",
+    "build": "node studio/patch.mjs",
+    "check": "node studio/patch.mjs --check",
+    "test": "node tests/studio-test.mjs && node tests/live-test.mjs",
+    "test:studio": "node tests/studio-test.mjs",
+    "test:live": "node tests/live-test.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

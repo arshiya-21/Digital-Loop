@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 128" width="96" height="128"><g class="eq" data-state="run"><style>
+.eq{--c-run:var(--sm-run,#2fa84f);--c-stop:var(--sm-stop,#9aa3a9);--c-fault:var(--sm-fault,#e5484d);--c-closed:var(--sm-closed,#c9302c);--c-travel:var(--sm-travel,#e8b21c);--c-manual:var(--sm-manual,#e08a2c);--st:var(--c-stop);--level:.6;--angle:40deg}
+.eq[data-state="run"],.eq[data-state="open"]{--st:var(--c-run)}
+.eq[data-state="stop"]{--st:var(--c-stop)}
+.eq[data-state="closed"]{--st:var(--c-closed)}
+.eq[data-state="travel"]{--st:var(--c-travel)}
+.eq[data-state="manual"]{--st:var(--c-manual)}
+.eq[data-state="fault"]{--st:var(--c-fault)}
+.eq .st{fill:var(--st);transition:fill .3s}
+.eq .st-s{stroke:var(--st);transition:stroke .3s}
+.eq[data-state="fault"] .st,.eq[data-state="fault"] .st-s{animation:sm-blink 1s steps(2,jump-none) infinite}
+.eq .spin{transform-box:fill-box;transform-origin:center}
+.eq[data-state="run"] .spin{animation:sm-spin 2.4s linear infinite}
+.eq .lvl{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(var(--level))}
+.eq .needle{transform-box:view-box;transform-origin:var(--nx,50px) var(--ny,50px);transform:rotate(var(--angle))}
+.eq[data-state="run"] .flow{animation:sm-flow 1.2s linear infinite}
+@keyframes sm-blink{50%{opacity:.25}}@keyframes sm-spin{to{transform:rotate(360deg)}}@keyframes sm-flow{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion:reduce){.eq *{animation:none!important}}
+</style><defs>
+<linearGradient id="smbuttonst-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4d9dc"/><stop offset=".45" stop-color="#9aa2a8"/><stop offset="1" stop-color="#5d666c"/></linearGradient>
+<linearGradient id="smbuttonst-steelh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5d666c"/><stop offset=".35" stop-color="#cfd5d8"/><stop offset=".6" stop-color="#a3abb0"/><stop offset="1" stop-color="#565f65"/></linearGradient>
+<linearGradient id="smbuttonst-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b545a"/><stop offset="1" stop-color="#262c30"/></linearGradient>
+<radialGradient id="smbuttonst-glass" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs><rect x="6" y="4" width="84" height="120" rx="8" fill="url(#smbuttonst-steel)" stroke="#1f262b" stroke-width="1.6"/><rect x="12" y="10" width="72" height="108" rx="5" fill="#2b3237"/>
+<circle cx="48" cy="42" r="19" fill="#1b2125"/><circle cx="48" cy="42" r="15" fill="#2fa84f" stroke="#145c28" stroke-width="2"/><text x="48" y="46.5" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="800" fill="#fff">START</text>
+<circle cx="48" cy="88" r="19" fill="#1b2125"/><circle cx="48" cy="88" r="15" fill="#c9302c" stroke="#6e1612" stroke-width="2"/><text x="48" y="92.5" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="800" fill="#fff">STOP</text><circle cx="76" cy="18" r="5.1" fill="#1b2125"/><circle class="st" cx="76" cy="18" r="3.5"/><circle cx="74.8" cy="16.8" r="1.4000000000000001" fill="#fff" opacity=".55"/></g></svg>

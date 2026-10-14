@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="510" viewBox="0 0 1200 510" fill="none">
+<title>DISA-reference moulding line — blue front elevation</title>
+<desc>Illustrative straight-on full-line elevation based on the supplied perspective photo, not a dimensional reconstruction. Main moulding enclosure at left, raised process station and safety rails at centre, control cabinet and outgoing conveyor at right. Transparent background. Editable grouped vectors.</desc>
+<defs>
+<linearGradient id="dl-body" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#338CD0"/><stop offset=".4" stop-color="#87C8F3"/><stop offset="1" stop-color="#3F95D7"/></linearGradient>
+<linearGradient id="dl-dark" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#3885C8"/><stop offset="1" stop-color="#1A5194"/></linearGradient>
+<linearGradient id="dl-steel" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#939DA1"/><stop offset=".4" stop-color="#EEF1ED"/><stop offset=".7" stop-color="#CAD2D0"/><stop offset="1" stop-color="#929D9F"/></linearGradient>
+<linearGradient id="dl-rail" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFE896"/><stop offset="1" stop-color="#E4AF32"/></linearGradient>
+</defs>
+<g stroke="#476476" stroke-width="1.8" stroke-linejoin="round">
+<g id="main-enclosure">
+<rect x="30" y="110" width="270" height="315" rx="2" fill="url(#dl-body)"/>
+<rect x="30" y="104" width="270" height="12" fill="url(#dl-dark)"/>
+<rect x="37" y="417" width="256" height="14" fill="url(#dl-dark)"/>
+<path d="M42 119 H288 M44 120 V411" stroke="#B6E0F6"/>
+<rect x="42" y="134" width="76" height="268" rx="1" fill="none" stroke="#509CD0"/><rect x="103" y="227" width="4" height="65" rx="1" fill="#2768A0" stroke="#2768A0"/><path d="M46 138 H112" stroke="#B9DFF4"/><rect x="121" y="134" width="76" height="268" rx="1" fill="none" stroke="#509CD0"/><rect x="182" y="227" width="4" height="65" rx="1" fill="#2768A0" stroke="#2768A0"/><path d="M125 138 H191" stroke="#B9DFF4"/><rect x="200" y="134" width="76" height="268" rx="1" fill="none" stroke="#509CD0"/><rect x="261" y="227" width="4" height="65" rx="1" fill="#2768A0" stroke="#2768A0"/><path d="M204 138 H270" stroke="#B9DFF4"/><path d="M46 433 H79 V443 H46 Z M247 433 H281 V443 H247 Z" fill="url(#dl-dark)"/>
+<rect x="280" y="198" width="167" height="48" fill="url(#dl-dark)"/>
+<rect x="300" y="246" width="139" height="172" fill="url(#dl-body)"/>
+<rect x="321" y="264" width="94" height="112" fill="#294D65"/>
+<rect x="334" y="276" width="70" height="72" fill="url(#dl-steel)"/>
+<path d="M346 279 V344 M393 279 V344" stroke="#758D98" stroke-width="4"/>
+<rect x="312" y="375" width="119" height="27" fill="url(#dl-dark)"/>
+<rect x="295" y="242" width="20" height="194" fill="url(#dl-dark)"/>
+<rect x="425" y="242" width="18" height="194" fill="url(#dl-dark)"/>
+</g>
+<g id="top-drive-and-services">
+<rect x="255" y="135" width="69" height="64" rx="4" fill="url(#dl-body)"/>
+<rect x="270" y="109" width="27" height="30" rx="3" fill="url(#dl-body)"/>
+<rect x="275" y="99" width="17" height="11" fill="url(#dl-dark)"/>
+<path d="M312 153 H333 V131 H399 V192" stroke="#287CC0" stroke-width="10"/>
+<path d="M313 150 H330 V128 H399" stroke="#99D5F0" stroke-width="2"/>
+<path d="M97 104 V88 M119 104 V81 M141 104 V90 M163 104 V86 M185 104 V93" stroke="#3389C9" stroke-width="5"/>
+</g>
+<g id="process-base">
+<rect x="447" y="350" width="425" height="71" fill="url(#dl-body)"/>
+<rect x="439" y="340" width="442" height="15" fill="url(#dl-steel)"/>
+<rect x="441" y="420" width="438" height="13" fill="url(#dl-dark)"/>
+<rect x="466" y="362" width="70" height="49" fill="none" stroke="#388DCD"/><rect x="475" y="432" width="11" height="34" fill="url(#dl-body)"/><rect x="468" y="465" width="25" height="6" fill="url(#dl-dark)"/><rect x="548" y="362" width="70" height="49" fill="none" stroke="#388DCD"/><rect x="557" y="432" width="11" height="34" fill="url(#dl-body)"/><rect x="550" y="465" width="25" height="6" fill="url(#dl-dark)"/><rect x="630" y="362" width="70" height="49" fill="none" stroke="#388DCD"/><rect x="639" y="432" width="11" height="34" fill="url(#dl-body)"/><rect x="632" y="465" width="25" height="6" fill="url(#dl-dark)"/><rect x="712" y="362" width="70" height="49" fill="none" stroke="#388DCD"/><rect x="721" y="432" width="11" height="34" fill="url(#dl-body)"/><rect x="714" y="465" width="25" height="6" fill="url(#dl-dark)"/><rect x="794" y="362" width="70" height="49" fill="none" stroke="#388DCD"/><rect x="803" y="432" width="11" height="34" fill="url(#dl-body)"/><rect x="796" y="465" width="25" height="6" fill="url(#dl-dark)"/></g>
+<g id="raised-platform">
+<rect x="531" y="285" width="343" height="24" fill="url(#dl-dark)"/>
+<path d="M533 287 H872" stroke="#A8D9F5" stroke-width="2"/>
+<rect x="543" y="309" width="12" height="110" fill="url(#dl-body)"/>
+<rect x="844" y="309" width="12" height="110" fill="url(#dl-body)"/>
+<path d="M555 313 L610 369 M844 313 L790 369" stroke="#3C82B4" stroke-width="8"/>
+</g>
+<g id="process-head">
+<rect x="604" y="108" width="67" height="139" rx="4" fill="url(#dl-steel)"/>
+<rect x="612" y="97" width="50" height="12" rx="2" fill="url(#dl-steel)"/>
+<rect x="620" y="78" width="34" height="20" fill="url(#dl-steel)"/>
+<path d="M631 79 V33 H645" stroke="#A6B1B0" stroke-width="10"/>
+<path d="M637 82 H676 V62 H648 V33" stroke="#C85B55" stroke-width="3"/>
+<rect x="623" y="247" width="22" height="18" fill="url(#dl-steel)"/>
+<rect x="590" y="263" width="96" height="15" fill="url(#dl-steel)"/>
+<rect x="580" y="278" width="113" height="7" fill="#868F91"/>
+<rect x="684" y="159" width="21" height="103" fill="url(#dl-steel)"/>
+<rect x="688" y="137" width="13" height="22" fill="#CECEBB"/>
+<rect x="691" y="126" width="7" height="12" fill="#EA9A42"/>
+<rect x="710" y="246" width="61" height="37" rx="2" fill="url(#dl-steel)"/>
+<path d="M613 144 V230 M655 127 V230" stroke="#98AAA7"/>
+<path d="M667 199 H677 V257 H696" stroke="#586E72" stroke-width="4"/>
+<rect x="585" y="229" width="22" height="31" rx="2" fill="url(#dl-body)"/>
+<rect x="561" y="264" width="21" height="19" fill="url(#dl-steel)"/>
+</g>
+<g id="operator-console">
+<rect x="832" y="134" width="77" height="151" rx="2" fill="url(#dl-body)"/>
+<rect x="839" y="147" width="63" height="109" fill="#EAF0EB"/>
+<rect x="842" y="151" width="57" height="21" fill="#9BA9A8"/>
+<rect x="848" y="177" width="45" height="43" rx="2" fill="#78959E"/>
+<rect x="852" y="181" width="37" height="35" fill="#BEDCE4"/>
+<path d="M856 207 H862 V197 H869 V201 H875 V188 H886" stroke="#5C949E" stroke-width="2"/>
+<rect x="858" y="262" width="25" height="7" fill="#22557C"/>
+<path d="M869 134 V105" stroke="#388FC9" stroke-width="5"/>
+<rect x="847" y="92" width="44" height="15" fill="#68B9E9"/>
+<path d="M842 133 V125" stroke="#EF983E" stroke-width="6"/>
+</g>
+<g id="outfeed-conveyor">
+<rect x="878" y="391" width="304" height="18" fill="url(#dl-steel)"/>
+<rect x="878" y="410" width="304" height="15" fill="url(#dl-body)"/>
+<path d="M880 394 H1180" stroke="#EEF2EC" stroke-width="2"/>
+<path d="M885 395 V406" stroke="#788687" stroke-width="3"/><path d="M907 395 V406" stroke="#788687" stroke-width="3"/><path d="M929 395 V406" stroke="#788687" stroke-width="3"/><path d="M951 395 V406" stroke="#788687" stroke-width="3"/><path d="M973 395 V406" stroke="#788687" stroke-width="3"/><path d="M995 395 V406" stroke="#788687" stroke-width="3"/><path d="M1017 395 V406" stroke="#788687" stroke-width="3"/><path d="M1039 395 V406" stroke="#788687" stroke-width="3"/><path d="M1061 395 V406" stroke="#788687" stroke-width="3"/><path d="M1083 395 V406" stroke="#788687" stroke-width="3"/><path d="M1105 395 V406" stroke="#788687" stroke-width="3"/><path d="M1127 395 V406" stroke="#788687" stroke-width="3"/><path d="M1149 395 V406" stroke="#788687" stroke-width="3"/><path d="M1171 395 V406" stroke="#788687" stroke-width="3"/><rect x="895" y="425" width="10" height="57" fill="url(#dl-body)"/><rect x="890" y="481" width="22" height="6" fill="url(#dl-dark)"/><rect x="969" y="425" width="10" height="57" fill="url(#dl-body)"/><rect x="964" y="481" width="22" height="6" fill="url(#dl-dark)"/><rect x="1043" y="425" width="10" height="57" fill="url(#dl-body)"/><rect x="1038" y="481" width="22" height="6" fill="url(#dl-dark)"/><rect x="1153" y="425" width="10" height="57" fill="url(#dl-body)"/><rect x="1148" y="481" width="22" height="6" fill="url(#dl-dark)"/><path d="M911 451 H1152" stroke="#458ABD" stroke-width="5"/>
+</g>
+<g id="transfer-guides" fill="url(#dl-steel)">
+<rect x="400" y="357" width="118" height="12" rx="2"/>
+<path d="M460 370 H470 V477 H483 V484 H446 V477 H460 Z"/>
+<rect x="739" y="376" width="169" height="12" rx="2"/>
+<path d="M775 389 H785 V477 H798 V484 H761 V477 H775 Z"/>
+</g>
+<g id="access-ladder" stroke="#568EA9" stroke-width="4">
+<path d="M715 310 V462 M747 310 V462"/>
+<path d="M715 332 H747 M715 353 H747 M715 374 H747 M715 395 H747 M715 416 H747 M715 437 H747 M715 458 H747"/>
+</g>
+<g id="yellow-safety-railing" stroke="url(#dl-rail)" stroke-width="5" stroke-linecap="round">
+<path d="M530 283 V178 H811 V283 M530 224 H811 M599 178 V283 M670 178 V283 M742 178 V283 M530 282 H811"/>
+<path d="M349 265 V159 H432 V277 M349 205 H432 M390 160 V271"/>
+</g>
+<g id="platform-toeboard"><rect x="527" y="280" width="289" height="8" fill="#E8BB43" stroke="#CAA140"/></g>
+</g>
+</svg>

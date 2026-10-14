@@ -1,0 +1,192 @@
+-- Digital Loop — schema.
+--
+-- SQLite, because it needs no service and no native build (node:sqlite ships
+-- with Node). Plain SQL, and it moves to PostgreSQL unchanged apart from the
+-- id defaults and the JSON column type.
+--
+-- THIS DATABASE HOLDS DESIGNS, THE EQUIPMENT CATALOGUE, AND — SINCE THE
+-- "ADD DATABASE" FEATURE — CREDENTIALS FOR PLANT DATABASES SOMEBODY REGISTERED.
+--
+-- There is no foundry table, no line table and no user table, deliberately.
+-- SandMan owns the organisation and the accounts; Digital Loop never connects
+-- to SandMan's own database and never keeps a second copy of it. What a person
+-- may see arrives with their launch, is held in the session for as long as it
+-- lasts, and is gone afterwards — see backend/src/services/session-store.js.
+--
+-- `db_connection` is the exception, and it was asked for deliberately: a
+-- database somebody adds in the studio is one this service connects to itself,
+-- so its password and SSH key live here. They are encrypted with a key that
+-- must come from the environment — see backend/src/services/secrets.js — which
+-- means this file alone is not enough to use them. Back it up accordingly.
+--
+-- So a design records the foundry and line it belongs to as SandMan's own
+-- identifiers, with the names alongside them for display. The names are a
+-- snapshot: if a line is renamed in SandMan, the session's copy wins and the
+-- stored one is refreshed the next time somebody opens that design.
+PRAGMA journal_mode = WAL;
+PRAGMA foreign_keys = ON;
+
+/*
+ * One design per foundry + line. Enforced by the UNIQUE below rather than by
+ * convention, because "a line has one loop" is the rule the whole studio is
+ * built on: choosing a line is choosing a design.
+ *
+ * `foundry_id` and `line_id` are SandMan's ids, not ours. `created_by` is a
+ * SandMan username, not a foreign key — there is nothing here to point at.
+ */
+CREATE TABLE IF NOT EXISTS design (
+  id                    TEXT PRIMARY KEY,
+  foundry_id            TEXT NOT NULL,
+  foundry_name          TEXT NOT NULL,
+  line_id               TEXT NOT NULL,
+  line_name             TEXT NOT NULL,
+  name                  TEXT NOT NULL,
+  status                TEXT NOT NULL CHECK (status IN ('draft','published','archived')),
+  published_version_id  TEXT REFERENCES design_version(id) ON DELETE SET NULL,
+  created_by            TEXT NOT NULL,
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL,
+  UNIQUE (foundry_id, line_id)
+);
+
+CREATE INDEX IF NOT EXISTS design_by_line ON design(foundry_id, line_id, status);
+
+-- Immutable snapshots. Publishing points at one of these, so an admin can keep
+-- editing the draft without changing what operators see.
+CREATE TABLE IF NOT EXISTS design_version (
+  id          TEXT PRIMARY KEY,
+  design_id   TEXT NOT NULL REFERENCES design(id) ON DELETE CASCADE,
+  version     INTEGER NOT NULL,
+  layout      TEXT NOT NULL,
+  note        TEXT,
+  created_by  TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  UNIQUE (design_id, version)
+);
+
+-- There is no per-user allocation table, deliberately. Publishing is the whole
+-- of visibility: a published design is visible to everyone whose session names
+-- that foundry, and the launch is what grants that.
+
+-- Every data tag used by a design version, so the gateway knows what to
+-- subscribe to for a line without parsing the layout.
+-- One row per tag, not one per piece of equipment.
+--
+-- A node carries up to six data labels, each with its own tag — moisture,
+-- compactability and temperature on the one mixer — and a gateway subscribes
+-- to every one of them. Keying this on (version_id, node_id) alone said a
+-- piece of equipment reports a single number: the second label hit a
+-- constraint error and took the whole save down with it.
+CREATE TABLE IF NOT EXISTS design_tag (
+  version_id  TEXT NOT NULL REFERENCES design_version(id) ON DELETE CASCADE,
+  node_id     TEXT NOT NULL,
+  data_tag    TEXT NOT NULL,
+  PRIMARY KEY (version_id, node_id, data_tag)
+);
+
+CREATE INDEX IF NOT EXISTS tag_lookup ON design_tag(data_tag);
+
+-- The equipment catalogue. Rows here are what the SVG API manages and what
+-- layout validation accepts as node types. Shared across every foundry, which
+-- is why it is not scoped to one.
+CREATE TABLE IF NOT EXISTS asset (
+  id             TEXT PRIMARY KEY,
+  slug           TEXT NOT NULL UNIQUE,
+  name           TEXT NOT NULL,
+  category       TEXT NOT NULL,
+  width          INTEGER NOT NULL,
+  height         INTEGER NOT NULL,
+  bytes          INTEGER NOT NULL,
+  revision       INTEGER NOT NULL DEFAULT 1,
+  builtin        INTEGER NOT NULL DEFAULT 0,
+  uploaded_by    TEXT,
+  created_at     TEXT NOT NULL,
+  updated_at     TEXT NOT NULL
+);
+
+-- `actor_id` is a SandMan username. Same reasoning as design.created_by.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id         TEXT PRIMARY KEY,
+  actor_id   TEXT,
+  action     TEXT NOT NULL,
+  entity     TEXT NOT NULL,
+  entity_id  TEXT,
+  detail     TEXT,
+  at         TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS audit_by_entity ON audit_log(entity, entity_id, at);
+
+/*
+ * One SandMan launch.
+ *
+ * SandMan mints a ticket server-to-server, then sends the browser here with
+ * it. Redeeming exchanges it for a session. Short-lived and single-use, so a
+ * link cannot be forwarded, bookmarked or replayed.
+ *
+ * `payload` is the whole launch body as JSON — who is arriving, their role,
+ * the foundry and every line they may see. It is the only description of the
+ * organisation this application ever holds, and it lives exactly as long as
+ * the ticket does.
+ */
+CREATE TABLE IF NOT EXISTS launch_ticket (
+  id           TEXT PRIMARY KEY,
+  payload      TEXT NOT NULL,
+  issued_at    TEXT NOT NULL,
+  expires_at   TEXT NOT NULL,
+  redeemed_at  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ticket_by_expiry ON launch_ticket(expires_at);
+
+/*
+ * A plant database somebody registered in the studio.
+ *
+ * ⚠ THE ONLY TABLE HERE THAT HOLDS A CREDENTIAL.
+ *
+ * The foundry's own database arrives named-but-unreachable with the SandMan
+ * launch, and is never connected to. This is the other kind: a database an
+ * administrator added by hand, which this service connects to itself to read
+ * its tables. That means holding a password, and — when the host is only
+ * reachable through a jump box — an SSH private key.
+ *
+ * `password` and `tunnel_private_key` are ciphertext, never the value. They
+ * are sealed with AES-256-GCM under a key that must be supplied in the
+ * environment (DL_SECRET_KEY), so a copy of this file is not a copy of the
+ * credentials. `tunnel_public_key` is deliberately plain: it is public, and it
+ * is what somebody installs on the jump box.
+ *
+ * Connections are shared across the whole installation rather than scoped to a
+ * foundry: the person adding one is an administrator describing plant
+ * infrastructure, and the same historian commonly serves several lines. Only
+ * an administrator may see or change them, and no endpoint ever returns a
+ * secret — see backend/src/routes/connections.js.
+ */
+CREATE TABLE IF NOT EXISTS db_connection (
+  id                  TEXT PRIMARY KEY,
+  label               TEXT NOT NULL,
+  engine              TEXT NOT NULL CHECK (engine IN ('mysql','sqlserver')),
+  host                TEXT NOT NULL,
+  port                INTEGER NOT NULL,
+  database_name       TEXT NOT NULL,
+  username            TEXT NOT NULL,
+  -- Sealed. Null when the server takes no password (rare, but not ours to refuse).
+  password            TEXT,
+  -- Whether to demand TLS to the database itself. Independent of the tunnel.
+  use_tls             INTEGER NOT NULL DEFAULT 0,
+  -- The jump box, when the database is not directly reachable. All null when
+  -- the connection is direct, which is the "without" case.
+  tunnel_host         TEXT,
+  tunnel_port         INTEGER,
+  tunnel_user         TEXT,
+  tunnel_private_key  TEXT,
+  tunnel_public_key   TEXT,
+  -- What the last test said, so the panel can show it without reconnecting.
+  last_tested_at      TEXT,
+  last_test_ok        INTEGER,
+  last_test_error     TEXT,
+  created_by          TEXT NOT NULL,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL,
+  UNIQUE (label)
+);

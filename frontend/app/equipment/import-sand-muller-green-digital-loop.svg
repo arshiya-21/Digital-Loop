@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="450" height="520" viewBox="0 0 450 520" fill="none">
+  <title>Sand muller — bright teal green, Digital Loop</title>
+  <desc>Editable 2D front-elevation illustration based on the supplied sand muller photograph. Brightened original teal-green finish, cylindrical drum, auxiliary drives, support frame, lower gear drive, yellow safety guard and dark base. Transparent background. Schematic, not a fabrication drawing.</desc>
+  <defs>
+    <linearGradient id="sm-drum" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#168A79"/><stop offset=".28" stop-color="#25B29C"/><stop offset=".6" stop-color="#63D2BD"/><stop offset=".82" stop-color="#2DB8A2"/><stop offset="1" stop-color="#168D7C"/>
+    </linearGradient>
+    <linearGradient id="sm-frame" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#168575"/><stop offset=".45" stop-color="#45BFA8"/><stop offset="1" stop-color="#219B86"/>
+    </linearGradient>
+    <linearGradient id="sm-motor" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#1B8D7C"/><stop offset=".45" stop-color="#57C9B3"/><stop offset="1" stop-color="#167E6C"/>
+    </linearGradient>
+    <linearGradient id="sm-steel" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#84948E"/><stop offset=".45" stop-color="#E6EEEA"/><stop offset="1" stop-color="#8DA19A"/>
+    </linearGradient>
+    <linearGradient id="sm-guard" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#DBA52D"/><stop offset=".5" stop-color="#FFE076"/><stop offset="1" stop-color="#EDBA38"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#226A5F" stroke-width="2" stroke-linejoin="round">
+    <g id="base">
+      <rect x="30" y="474" width="390" height="18" rx="2" fill="#495653" stroke="#37423F"/>
+      <rect x="39" y="492" width="372" height="8" fill="#303D39" stroke="#37423F"/>
+      <path d="M35 477 H415" stroke="#7B8983"/>
+    </g>
+    <g id="rear-supports" fill="#158E79">
+      <rect x="175" y="310" width="20" height="163"/><rect x="338" y="310" width="20" height="163"/>
+      <path d="M191 326 L338 445 V459 L191 340 Z" fill="#278D79"/>
+    </g>
+    <g id="lower-gear-drive">
+      <rect x="255" y="323" width="25" height="77" fill="url(#sm-steel)"/>
+      <rect x="239" y="380" width="56" height="15" rx="2" fill="#288E79"/>
+      <path d="M222 398 Q269 382 315 398 V451 Q269 466 222 451 Z" fill="url(#sm-frame)"/>
+      <ellipse cx="269" cy="398" rx="47" ry="10" fill="#4AC2A7"/>
+      <path d="M223 416 Q269 428 315 416 M223 445 Q269 456 315 445" stroke="#227864"/>
+      <rect x="213" y="453" width="113" height="13" rx="2" fill="#268E79"/>
+      <rect x="190" y="415" width="33" height="26" rx="3" fill="url(#sm-motor)"/>
+      <path d="M240 402 V448 M298 402 V448" stroke="#63CDB3" stroke-width="3"/>
+    </g>
+    <g id="main-drive-motor">
+      <rect x="63" y="399" width="77" height="59" rx="9" fill="url(#sm-motor)"/>
+      <rect x="52" y="404" width="20" height="50" rx="8" fill="url(#sm-frame)"/>
+      <rect x="137" y="414" width="19" height="31" rx="2" fill="#1B8875"/>
+      <path d="M79 405 V451 M87 405 V451 M95 405 V451 M103 405 V451 M111 405 V451 M119 405 V451 M127 405 V451" stroke="#1B8B78"/>
+      <rect x="82" y="390" width="32" height="12" rx="2" fill="#43B69D"/>
+      <path d="M72 457 V473 H127 V457" fill="#268C77"/>
+    </g>
+    <g id="yellow-drive-guard" stroke="#9B7924">
+      <path d="M153 391 Q170 385 186 392 V467 H153 Z" fill="url(#sm-guard)"/>
+      <path d="M159 398 L180 402 M159 407 L180 411 M159 416 L180 420 M159 425 L180 429 M159 434 L180 438 M159 443 L180 447 M159 452 L180 456" stroke="#8C762F" stroke-width="3"/>
+      <path d="M156 393 V463" stroke="#FFF0A1"/>
+    </g>
+    <g id="front-support-frame" fill="url(#sm-frame)">
+      <path d="M201 306 H225 L218 474 H197 Z"/>
+      <path d="M366 306 H388 V474 H369 Z"/>
+      <rect x="190" y="303" width="204" height="26" rx="1"/>
+      <rect x="192" y="469" width="32" height="6" fill="#1A7767"/>
+      <rect x="364" y="469" width="30" height="6" fill="#1A7767"/>
+      <path d="M205 332 L201 465 M373 332 V465" stroke="#7CDCC1"/>
+    </g>
+    <g id="drum">
+      <path d="M154 73 Q267 47 383 73 V298 Q267 322 154 298 Z" fill="url(#sm-drum)"/>
+      <ellipse cx="268.5" cy="73" rx="114.5" ry="19" fill="#38B59E"/>
+      <path d="M157 72 Q267 43 380 72" stroke="#90E3CB" stroke-width="3"/>
+      <path d="M154 167 Q267 189 383 167" stroke="#166E62" stroke-width="3"/>
+      <path d="M156 172 Q267 194 381 172" stroke="#8CE3CB" stroke-width="1.5"/>
+      <path d="M154 283 Q267 306 383 283 V300 Q267 323 154 300 Z" fill="#2AA48C"/>
+      <path d="M157 286 Q267 309 380 286" stroke="#72D1B4"/>
+      <path d="M244 91 V164" stroke="#218D79"/>
+      <rect x="238" y="104" width="11" height="9" rx="1" fill="#268B76"/>
+      <rect x="238" y="148" width="11" height="9" rx="1" fill="#268B76"/>
+      <path d="M354 99 V158 H360 V99" stroke="#197662"/>
+      <rect x="310" y="94" width="24" height="14" rx="2" fill="#D8E8DE" stroke="#558D7A"/>
+      <path d="M314 99 H330 M314 103 H326" stroke="#6F9183" stroke-width="1"/>
+    </g>
+    <g id="upper-left-drive">
+      <rect x="100" y="90" width="60" height="17" rx="2" fill="url(#sm-frame)"/>
+      <rect x="105" y="107" width="39" height="71" rx="5" fill="url(#sm-motor)"/>
+      <rect x="101" y="111" width="47" height="10" rx="2" fill="#218A76"/>
+      <path d="M112 128 V167 M120 128 V167 M128 128 V167 M136 128 V167" stroke="#1B8C78"/>
+      <rect x="107" y="176" width="36" height="6" rx="2" fill="#258F7A"/>
+      <path d="M147 118 H154 V166 H147" fill="url(#sm-steel)"/>
+    </g>
+    <g id="right-attachment" fill="url(#sm-frame)">
+      <rect x="383" y="115" width="23" height="14" rx="1"/>
+      <rect x="388" y="129" width="19" height="57" rx="3"/>
+      <rect x="392" y="137" width="10" height="23" fill="url(#sm-steel)"/>
+      <path d="M383 214 H394 V224 H383 M383 252 H395 V263 H383"/>
+    </g>
+    <g id="front-hardware">
+      <path d="M169 226 V212 Q169 203 178 203 Q187 203 187 212 V226" stroke="#D9EAE0" stroke-width="4"/>
+      <rect x="164" y="224" width="29" height="8" rx="2" fill="url(#sm-steel)"/>
+      <rect x="201" y="222" width="11" height="24" rx="2" fill="url(#sm-steel)"/>
+      <path d="M207 222 V215" stroke="#D8E8DE" stroke-width="3"/>
+      <rect x="244" y="295" width="70" height="23" rx="2" fill="#299B83"/>
+      <rect x="240" y="302" width="51" height="12" rx="5" fill="url(#sm-steel)"/>
+      <path d="M291 308 H320" stroke="#8ABDA7" stroke-width="4"/>
+    </g>
+  </g>
+  <g id="fasteners" fill="#C2E8D6">
+    <circle cx="160" cy="294" r="2"/><circle cx="181" cy="299" r="2"/>
+    <circle cx="349" cy="301" r="2"/><circle cx="377" cy="294" r="2"/>
+    <circle cx="206" cy="316" r="2.5"/><circle cx="378" cy="316" r="2.5"/>
+    <circle cx="231" cy="401" r="2"/><circle cx="305" cy="401" r="2"/>
+  </g>
+</svg>

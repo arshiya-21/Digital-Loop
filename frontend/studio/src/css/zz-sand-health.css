@@ -1,0 +1,43 @@
+/* v9.42 — Sand Health Index */
+#Lshi .shibadge{cursor:pointer}
+.shistat{border:0;background:transparent;font:600 12px var(--sans);cursor:pointer;padding:0 8px;white-space:nowrap}
+.shistat.b-ok{color:#15803d}.shistat.b-watch{color:#a16207}.shistat.b-poor{color:#b91c1c}
+.pbar .p7{background:#0f766e;color:#fff}
+.shi{display:flex;flex-direction:column;gap:12px;min-width:min(980px,90vw)}
+.shi h3{margin:0}.shi h4{margin:0 0 8px;font-size:13px}
+.shi-us{display:flex;flex-wrap:wrap;gap:8px}
+.shi-u{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:120px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font:inherit;cursor:pointer;color:var(--text)}
+.shi-u b{font-size:22px;line-height:1.1}.shi-u small{color:var(--muted)}.shi-u.on{border-color:#5b3fc4;box-shadow:inset 0 0 0 1px #5b3fc4;background:#f6f3ff}
+[data-theme="dark"] .shi-u.on{background:#1e1840}
+.shi-g{display:grid;grid-template-columns:220px minmax(0,1fr);gap:12px}
+.shi-g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.shi-g2>section,.shi-score,.shi-parts{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.shi-score{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center}
+.shi-big{font:700 54px/1 var(--sans)}.shi-bl{font-weight:700;font-size:15px}
+.shi-score.b-ok .shi-big,.shi-score.b-ok .shi-bl{color:#15803d}.shi-score.b-watch .shi-big,.shi-score.b-watch .shi-bl{color:#a16207}.shi-score.b-poor .shi-big,.shi-score.b-poor .shi-bl{color:#b91c1c}
+.shi-ar{font-weight:600;color:var(--muted);font-size:12px}.shi-ar.up{color:#15803d}.shi-ar.dn{color:#b91c1c}
+.shi-parts{display:flex;flex-direction:column;gap:9px}
+.shi-part{display:grid;grid-template-columns:170px minmax(0,1fr) 34px;align-items:center;gap:10px}
+.shi-part small{color:var(--muted);font-weight:400}.shi-part>b{text-align:right}
+.shi-part .shi-pn{grid-column:2/4;margin-top:-6px;font-size:11px}
+.shi-pb{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}.shi-pb i{display:block;height:8px;border-radius:4px}
+.shi-c{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}.shi-c li.s2{color:#b91c1c;font-weight:600}
+.shi-act{margin-top:10px;background:var(--panel2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.shi-ab{display:flex;gap:8px;margin-top:6px}
+.shi-spark{width:100%;height:auto;display:block}
+.shi-t td,.shi-t th{white-space:nowrap}.shi-sc{font-weight:700}
+.shi-how summary{cursor:pointer;color:var(--muted)}.shi-how p{margin:6px 0 0;color:var(--muted);line-height:1.5}
+.shi-ix .shi-ixr{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:6px 8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.shi-ix .shi-ixr small{grid-column:1/4;color:var(--muted)}
+.shi-pill{font-weight:700;color:#fff;border-radius:999px;padding:1px 8px;justify-self:start}
+.shi-pill.b-ok{background:#15803d}.shi-pill.b-watch{background:#a16207}.shi-pill.b-poor{background:#b91c1c}.shi-pill.b-nd{background:#66758c}
+.shi-ix .ix-acts{display:flex;margin-top:6px}.shi-ix .ix-acts .ib{flex:1;justify-content:center}
+@media (max-width:900px){.shi-g,.shi-g2{grid-template-columns:1fr}}
+.shi-col{padding:24px 0;text-align:center}
+/* v9.43 — Traceability button in the Publish bar */
+.pbar .p8{background:#4338ca;color:#fff}
+.pbar .p8.on{background:#1f9d55;color:#fff}
+/* v9.43 — the Publish bar now has two more buttons (Sand health, Traceability): compact sooner so labels never cut */
+@media (max-width: 1840px) { body.present .pbar button { min-width: 0; padding: 9px 11px; font-size: 12.5px; } }
+@media (max-width: 1480px) { body.present .pbar { gap: 5px; } body.present .pbar button { padding: 9px 9px; } body.present .pbar .pinfo #pState { display: none; } } /* same height as before: the publish area keeps its size */
+@media (max-width: 1180px) { body.present .pbar { flex-wrap: wrap; overflow: visible; } }

@@ -1,0 +1,858 @@
+[
+  {
+    "id": "raw-hopper",
+    "name": "Raw sand hopper",
+    "category": "Raw materials",
+    "w": 130,
+    "h": 160,
+    "kind": "bin"
+  },
+  {
+    "id": "additive-hopper",
+    "name": "Additive hopper",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 150,
+    "kind": "bin"
+  },
+  {
+    "id": "steel-hopper",
+    "name": "Steel hopper",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 165,
+    "kind": "bin"
+  },
+  {
+    "id": "silo",
+    "name": "Storage silo",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 185,
+    "kind": "silo"
+  },
+  {
+    "id": "twin-silo",
+    "name": "Middle silos",
+    "category": "Raw materials",
+    "w": 175,
+    "h": 180,
+    "kind": "twin"
+  },
+  {
+    "id": "slide-gate",
+    "name": "Slide gate",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 85,
+    "kind": "gate"
+  },
+  {
+    "id": "valve",
+    "name": "Control valve",
+    "category": "Raw materials",
+    "w": 105,
+    "h": 85,
+    "kind": "valve"
+  },
+  {
+    "id": "airlock",
+    "name": "Rotary airlock",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 105,
+    "kind": "airlock"
+  },
+  {
+    "id": "dosing",
+    "name": "Additive dosing",
+    "category": "Raw materials",
+    "w": 115,
+    "h": 160,
+    "kind": "dosing"
+  },
+  {
+    "id": "mixer",
+    "name": "Intensive mixer",
+    "category": "Sand preparation",
+    "w": 170,
+    "h": 140,
+    "kind": "mixer"
+  },
+  {
+    "id": "cooler",
+    "name": "Sand cooler",
+    "category": "Sand preparation",
+    "w": 190,
+    "h": 140,
+    "kind": "cooler"
+  },
+  {
+    "id": "sieve",
+    "name": "Polygon sieve",
+    "category": "Sand preparation",
+    "w": 190,
+    "h": 125,
+    "kind": "sieve"
+  },
+  {
+    "id": "aerator",
+    "name": "Sand aerator",
+    "category": "Sand preparation",
+    "w": 110,
+    "h": 135,
+    "kind": "aerator"
+  },
+  {
+    "id": "dust",
+    "name": "Dust collector",
+    "category": "Sand preparation",
+    "w": 140,
+    "h": 180,
+    "kind": "dust"
+  },
+  {
+    "id": "belt",
+    "name": "Belt conveyor",
+    "category": "Conveying",
+    "w": 220,
+    "h": 75,
+    "kind": "belt"
+  },
+  {
+    "id": "incline",
+    "name": "Inclined conveyor",
+    "category": "Conveying",
+    "w": 205,
+    "h": 120,
+    "kind": "incline"
+  },
+  {
+    "id": "elevator",
+    "name": "Bucket elevator",
+    "category": "Conveying",
+    "w": 90,
+    "h": 220,
+    "kind": "elevator"
+  },
+  {
+    "id": "screw",
+    "name": "Screw conveyor",
+    "category": "Conveying",
+    "w": 200,
+    "h": 65,
+    "kind": "screw"
+  },
+  {
+    "id": "moulding",
+    "name": "Moulding line · 15 moulds",
+    "category": "Moulding",
+    "w": 560,
+    "h": 196,
+    "kind": "moulding"
+  },
+  {
+    "id": "pouring-ladle",
+    "name": "Pouring ladle",
+    "category": "Moulding",
+    "w": 180,
+    "h": 150,
+    "kind": "pouring"
+  },
+  {
+    "id": "shakeout",
+    "name": "Shakeout station",
+    "category": "Moulding",
+    "w": 170,
+    "h": 110,
+    "kind": "shakeout"
+  },
+  {
+    "id": "motor",
+    "name": "Electric motor",
+    "category": "Utilities",
+    "w": 115,
+    "h": 85,
+    "kind": "motor"
+  },
+  {
+    "id": "fan",
+    "name": "Extraction fan",
+    "category": "Utilities",
+    "w": 110,
+    "h": 105,
+    "kind": "fan"
+  },
+  {
+    "id": "import-disa-mixer-blue",
+    "name": "DISA Mixer Blue",
+    "category": "Sand preparation",
+    "w": 180,
+    "h": 248,
+    "kind": "imported",
+    "animated": false
+  },
+  {
+    "id": "import-disa-mixer-blue-animated",
+    "name": "DISA Mixer Blue · Animated",
+    "category": "Sand preparation",
+    "w": 180,
+    "h": 248,
+    "kind": "imported",
+    "animated": true
+  },
+  {
+    "id": "import-disa-mixer-metallic",
+    "name": "DISA Mixer Metallic",
+    "category": "Sand preparation",
+    "w": 180,
+    "h": 248,
+    "kind": "imported",
+    "animated": false
+  },
+  {
+    "id": "import-disa-mixer-metallic-animated",
+    "name": "DISA Mixer Metallic · Animated",
+    "category": "Sand preparation",
+    "w": 180,
+    "h": 248,
+    "kind": "imported",
+    "animated": true
+  },
+  {
+    "id": "import-disa-moulding-line-blue",
+    "name": "DISA Moulding Line Blue",
+    "category": "Moulding",
+    "w": 560,
+    "h": 238,
+    "kind": "imported",
+    "animated": false
+  },
+  {
+    "id": "import-disa-moulding-line-blue-animated",
+    "name": "DISA Moulding Line Blue · Animated",
+    "category": "Moulding",
+    "w": 560,
+    "h": 183,
+    "kind": "imported",
+    "animated": true
+  },
+  {
+    "id": "import-disa-moulding-line-metallic",
+    "name": "DISA Moulding Line Metallic",
+    "category": "Moulding",
+    "w": 560,
+    "h": 238,
+    "kind": "imported",
+    "animated": false
+  },
+  {
+    "id": "import-sand-cooler-orange-animated",
+    "name": "Sand Cooler Orange · Animated",
+    "category": "Sand preparation",
+    "w": 300,
+    "h": 129,
+    "kind": "imported",
+    "animated": true
+  },
+  {
+    "id": "import-sand-muller-green-digital-loop",
+    "name": "Sand Muller Green Digital Loop",
+    "category": "Sand preparation",
+    "w": 180,
+    "h": 208,
+    "kind": "imported",
+    "animated": false
+  },
+  {
+    "id": "import-screw-feeder-digital-loop",
+    "name": "Screw Feeder Digital Loop",
+    "category": "Conveying",
+    "w": 300,
+    "h": 91,
+    "kind": "imported",
+    "animated": false
+  },
+  {
+    "id": "pid-ft",
+    "code": "FT",
+    "name": "Flow transmitter",
+    "unit": "t/h",
+    "value": 58,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-fic",
+    "code": "FIC",
+    "name": "Flow controller",
+    "unit": "L/min",
+    "value": 12,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-pt",
+    "code": "PT",
+    "name": "Pressure transmitter",
+    "unit": "bar",
+    "value": 4,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-pic",
+    "code": "PIC",
+    "name": "Pressure controller",
+    "unit": "bar",
+    "value": 4,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-tt",
+    "code": "TT",
+    "name": "Temperature transmitter",
+    "unit": "°C",
+    "value": 42,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-tic",
+    "code": "TIC",
+    "name": "Temperature controller",
+    "unit": "°C",
+    "value": 40,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-lt",
+    "code": "LT",
+    "name": "Level transmitter",
+    "unit": "%",
+    "value": 65,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-lsh",
+    "code": "LSH",
+    "name": "High level switch",
+    "unit": "",
+    "value": 0,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-lsl",
+    "code": "LSL",
+    "name": "Low level switch",
+    "unit": "",
+    "value": 0,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "pid-fv",
+    "code": "FV",
+    "name": "Control valve",
+    "unit": "%",
+    "value": 50,
+    "category": "Instruments",
+    "kind": "instrument",
+    "w": 88,
+    "h": 88
+  },
+  {
+    "id": "custom-blue-hopper",
+    "name": "Blue hopper",
+    "category": "Raw materials",
+    "w": 120,
+    "h": 147,
+    "kind": "import"
+  },
+  {
+    "id": "custom-eng-button-station",
+    "name": "Start / stop station",
+    "category": "Control & IT",
+    "w": 96,
+    "h": 128,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-compressor",
+    "name": "Compressor + air receiver",
+    "category": "Utilities",
+    "w": 140,
+    "h": 96,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-connector-from",
+    "name": "Off-page connector (from)",
+    "category": "Valves & fittings",
+    "w": 110,
+    "h": 36,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-connector-to",
+    "name": "Off-page connector (to)",
+    "category": "Valves & fittings",
+    "w": 110,
+    "h": 36,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-cyclone",
+    "name": "Cyclone",
+    "category": "Sand preparation",
+    "w": 70,
+    "h": 130,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-damper",
+    "name": "Damper / flap",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 55,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-dust-collector",
+    "name": "Bag filter / dust collector",
+    "category": "Sand preparation",
+    "w": 110,
+    "h": 150,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-fan",
+    "name": "Fan / blower",
+    "category": "Utilities",
+    "w": 76,
+    "h": 76,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-flow-arrow",
+    "name": "Flow arrow",
+    "category": "Valves & fittings",
+    "w": 41,
+    "h": 28,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-magnetic-separator",
+    "name": "Magnetic separator",
+    "category": "Conveying",
+    "w": 150,
+    "h": 70,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-motor",
+    "name": "Motor (M)",
+    "category": "Utilities",
+    "w": 74,
+    "h": 74,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-mould-dump-car",
+    "name": "Mould dump car",
+    "category": "Moulding",
+    "w": 150,
+    "h": 96,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-pipe-endcap",
+    "name": "Pipe end cap",
+    "category": "Valves & fittings",
+    "w": 41,
+    "h": 46,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-pipe-jumpover",
+    "name": "Pipe jump-over",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 46,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-pipe-junction",
+    "name": "Pipe junction",
+    "category": "Valves & fittings",
+    "w": 28,
+    "h": 28,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-pipe-reducer",
+    "name": "Pipe reducer",
+    "category": "Valves & fittings",
+    "w": 69,
+    "h": 46,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-plough-diverter",
+    "name": "Plough diverter",
+    "category": "Conveying",
+    "w": 56,
+    "h": 70,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-pressure-gauge",
+    "name": "Pressure gauge",
+    "category": "Sensors",
+    "w": 64,
+    "h": 84,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-pump",
+    "name": "Centrifugal pump",
+    "category": "Utilities",
+    "w": 84,
+    "h": 70,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-rotary-feeder",
+    "name": "Rotary feeder / airlock",
+    "category": "Conveying",
+    "w": 96,
+    "h": 80,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-screw-conveyor",
+    "name": "Screw conveyor",
+    "category": "Conveying",
+    "w": 170,
+    "h": 56,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-status-lamp",
+    "name": "Status lamp",
+    "category": "Sensors",
+    "w": 37,
+    "h": 37,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-tank-level",
+    "name": "Tank with level",
+    "category": "Raw materials",
+    "w": 90,
+    "h": 130,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-tanker-truck",
+    "name": "Bulk tanker truck",
+    "category": "Raw materials",
+    "w": 190,
+    "h": 92,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-3way",
+    "name": "Three-way valve",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 74,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-ball",
+    "name": "Ball valve",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 51,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-butterfly",
+    "name": "Butterfly valve",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 51,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-check",
+    "name": "Check valve",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 51,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-control",
+    "name": "Control valve (actuated)",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 76,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-manual",
+    "name": "Manual valve",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 71,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-onoff",
+    "name": "On/off valve",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 51,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-eng-valve-solenoid",
+    "name": "Solenoid valve",
+    "category": "Valves & fittings",
+    "w": 74,
+    "h": 67,
+    "kind": "engineering"
+  },
+  {
+    "id": "custom-sm-additive-hopper",
+    "name": "Additive hopper",
+    "category": "Raw materials",
+    "w": 144,
+    "h": 237,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-belt-conveyor",
+    "name": "Belt conveyor",
+    "category": "Conveying",
+    "w": 428,
+    "h": 70,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-bucket-elevator",
+    "name": "Bucket elevator",
+    "category": "Conveying",
+    "w": 90,
+    "h": 331,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-flaskless-moulding-line",
+    "name": "Flaskless moulding line",
+    "category": "Moulding",
+    "w": 441,
+    "h": 68,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-flaskless-pouring-line",
+    "name": "Flaskless line + pouring",
+    "category": "Moulding",
+    "w": 312,
+    "h": 96,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-induction-furnace",
+    "name": "Induction furnace",
+    "category": "Utilities",
+    "w": 174,
+    "h": 196,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-intensive-mixer",
+    "name": "Sand mixer",
+    "category": "Sand preparation",
+    "w": 179,
+    "h": 190,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-ladle",
+    "name": "Ladle (tilt pour)",
+    "category": "Moulding",
+    "w": 180,
+    "h": 189,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-moisture-sensor",
+    "name": "Moisture sensor",
+    "category": "Sensors",
+    "w": 145,
+    "h": 234,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-mould-box-line",
+    "name": "Mould box train (16 boxes)",
+    "category": "Moulding",
+    "w": 425,
+    "h": 71,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-moulding-machine",
+    "name": "Moulding machine",
+    "category": "Moulding",
+    "w": 200,
+    "h": 170,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-moulding-pouring-line",
+    "name": "Moulding & pouring line",
+    "category": "Moulding",
+    "w": 646,
+    "h": 193,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-mpm-gateway",
+    "name": "MPM gateway",
+    "category": "Control & IT",
+    "w": 176,
+    "h": 193,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-muller-picture",
+    "name": "Sand muller (picture)",
+    "category": "Sand preparation",
+    "w": 186,
+    "h": 224,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-polygon-screen",
+    "name": "Polygon screen",
+    "category": "Sand preparation",
+    "w": 278,
+    "h": 122,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-pouring-station",
+    "name": "Pouring station",
+    "category": "Moulding",
+    "w": 213,
+    "h": 160,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-return-sand-hopper",
+    "name": "Return sand hopper",
+    "category": "Raw materials",
+    "w": 157,
+    "h": 216,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-sand-aerator",
+    "name": "Aerator",
+    "category": "Sand preparation",
+    "w": 217,
+    "h": 156,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-sand-cooler-drum",
+    "name": "Sand cooler drum",
+    "category": "Sand preparation",
+    "w": 305,
+    "h": 111,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-sand-muller",
+    "name": "Sand muller",
+    "category": "Sand preparation",
+    "w": 195,
+    "h": 174,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-screw-feeder",
+    "name": "Screw feeder",
+    "category": "Conveying",
+    "w": 353,
+    "h": 85,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-sieve-hopper",
+    "name": "Sieve hopper",
+    "category": "Raw materials",
+    "w": 175,
+    "h": 194,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-storage-hopper",
+    "name": "Storage hopper",
+    "category": "Raw materials",
+    "w": 151,
+    "h": 225,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-temperature-sensor",
+    "name": "Temperature sensor",
+    "category": "Sensors",
+    "w": 119,
+    "h": 286,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-vibratory-shakeout",
+    "name": "Shakeout machine",
+    "category": "Moulding",
+    "w": 275,
+    "h": 124,
+    "kind": "sandman"
+  },
+  {
+    "id": "custom-sm-vibro-feeder",
+    "name": "Vibro feeder",
+    "category": "Conveying",
+    "w": 295,
+    "h": 115,
+    "kind": "sandman"
+  }
+]

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 76" width="76" height="76"><g class="eq" data-state="run"><style>
+.eq{--c-run:var(--sm-run,#2fa84f);--c-stop:var(--sm-stop,#9aa3a9);--c-fault:var(--sm-fault,#e5484d);--c-closed:var(--sm-closed,#c9302c);--c-travel:var(--sm-travel,#e8b21c);--c-manual:var(--sm-manual,#e08a2c);--st:var(--c-stop);--level:.6;--angle:40deg}
+.eq[data-state="run"],.eq[data-state="open"]{--st:var(--c-run)}
+.eq[data-state="stop"]{--st:var(--c-stop)}
+.eq[data-state="closed"]{--st:var(--c-closed)}
+.eq[data-state="travel"]{--st:var(--c-travel)}
+.eq[data-state="manual"]{--st:var(--c-manual)}
+.eq[data-state="fault"]{--st:var(--c-fault)}
+.eq .st{fill:var(--st);transition:fill .3s}
+.eq .st-s{stroke:var(--st);transition:stroke .3s}
+.eq[data-state="fault"] .st,.eq[data-state="fault"] .st-s{animation:sm-blink 1s steps(2,jump-none) infinite}
+.eq .spin{transform-box:fill-box;transform-origin:center}
+.eq[data-state="run"] .spin{animation:sm-spin 2.4s linear infinite}
+.eq .lvl{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(var(--level))}
+.eq .needle{transform-box:view-box;transform-origin:var(--nx,50px) var(--ny,50px);transform:rotate(var(--angle))}
+.eq[data-state="run"] .flow{animation:sm-flow 1.2s linear infinite}
+@keyframes sm-blink{50%{opacity:.25}}@keyframes sm-spin{to{transform:rotate(360deg)}}@keyframes sm-flow{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion:reduce){.eq *{animation:none!important}}
+</style><defs>
+<linearGradient id="smfan-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4d9dc"/><stop offset=".45" stop-color="#9aa2a8"/><stop offset="1" stop-color="#5d666c"/></linearGradient>
+<linearGradient id="smfan-steelh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5d666c"/><stop offset=".35" stop-color="#cfd5d8"/><stop offset=".6" stop-color="#a3abb0"/><stop offset="1" stop-color="#565f65"/></linearGradient>
+<linearGradient id="smfan-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b545a"/><stop offset="1" stop-color="#262c30"/></linearGradient>
+<radialGradient id="smfan-glass" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs><circle cx="38" cy="38" r="34" fill="url(#smfan-steel)" stroke="#1f262b" stroke-width="1.6"/><circle cx="38" cy="38" r="26" fill="#2b3237"/><g class="spin"><path d="M38 38 C46 18 58 24 60 34Z" fill="#c9cfd3" stroke="#1f262b" transform="rotate(0 38 38)"/><path d="M38 38 C46 18 58 24 60 34Z" fill="#c9cfd3" stroke="#1f262b" transform="rotate(90 38 38)"/><path d="M38 38 C46 18 58 24 60 34Z" fill="#c9cfd3" stroke="#1f262b" transform="rotate(180 38 38)"/><path d="M38 38 C46 18 58 24 60 34Z" fill="#c9cfd3" stroke="#1f262b" transform="rotate(270 38 38)"/></g><circle class="st" cx="38" cy="38" r="7" stroke="#1f262b"/></g></svg>

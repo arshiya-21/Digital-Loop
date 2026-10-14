@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="230" viewBox="0 0 760 230" fill="none">
+  <title>Screw feeder — Foundry Digital Loop</title>
+  <desc>Static metallic-grey side-elevation symbol with left gearmotor, top inlet, illustrative casing cutaway showing screw flights, and bottom-right discharge. Transparent background. Not an engineering fabrication drawing.</desc>
+  <defs>
+    <linearGradient id="sf-steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#989E99"/><stop offset=".25" stop-color="#E4E7E1"/><stop offset=".48" stop-color="#F0F1EC"/><stop offset="1" stop-color="#9DA59F"/>
+    </linearGradient>
+    <linearGradient id="sf-vertical" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#919A93"/><stop offset=".42" stop-color="#D9DED7"/><stop offset="1" stop-color="#A4ADA5"/>
+    </linearGradient>
+    <linearGradient id="sf-flight" x1="0" y1="0" x2="1" y2=".3">
+      <stop stop-color="#818A83"/><stop offset=".45" stop-color="#E1E6DD"/><stop offset="1" stop-color="#9AA49A"/>
+    </linearGradient>
+    <path id="sf-flight-shape" d="M0 90 C20 94 25 140 42 146 L53 146 C31 136 34 98 12 90 Z"/>
+    <clipPath id="sf-window-clip"><rect x="290" y="88" width="325" height="62" rx="5"/></clipPath>
+  </defs>
+  <g stroke="#686F69" stroke-width="2" stroke-linejoin="round">
+    <g id="mounting-feet" fill="url(#sf-vertical)">
+      <path d="M252 158 H266 V187 H279 V195 H239 V187 H252 Z"/>
+      <path d="M682 158 H696 V187 H709 V195 H669 V187 H682 Z"/>
+    </g>
+    <g id="inlet" fill="url(#sf-vertical)">
+      <path d="M243 30 H310 V80 H243 Z"/>
+      <rect x="234" y="22" width="85" height="9" rx="1"/>
+    </g>
+    <g id="discharge" fill="url(#sf-vertical)">
+      <path d="M617 156 H665 V204 H617 Z"/>
+      <rect x="610" y="203" width="62" height="9" rx="1"/>
+    </g>
+    <g id="casing">
+      <rect x="223" y="77" width="495" height="83" rx="9" fill="url(#sf-steel)"/>
+      <path d="M234 81 H707" stroke="#F3F5EE"/>
+      <rect x="290" y="88" width="325" height="62" rx="5" fill="#565F58"/>
+    </g>
+    <g id="screw" clip-path="url(#sf-window-clip)">
+      <rect id="shaft" x="280" y="113" width="347" height="12" fill="url(#sf-steel)"/>
+      <g fill="url(#sf-flight)" stroke="#B7C0B5" stroke-width="1">
+        <use href="#sf-flight-shape" x="286"/><use href="#sf-flight-shape" x="336"/>
+        <use href="#sf-flight-shape" x="386"/><use href="#sf-flight-shape" x="436"/>
+        <use href="#sf-flight-shape" x="486"/><use href="#sf-flight-shape" x="536"/>
+        <use href="#sf-flight-shape" x="586"/>
+      </g>
+    </g>
+    <g id="end-flanges" fill="url(#sf-vertical)">
+      <rect x="222" y="72" width="12" height="93" rx="1"/>
+      <rect x="710" y="72" width="12" height="93" rx="1"/>
+      <rect x="722" y="103" width="15" height="30" rx="3"/>
+    </g>
+    <g id="coupling" fill="#8B958D">
+      <rect x="186" y="108" width="36" height="21"/>
+      <rect x="194" y="100" width="12" height="37" rx="2"/>
+    </g>
+    <g id="gearmotor">
+      <rect x="130" y="85" width="57" height="66" rx="7" fill="url(#sf-steel)"/>
+      <circle cx="164" cy="118" r="18" fill="url(#sf-vertical)"/>
+      <circle cx="164" cy="118" r="7" fill="#8D978E"/>
+      <rect x="23" y="94" width="107" height="50" rx="7" fill="url(#sf-steel)"/>
+      <rect x="17" y="97" width="16" height="44" rx="5" fill="url(#sf-vertical)"/>
+      <path d="M43 98 V140 M54 98 V140 M65 98 V140 M76 98 V140 M87 98 V140 M98 98 V140 M109 98 V140" stroke="#929B92" stroke-width="3"/>
+      <rect x="68" y="80" width="31" height="15" rx="2" fill="#B9C1B7"/>
+      <path d="M41 144 V155 H113 V144 M139 151 V159 H178 V151" fill="#8B958C"/>
+    </g>
+  </g>
+  <g id="fasteners" fill="#EEF0E8">
+    <circle cx="242" cy="26" r="2"/><circle cx="310" cy="26" r="2"/>
+    <circle cx="228" cy="81" r="2"/><circle cx="228" cy="154" r="2"/>
+    <circle cx="716" cy="81" r="2"/><circle cx="716" cy="154" r="2"/>
+    <circle cx="618" cy="207" r="2"/><circle cx="664" cy="207" r="2"/>
+  </g>
+</svg>

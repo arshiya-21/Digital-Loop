@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="145.00 41.00 710.00 755.00" width="179" height="190"><g class="sample-c--intensive-mixer-art">
+<defs>
+<linearGradient id="sample-c--mx-shell"><stop stop-color="#666c70" /><stop offset=".08" stop-color="#8d9397" /><stop offset=".24" stop-color="#a1a5a9" /><stop offset=".50" stop-color="#acb0b3" /><stop offset=".77" stop-color="#a1a6a9" /><stop offset=".94" stop-color="#898f93" /><stop offset="1" stop-color="#656a6e" /></linearGradient>
+<linearGradient id="sample-c--mx-panel" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#abafb2" /><stop offset=".5" stop-color="#9ea3a6" /><stop offset="1" stop-color="#888e92" /></linearGradient>
+<linearGradient id="sample-c--mx-steel"><stop stop-color="#515659" /><stop offset=".2" stop-color="#848a8f" /><stop offset=".45" stop-color="#a0a5a8" /><stop offset=".6" stop-color="#8f9499" /><stop offset="1" stop-color="#565a5e" /></linearGradient>
+<linearGradient id="sample-c--mx-rail" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9ba0a3" /><stop offset=".16" stop-color="#888e92" /><stop offset=".27" stop-color="#666c70" /><stop offset=".82" stop-color="#777e82" /><stop offset="1" stop-color="#474b4e" /></linearGradient>
+<linearGradient id="sample-c--mx-dark" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#575c60" /><stop offset=".45" stop-color="#3f4244" /><stop offset="1" stop-color="#2a2d2e" /></linearGradient>
+<linearGradient id="sample-c--mx-motor"><stop stop-color="#393d3f" /><stop offset=".25" stop-color="#61666a" /><stop offset=".5" stop-color="#7f868a" /><stop offset=".75" stop-color="#606669" /><stop offset="1" stop-color="#3c3f41" /></linearGradient>
+<radialGradient id="sample-c--mx-bolt" cx=".3" cy=".2"><stop stop-color="#adb1b4" /><stop offset=".5" stop-color="#8e9397" /><stop offset="1" stop-color="#525659" /></radialGradient>
+<g id="sample-c--mx-b"><circle r="5" fill="#494d50" /><path d="M-3.8 -2.2V2.2L0 4.4L3.8 2.2V-2.2L0 -4.4Z" fill="url(#sample-c--mx-bolt)" stroke="#323537" stroke-width=".65" /><path d="M-1.6 -1.4H1.6" stroke="#fff" stroke-opacity=".65" stroke-width=".8" /></g>
+</defs>
+<metadata>{"equipment":"sand-mixer","units":"viewBox","ports":{"sand-in":[284,258],"sand-out":[500,793]},"animation_ready_parts":["motor-shaft","inspection-door","discharge-gate"],"note":"External appearance only; motion must follow validated machine logic."}</metadata>
+<g stroke="#343739" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">
+<g id="sample-c--intensive-mixer--frame" data-part="frame">
+<rect x="215" y="619" width="62" height="150" rx="3" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="224" y="627" width="44" height="138" rx="1" fill="url(#sample-c--mx-panel)" stroke-width="1.4" />
+<path d="M232 635L232 760" fill="none" stroke="#9ba0a3" stroke-width="1" />
+<path d="M215 640L277 640L306 700H277L237 664Z" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="196" y="768" width="102" height="17" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<use xlink:href="#sample-c--mx-b" transform="translate(207 775) scale(0.85)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(285 775) scale(0.85)" />
+<rect x="224" y="781" width="43" height="6" rx="1" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="722" y="619" width="62" height="150" rx="3" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="731" y="627" width="44" height="138" rx="1" fill="url(#sample-c--mx-panel)" stroke-width="1.4" />
+<path d="M739 635L739 760" fill="none" stroke="#9ba0a3" stroke-width="1" />
+<path d="M722 640L784 640L813 700H784L744 664Z" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="703" y="768" width="102" height="17" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<use xlink:href="#sample-c--mx-b" transform="translate(714 775) scale(0.85)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(792 775) scale(0.85)" />
+<rect x="731" y="781" width="43" height="6" rx="1" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+</g>
+<g id="sample-c--intensive-mixer--lower-vessel" data-part="lower-vessel">
+<path d="M178 579H822V639L792 661H208L178 639Z" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<path d="M214 658H786L575 731H425Z" fill="url(#sample-c--mx-panel)" stroke-width="1.4" />
+<path d="M227 663L774 663" fill="none" stroke="#9ca1a4" stroke-width="1" />
+</g>
+<g id="sample-c--intensive-mixer--vessel" data-part="vessel">
+<path d="M158 342H842V587Q818 609 790 615H210Q178 608 158 587Z" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<path d="M173 359V580Q180 594 204 599H796Q821 593 827 580V359" fill="none" stroke-width="1" />
+<rect x="185" y="381" width="71" height="177" rx="4" fill="url(#sample-c--mx-panel)" stroke-width="0.8" />
+<path d="M192 388L192 549" fill="none" stroke="#a5a9ad" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(195 392) scale(0.64)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(246 392) scale(0.64)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(195 545) scale(0.64)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(246 545) scale(0.64)" />
+<rect x="744" y="381" width="71" height="177" rx="4" fill="url(#sample-c--mx-panel)" stroke-width="0.8" />
+<path d="M751 388L751 549" fill="none" stroke="#a5a9ad" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(754 392) scale(0.64)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(805 392) scale(0.64)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(754 545) scale(0.64)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(805 545) scale(0.64)" />
+<rect x="287" y="355" width="12" height="225" rx="1" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="285" y="354" width="8" height="224" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<path d="M285 554L293 554L315 594H285Z" fill="url(#sample-c--mx-panel)" stroke-width="1.4" />
+<path d="M287 361L287 551" fill="none" stroke="#a4a8ab" stroke-width="0.8" />
+<rect x="704" y="355" width="12" height="225" rx="1" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="702" y="354" width="8" height="224" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<path d="M702 554L710 554L732 594H702Z" fill="url(#sample-c--mx-panel)" stroke-width="1.4" />
+<path d="M704 361L704 551" fill="none" stroke="#a4a8ab" stroke-width="0.8" />
+<rect x="152" y="340" width="696" height="21" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M155 343L845 343" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(166 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(209 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(252 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(295 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(338 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(381 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(424 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(467 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(510 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(553 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(596 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(639 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(682 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(725 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(768 350.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(811 350.5) scale(0.67)" />
+<rect x="171" y="591" width="658" height="19" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M174 594L826 594" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(185 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(228 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(271 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(314 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(357 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(400 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(443 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(486 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(529 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(572 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(615 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(658 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(701 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(744 600.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(787 600.5) scale(0.67)" />
+</g>
+<g id="sample-c--intensive-mixer--inspection-door" data-part="inspection-door">
+<rect x="338" y="391" width="324" height="184" rx="13" fill="#565b5f" stroke-width="1.4" />
+<rect x="344" y="395" width="311" height="174" rx="11" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<rect x="351" y="402" width="297" height="161" rx="8" fill="url(#sample-c--mx-panel)" stroke-width="1.4" />
+<path d="M362 409L637 409" fill="none" stroke="#a6abae" stroke-width="1" />
+<path d="M361 555L637 555" fill="none" stroke="#575c5f" stroke-width="1" />
+<use xlink:href="#sample-c--mx-b" transform="translate(364 415) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(364 550) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(635 415) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(635 550) scale(0.67)" />
+<rect x="323" y="424" width="35" height="20" rx="3" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<rect x="332" y="418" width="13" height="32" rx="4" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="334" y="418" width="9" height="32" rx="3" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<circle cx="338.5" cy="416" r="4" fill="url(#sample-c--mx-steel)" stroke-width="0.8" />
+<circle cx="338.5" cy="451" r="4" fill="url(#sample-c--mx-steel)" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(352 434) scale(0.65)" />
+<rect x="323" y="521" width="35" height="20" rx="3" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<rect x="332" y="515" width="13" height="32" rx="4" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="334" y="515" width="9" height="32" rx="3" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<circle cx="338.5" cy="513" r="4" fill="url(#sample-c--mx-steel)" stroke-width="0.8" />
+<circle cx="338.5" cy="548" r="4" fill="url(#sample-c--mx-steel)" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(352 531) scale(0.65)" />
+<rect x="644" y="420" width="25" height="29" rx="3" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="652" y="423" width="23" height="23" rx="3" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<path d="M665 428L689 423L695 430L677 440H664Z" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<circle cx="668" cy="433" r="4" fill="url(#sample-c--mx-dark)" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(686 429) scale(0.62)" />
+<rect x="644" y="516" width="25" height="29" rx="3" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="652" y="519" width="23" height="23" rx="3" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<path d="M665 524L689 519L695 526L677 536H664Z" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<circle cx="668" cy="529" r="4" fill="url(#sample-c--mx-dark)" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(686 525) scale(0.62)" />
+<path d="M611 455V445Q611 439 617 439Q623 439 623 445V520Q623 526 617 526Q611 526 611 520V509" fill="none" stroke-width="6" stroke="#44484b" />
+<path d="M612 453V445Q612 441 617 441Q621 441 621 445V520Q621 524 617 524Q612 524 612 520V511" fill="none" stroke-width="3.3" stroke="#9da2a6" />
+<rect x="606" y="451" width="12" height="8" rx="2" fill="url(#sample-c--mx-steel)" stroke-width="0.7" />
+<rect x="606" y="505" width="12" height="8" rx="2" fill="url(#sample-c--mx-steel)" stroke-width="0.7" />
+</g>
+<g id="sample-c--intensive-mixer--upper-cover" data-part="upper-cover">
+<path d="M160 337L217 302L390 279H611L784 302L840 337Z" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<path d="M174 336L220 308L391 287H609L780 308L826 336" fill="none" stroke-width="1" />
+<path d="M298 333L313 298L318 298L318 333Z" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<path d="M690 333L705 298L710 298L710 333Z" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<rect x="145" y="332" width="710" height="13" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M148 335L852 335" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(159 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(202 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(245 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(288 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(331 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(374 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(417 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(460 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(503 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(546 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(589 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(632 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(675 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(718 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(761 338.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(804 338.5) scale(0.67)" />
+<path d="M188 314L194 291Q202 281 210 291L219 314Z" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<circle cx="203" cy="299" r="4.5" fill="url(#sample-c--mx-dark)" stroke-width="1" />
+<path d="M776 314L782 291Q790 281 798 291L807 314Z" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<circle cx="791" cy="299" r="4.5" fill="url(#sample-c--mx-dark)" stroke-width="1" />
+</g>
+<g id="sample-c--intensive-mixer--inlet" data-part="inlet">
+<rect x="251" y="268" width="65" height="43" rx="3" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<rect x="243" y="260" width="82" height="12" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M246 263L322 263" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(257 266.0) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(300 266.0) scale(0.67)" />
+<rect x="258" y="256" width="52" height="5" rx="1" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="249" y="253" width="5" height="25" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<use xlink:href="#sample-c--mx-b" transform="translate(251 259) scale(0.55)" />
+<rect x="316" y="253" width="5" height="25" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<use xlink:href="#sample-c--mx-b" transform="translate(318 259) scale(0.55)" />
+<rect x="683" y="268" width="65" height="43" rx="3" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<rect x="675" y="260" width="82" height="12" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M678 263L754 263" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(689 266.0) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(732 266.0) scale(0.67)" />
+<rect x="690" y="256" width="52" height="5" rx="1" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="681" y="253" width="5" height="25" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<use xlink:href="#sample-c--mx-b" transform="translate(683 259) scale(0.55)" />
+<rect x="748" y="253" width="5" height="25" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<use xlink:href="#sample-c--mx-b" transform="translate(750 259) scale(0.55)" />
+</g>
+<g id="sample-c--intensive-mixer--drive" data-part="drive">
+<rect x="411" y="276" width="178" height="15" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M414 279L586 279" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(425 283.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(468 283.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(511 283.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(554 283.5) scale(0.67)" />
+<rect x="427" y="225" width="146" height="50" rx="5" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<rect x="420" y="218" width="160" height="13" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M423 221L577 221" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(434 224.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(477 224.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(520 224.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(563 224.5) scale(0.67)" />
+<rect x="438" y="232" width="9" height="40" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<rect x="474" y="232" width="9" height="40" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<rect x="514" y="232" width="9" height="40" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<rect x="553" y="232" width="9" height="40" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1" />
+<rect x="444" y="179" width="112" height="40" rx="6" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<rect x="433" y="173" width="134" height="13" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M436 176L564 176" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(447 179.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(490 179.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(533 179.5) scale(0.67)" />
+<circle cx="541" cy="198" r="5" fill="url(#sample-c--mx-dark)" stroke-width="0.8" />
+<circle cx="541" cy="198" r="2" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<rect x="467" y="155" width="66" height="19" rx="5" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="469" y="161" width="62" height="11" rx="2" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<rect x="443" y="69" width="114" height="89" rx="8" fill="url(#sample-c--mx-motor)" stroke-width="1.4" />
+<rect x="447" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M448 84L448 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="454" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M455 84L455 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="461" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M462 84L462 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="468" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M469 84L469 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="475" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M476 84L476 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="482" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M483 84L483 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="489" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M490 84L490 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="496" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M497 84L497 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="503" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M504 84L504 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="510" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M511 84L511 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="517" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M518 84L518 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="524" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M525 84L525 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="531" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M532 84L532 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="538" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M539 84L539 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="545" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M546 84L546 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<rect x="552" y="79" width="3.5" height="73" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.6" />
+<path d="M553 84L553 146" fill="none" stroke="#9ba0a4" stroke-width="0.6" />
+<path d="M442 73V63Q443 43 463 41H536Q556 43 558 62V73Z" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<path d="M448 61L552 61" fill="none" stroke="#959a9e" stroke-width="1" />
+<rect x="436" y="151" width="128" height="12" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M439 154L561 154" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(450 157.0) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(493 157.0) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(536 157.0) scale(0.67)" />
+<rect x="558" y="99" width="26" height="37" rx="3" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="561" y="102" width="23" height="31" rx="2" fill="url(#sample-c--mx-panel)" stroke-width="1.4" />
+<use xlink:href="#sample-c--mx-b" transform="translate(573 108) scale(0.5)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(573 126) scale(0.5)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(453 168) scale(0.65)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(548 168) scale(0.65)" />
+</g>
+<g id="sample-c--intensive-mixer--motor-shaft" data-part="motor-shaft">
+<rect x="491" y="168" width="18" height="5" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+</g>
+<g id="sample-c--intensive-mixer--discharge-gate" data-part="discharge-gate">
+<path d="M420 719H580L549 751H451Z" fill="url(#sample-c--mx-shell)" stroke-width="1.4" />
+<rect x="436" y="745" width="128" height="14" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M439 748L561 748" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(450 752.0) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(493 752.0) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(536 752.0) scale(0.67)" />
+<rect x="455" y="759" width="90" height="25" rx="3" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<rect x="443" y="783" width="114" height="13" rx="2" fill="url(#sample-c--mx-rail)" stroke-width="1.4" />
+<path d="M446 786L554 786" fill="none" stroke="#abb0b3" stroke-width="0.8" />
+<use xlink:href="#sample-c--mx-b" transform="translate(457 789.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(500 789.5) scale(0.67)" />
+<use xlink:href="#sample-c--mx-b" transform="translate(543 789.5) scale(0.67)" />
+<rect x="436" y="765" width="133" height="7" rx="1" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<rect x="440" y="767" width="119" height="3" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="0.7" />
+<rect x="557" y="760" width="9" height="16" rx="1" fill="url(#sample-c--mx-steel)" stroke-width="1.4" />
+<use xlink:href="#sample-c--mx-b" transform="translate(561 768) scale(0.58)" />
+</g>
+<g id="sample-c--intensive-mixer--status-indicator" data-part="status-indicator">
+<rect x="767" y="402" width="29" height="52" rx="4" fill="url(#sample-c--mx-dark)" stroke-width="1.4" />
+<circle cx="781" cy="414" r="4.5" fill="#7c9e91" stroke-width="0.8" />
+<circle cx="781" cy="432" r="4.5" fill="#747b7f" stroke-width="0.8" />
+</g>
+</g><g id="sample-c--intensive-mixer--finish-details" data-part="finish-details"><path d="M221 615H779M229 622H771" fill="none" stroke="#575c5f" stroke-width=".65" opacity=".7" /><path d="M218 307L390 284H610L782 307" fill="none" stroke="#abafb2" stroke-width=".8" opacity=".75" /><rect x="357" y="408" width="285" height="149" rx="5" fill="none" stroke="#686e72" stroke-width=".65" opacity=".7" /><path d="M363 410H594" fill="none" stroke="#b0b4b7" stroke-width=".7" opacity=".65" /><path d="M172 362H829" fill="none" stroke="#278e96" stroke-width="3" /><rect x="761" y="469" width="7" height="34" rx="2" fill="#278e96" stroke="none" /><rect x="759" y="398" width="35" height="63" rx="5" fill="#4d5154" stroke="#3a3e40" stroke-width="1" /><circle cx="777" cy="414" r="3.2" fill="#85b7a9" stroke="#343739" stroke-width=".8" /><circle cx="777" cy="442" r="3.2" fill="#858b90" stroke="#343739" stroke-width=".8" /></g><metadata>{"equipment": "intensive-mixer", "style": "Clean Industrial", "revision": "2026-09-30", "design_note": "Approved Clean Industrial mixer finish and vessel proportions.", "geometry_status": "representative", "placement": "preserveAspectRatio; do not stretch to a common square", "animation_status": "addressable parts; operating sequences require integration and validation"}</metadata></g></svg>

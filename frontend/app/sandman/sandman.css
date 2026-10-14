@@ -1,0 +1,521 @@
+/*
+ * The Digital Loop chrome: the lock screen, the foundry and line strip, and
+ * what an operator is not shown.
+ *
+ * Loaded after the studio's own stylesheet so this adds rather than fights.
+ * It styles only what this integration puts on the page — the studio's own
+ * look is left alone, because every drop changes it and a rule written against
+ * it is a rule that breaks silently.
+ */
+
+/* ------------------------------------------------------------ lock screen ---*/
+
+.dl-locked-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0d1b26;
+  color: #e8f0f5;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+.dl-locked-card {
+  width: min(460px, 100%);
+  text-align: center;
+}
+
+.dl-locked-eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: #7aa544;
+}
+
+.dl-locked-card h1 {
+  margin: 8px 0 14px;
+  font-size: 26px;
+  font-weight: 650;
+}
+
+.dl-locked-card p {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #a9bfcd;
+}
+
+.dl-locked-go {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #176eae;
+  color: #fff;
+  text-decoration: none;
+}
+
+.dl-locked-go:hover { background: #125a91; }
+
+/*
+ * Nothing behind the lock is reachable or even visible.
+ *
+ * `visibility: hidden` is declared inline in the page so it applies before
+ * this stylesheet has finished downloading; this adds the rest, for the case
+ * where the lock goes back up on an expired session.
+ */
+body.dl-locked > *:not(#dlLocked) {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ------------------------------------------------------- foundry and line ---
+ *
+ * In the header's right-hand group, where the studio puts its customer chip —
+ * the plant and the line are this document's identity, and the chip says the
+ * same thing less usefully, so it is hidden and this takes its place.
+ */
+
+.dl-linebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Never narrower than its contents: the publish pill and the back link do
+     not shrink, and squeezing this group put the one under the other. */
+  flex: 0 0 auto;
+}
+
+#dlPlant {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--mut, #7d909f);
+  white-space: nowrap;
+}
+
+#dlLine {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 4px 8px;
+  border: 1px solid var(--bd, #cbd8e2);
+  border-radius: 6px;
+  background: var(--pan, #fff);
+  color: var(--tx, #22415c);
+  flex: 0 1 auto;
+  min-width: 140px;
+  max-width: 240px;
+}
+
+#dlLine:hover { border-color: var(--bd2, #a9bac7); }
+
+/* The plant name goes first when the header is tight — the line is the thing
+   you actually switch between. */
+@media (max-width: 1280px) {
+  #dlPlant { display: none; }
+}
+
+.dl-publish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  transition: background .12s ease, border-color .12s ease;
+}
+
+/* `hidden` has to win over the display above it, or an operator — who never
+   has a publish button — gets an empty pill with a dot in it. */
+.dl-publish[hidden] { display: none; }
+
+.dl-publish::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+/* Live, and the plant is seeing this version. */
+.dl-publish[data-state="live"] {
+  background: #e9f8ef;
+  border-color: #9bdab4;
+  color: #1a7a42;
+}
+.dl-publish[data-state="live"]:hover { background: #d8f2e3; }
+
+/* Saved work the plant cannot see yet — the one state worth noticing. */
+.dl-publish[data-state="ahead"] {
+  background: #fff4dd;
+  border-color: #e6bc6a;
+  color: #8a5a12;
+}
+.dl-publish[data-state="ahead"]:hover { background: #ffeac2; }
+
+/* Never published. */
+.dl-publish[data-state="draft"] {
+  background: #eef2f6;
+  border-color: #cdd9e3;
+  color: #5a6e7e;
+}
+.dl-publish[data-state="draft"]:hover { background: #e3eaf1; }
+
+.dl-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px 5px 9px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  /* Leaving is a different kind of act from publishing, so it does not borrow
+     the publish pill's colour. A slate tint reads as "out of here" without
+     competing with the green and amber beside it, which are the two colours
+     in this bar that carry meaning. */
+  color: #2c4458;
+  text-decoration: none;
+  border-radius: 7px;
+  border: 1px solid #c3d2dd;
+  background: #e4ecf3;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  transition: background .12s ease, border-color .12s ease;
+}
+
+.dl-back:hover {
+  background: #d6e3ed;
+  border-color: #a9bfd0;
+}
+
+.dl-back:active { background: #c9d9e6; }
+.dl-back svg { flex: 0 0 auto; }
+
+/* The studio's dark theme: the strip follows it rather than staying a bright
+   patch in a dark header. */
+@media (prefers-color-scheme: dark) {
+  .dl-back {
+    color: #cfe0ee;
+    background: #24323f;
+    border-color: #38485a;
+  }
+  .dl-back:hover { background: #2d3e4d; }
+}
+
+body.dark .dl-back,
+html[data-theme="dark"] .dl-back {
+  color: #cfe0ee;
+  background: #24323f;
+  border-color: #38485a;
+}
+
+/* ------------------------------------------------------------ the viewer ---
+ *
+ * An operator gets the published loop and nothing else. This is presentation:
+ * the API refuses their writes whatever the page shows.
+ *
+ * Only the controls that would change the design are taken away. The publish
+ * view's own controls — fit, full screen, the alarm list — are what an
+ * operator is there for.
+ */
+
+body.dl-viewer #mDesign,
+body.dl-viewer #bSave,
+body.dl-viewer #bOpen,
+body.dl-viewer #bNew,
+body.dl-viewer #bExport,
+body.dl-viewer #bUndo,
+body.dl-viewer #bRedo,
+body.dl-viewer #left {
+  display: none !important;
+}
+
+/* An operator stays in the publish view. Leaving it reveals the editor shell —
+   emptied of its tools by the rules above, which is a worse thing to be shown
+   than no exit at all. The way out of Digital Loop is Back, which is in the
+   bar beside these. */
+body.dl-viewer #pExit,
+body.dl-viewer #pExit2,
+body.dl-viewer #pMain {
+  display: none !important;
+}
+
+/* In the publish view the strip sits in that view's own bar, which is dark,
+   roomy and the only chrome an operator sees. It keeps its meaning and drops
+   the header's tight sizing. */
+.dl-linebar.dl-in-publish {
+  margin-left: auto;
+  padding-left: 14px;
+  gap: 10px;
+}
+
+.dl-linebar.dl-in-publish #dlPlant {
+  color: #a9bfcd;
+  font-size: 10.5px;
+}
+
+.dl-linebar.dl-in-publish #dlLine {
+  font-size: 13px;
+  padding: 7px 8px;
+  /* The bar is full of the publish view's own buttons; the line name is short
+     and this is the one control here that can give width back. */
+  min-width: 110px;
+  max-width: 150px;
+}
+
+.dl-linebar.dl-in-publish .dl-publish,
+.dl-linebar.dl-in-publish .dl-back {
+  font-size: 12px;
+  padding: 7px 11px;
+}
+
+/* Nothing in this bar is allowed to fall off the edge: the way back to
+   SandMan was sitting just past it. */
+#pbar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+/* ------------------------------------------------- the published view only ---
+ *
+ * What an operator is looking at is the plant, so the bar under it carries the
+ * controls and nothing else.
+ *
+ * The studio's own status and clock go: the status is a one-word summary of
+ * the alarms that are already shown, in colour, on the equipment itself, and
+ * the clock repeats the one in the corner of the screen and the one on the
+ * wall. Our publish pill goes too — which version is live is an
+ * administrator's question, and it is still there in the header, where
+ * designing is done.
+ */
+#pbar .pinfo {
+  display: none !important;
+}
+
+/*
+ * Sand health is out of the published view.
+ *
+ * It scores a line 0–100 from sand properties, stability, bentonite balance
+ * and check discipline. Every one of those inputs is a reading — and until a
+ * reading is linked to a column there is nothing behind it, so the score would
+ * be a confident number computed from dashes. The place to look at it is
+ * Design, beside the readings it comes from, not on the screen an operator
+ * takes decisions off.
+ */
+#pbar #pSHI {
+  display: none !important;
+}
+
+.dl-linebar.dl-in-publish .dl-publish {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------- the header ---
+ *
+ * Opened from SandMan, the studio sits inside it — so the header should say
+ * what this screen is and nothing the page around it already says.
+ *
+ * `SandMan ›` is a breadcrumb back to a place the surrounding page already is.
+ * The gateway chip ("3 data sources · 0/97 tags linked") describes the
+ * studio's own demo sources, which this build does not use: the foundry's
+ * database arrives with the launch and the tagging is done per reading.
+ */
+.docA .bc,
+header .gw {
+  display: none !important;
+}
+
+/*
+ * One foundry name, not two.
+ *
+ * `index.mjs` sets `hidden` on the studio's customer chip, because our strip
+ * says the same thing beside the line it belongs to. But the chip's own
+ * `display` beats the `hidden` attribute, so it stayed on screen — the same
+ * way the publish pill did.
+ */
+#custChip[hidden] {
+  display: none !important;
+}
+
+/* ----------------------------------------------------- nothing drawn yet ---
+ *
+ * Shown over the canvas when the loop is empty — because the line has no
+ * design, or because its design was drawn in the previous studio.
+ *
+ * Only in the publish view. In Design the canvas is where the work happens,
+ * and a card sitting in the middle of it would be the first thing in the way.
+ */
+.dl-empty {
+  display: none;
+}
+
+/* The card is positioned inside the canvas area, so that area has to be the
+   thing it measures against — otherwise it anchors to the viewport and sits
+   over the publish bar. */
+body.present #cwrap {
+  position: relative;
+}
+
+body.present .dl-empty {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* Above the canvas, below the publish bar and anything modal. */
+  z-index: 40;
+  pointer-events: none;
+}
+
+.dl-empty-card {
+  max-width: 520px;
+  padding: 28px 32px;
+  text-align: center;
+  border-radius: 12px;
+  border: 1px solid var(--bd, #dbe4ec);
+  background: var(--pan, #fff);
+  box-shadow: 0 10px 34px rgba(16, 38, 59, 0.1);
+  /* The card itself is clickable even though the backdrop is not, so the
+     canvas underneath stays usable. */
+  pointer-events: auto;
+}
+
+.dl-empty-card h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--tx, #22415c);
+}
+
+.dl-empty-card p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--mut, #64788a);
+}
+
+.dl-empty-go {
+  margin-top: 18px;
+  padding: 9px 18px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #176eae;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.dl-empty-go:hover { background: #125a91; }
+
+/* ------------------------------------------------------- live readings ---
+ *
+ * A reading that comes from the plant has to be distinguishable from one the
+ * studio invented, at a glance and without reading any words — an operator
+ * deciding something from a simulated number is the failure this whole feature
+ * exists to prevent.
+ *
+ * The studio already styles `.ix-chip.live` (green) and `.ix-chip.demo`
+ * (grey). These are the two states it has no idea about: a real reading that
+ * has stopped arriving, and a reading linked to a column the line has no
+ * record in.
+ */
+
+/* Last known, but SandMan is not answering. Amber, not green and not red:
+   the number is real, it is simply not current. */
+.ix-chip.stale {
+  background: #fff4dd;
+  border-color: #e6bc6a;
+  color: #8a5a12;
+}
+
+.ix-chip.stale i { background: #c98a1a; }
+
+/* Linked, but the line has no record in that column yet. */
+.ix-chip.wait {
+  background: #eef2f6;
+  border-color: #cdd9e3;
+  color: #5a6e7e;
+}
+
+/* A value on the canvas whose reading has gone stale. Deliberately subtle:
+   the badge keeps its severity colour, because an out-of-limit reading that
+   stopped updating is still out of limit and still worth seeing. */
+[data-live].dl-stale {
+  opacity: 0.72;
+  text-decoration: underline dotted currentColor;
+  text-underline-offset: 3px;
+}
+
+/* The inspector's status line when a reading is stale or could not be read. */
+.ix-status.dl-stale { color: #8a5a12; }
+
+/* The chart switch in the trend window, and the panel SandMan's own chart is
+   drawn into. */
+.dl-chart-switch { margin-bottom: 6px; }
+
+#dlPcPanel .cc-cv { width: 100%; }
+
+.dl-pc-empty {
+  padding: 28px 12px;
+  text-align: center;
+}
+
+/* Used to swap between the studio's charts and ours. `!important` because the
+   studio sets `display` on several of these itself. */
+.dl-hidden { display: none !important; }
+
+/* ------------------------------------------- one data connection, not two ---
+ *
+ * The drawer that holds the Database → Table → Column flow, opened by
+ * ＋ Add reading. Set apart from the readings above it so it reads as the way
+ * to add one rather than as another reading.
+ */
+.dl-add-drawer {
+  margin: 10px 0 14px;
+  padding: 12px;
+  border: 1px dashed var(--bd, #cbd8e2);
+  border-radius: 8px;
+  background: var(--pan2, rgba(127, 158, 184, 0.06));
+}
+
+/*
+ * One step at a time.
+ *
+ * The studio draws all three — Database, Table, Column — from the start and
+ * greys the numbers of the ones not reachable yet. Three dropdowns, two of
+ * them dead, is a form that looks like it is waiting for all of them. Hiding
+ * the unreachable ones makes it a sequence: choose a database and the table
+ * appears, choose a table and the columns do.
+ *
+ * `.off` is the studio's own marker for "not reachable yet", so this follows
+ * its logic rather than inventing a second one.
+ */
+.dl-add-drawer .db-step.off { display: none; }
+
+.dl-add-drawer[hidden] { display: none; }
+
+/* The studio hides its search box until its own button is pressed; inside the
+   drawer the drawer is what hides things, so this must not stay hidden. */
+.dl-add-drawer #ixAdd[hidden] { display: block; }
+
+/* The button sits in the section heading, where the Readings heading used to
+   have it, rather than floating above the first reading. */
+.ix-sec h4 .ix-link { margin-left: auto; }

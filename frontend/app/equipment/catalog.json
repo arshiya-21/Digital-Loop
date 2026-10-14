@@ -1,0 +1,186 @@
+[
+  {
+    "id": "raw-hopper",
+    "name": "Raw sand hopper",
+    "category": "Raw materials",
+    "w": 130,
+    "h": 160,
+    "kind": "bin"
+  },
+  {
+    "id": "additive-hopper",
+    "name": "Additive hopper",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 150,
+    "kind": "bin"
+  },
+  {
+    "id": "steel-hopper",
+    "name": "Steel hopper",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 165,
+    "kind": "bin"
+  },
+  {
+    "id": "silo",
+    "name": "Storage silo",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 185,
+    "kind": "silo"
+  },
+  {
+    "id": "twin-silo",
+    "name": "Middle silos",
+    "category": "Raw materials",
+    "w": 175,
+    "h": 180,
+    "kind": "twin"
+  },
+  {
+    "id": "slide-gate",
+    "name": "Slide gate",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 85,
+    "kind": "gate"
+  },
+  {
+    "id": "valve",
+    "name": "Control valve",
+    "category": "Raw materials",
+    "w": 105,
+    "h": 85,
+    "kind": "valve"
+  },
+  {
+    "id": "airlock",
+    "name": "Rotary airlock",
+    "category": "Raw materials",
+    "w": 110,
+    "h": 105,
+    "kind": "airlock"
+  },
+  {
+    "id": "dosing",
+    "name": "Additive dosing",
+    "category": "Raw materials",
+    "w": 115,
+    "h": 160,
+    "kind": "dosing"
+  },
+  {
+    "id": "mixer",
+    "name": "Intensive mixer",
+    "category": "Sand preparation",
+    "w": 170,
+    "h": 140,
+    "kind": "mixer"
+  },
+  {
+    "id": "cooler",
+    "name": "Sand cooler",
+    "category": "Sand preparation",
+    "w": 190,
+    "h": 140,
+    "kind": "cooler"
+  },
+  {
+    "id": "sieve",
+    "name": "Polygon sieve",
+    "category": "Sand preparation",
+    "w": 190,
+    "h": 125,
+    "kind": "sieve"
+  },
+  {
+    "id": "aerator",
+    "name": "Sand aerator",
+    "category": "Sand preparation",
+    "w": 110,
+    "h": 135,
+    "kind": "aerator"
+  },
+  {
+    "id": "dust",
+    "name": "Dust collector",
+    "category": "Sand preparation",
+    "w": 140,
+    "h": 180,
+    "kind": "dust"
+  },
+  {
+    "id": "belt",
+    "name": "Belt conveyor",
+    "category": "Conveying",
+    "w": 220,
+    "h": 75,
+    "kind": "belt"
+  },
+  {
+    "id": "incline",
+    "name": "Inclined conveyor",
+    "category": "Conveying",
+    "w": 205,
+    "h": 120,
+    "kind": "incline"
+  },
+  {
+    "id": "elevator",
+    "name": "Bucket elevator",
+    "category": "Conveying",
+    "w": 90,
+    "h": 220,
+    "kind": "elevator"
+  },
+  {
+    "id": "screw",
+    "name": "Screw conveyor",
+    "category": "Conveying",
+    "w": 200,
+    "h": 65,
+    "kind": "screw"
+  },
+  {
+    "id": "moulding",
+    "name": "Moulding line · 15 moulds",
+    "category": "Moulding",
+    "w": 560,
+    "h": 196,
+    "kind": "moulding"
+  },
+  {
+    "id": "pouring-ladle",
+    "name": "Pouring ladle",
+    "category": "Moulding",
+    "w": 180,
+    "h": 150,
+    "kind": "pouring"
+  },
+  {
+    "id": "shakeout",
+    "name": "Shakeout station",
+    "category": "Moulding",
+    "w": 170,
+    "h": 110,
+    "kind": "shakeout"
+  },
+  {
+    "id": "motor",
+    "name": "Electric motor",
+    "category": "Utilities",
+    "w": 115,
+    "h": 85,
+    "kind": "motor"
+  },
+  {
+    "id": "fan",
+    "name": "Extraction fan",
+    "category": "Utilities",
+    "w": 110,
+    "h": 105,
+    "kind": "fan"
+  }
+]
