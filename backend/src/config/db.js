@@ -154,6 +154,21 @@ async function migrate() {
     await pool.query('ALTER TABLE db_connection DROP CHECK connection_engine')
     console.log('   ·  db_connection.engine: list of engines moved out of the schema')
   }
+
+  /*
+   * An SSH key may be generated here or supplied by whoever already has one,
+   * and a supplied key is often protected by a passphrase. Databases created
+   * before that was supported have no column for it.
+   */
+  const [passphrase] = await pool.query(
+    `SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_connection'
+       AND COLUMN_NAME = 'tunnel_passphrase'`
+  )
+  if (!passphrase.length) {
+    await pool.query('ALTER TABLE db_connection ADD COLUMN tunnel_passphrase TEXT NULL AFTER tunnel_public_key')
+    console.log('   ·  db_connection.tunnel_passphrase: added')
+  }
 }
 
 /**

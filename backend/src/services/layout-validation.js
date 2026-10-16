@@ -281,9 +281,31 @@ export async function validateLayout(layout) {
   )
 }
 
-/** Every [ownerId, dataTag] pair in a design, whichever format it is in. */
+/**
+ * Every [ownerId, dataTag] pair in a design, whichever format it is in.
+ *
+ * **Each pair once.** `design_tag` is keyed on exactly that pair, and two
+ * readings on the same item may legitimately point at the same column — one
+ * shown on the canvas and one driving an alarm, or the same measurement under
+ * two names. Letting the repeat through meant the insert hit the primary key
+ * and the whole save came back as `internal_error`, naming nothing a person
+ * could act on.
+ *
+ * De-duplicated here rather than in either format's own reader, so both are
+ * covered and a third format would be too. The index is a subscription list,
+ * and a repeated subscription is one subscription; nothing downstream counts
+ * these rows.
+ */
 export function layoutTags(layout) {
-  return formatOf(layout) === 'studio-v6' ? studioTags(layout) : coreLayoutTags(layout)
+  const pairs = formatOf(layout) === 'studio-v6' ? studioTags(layout) : coreLayoutTags(layout)
+
+  const seen = new Set()
+  return pairs.filter(([ownerId, tag]) => {
+    const key = `${ownerId}\u0000${tag}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 /**

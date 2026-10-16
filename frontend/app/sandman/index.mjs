@@ -4,6 +4,10 @@ import * as studio from './studio.mjs'
 import * as live from './live.mjs'
 import * as databases from './databases.mjs'
 import * as properties from './properties.mjs'
+import * as equipment from './equipment.mjs'
+import * as dbForm from './db-form.mjs'
+import * as tableVisibility from './table-visibility.mjs'
+import * as processChecks from './process-checks.mjs'
 import { ApiError } from './api.mjs'
 
 /**
@@ -533,6 +537,14 @@ async function boot() {
     live.install()
 
     /*
+     * Before the first loop opens, for the same reason `live.install()` is:
+     * the checkpoint seeder runs as a loop is built, so the wrapper that takes
+     * its invented records back has to be in place first — see
+     * process-checks.mjs. It also switches on alarms from the tag limits.
+     */
+    processChecks.install()
+
+    /*
      * The databases a reading may be linked to: the foundry's own, from the
      * launch, and any an administrator registered. This replaces the studio's
      * three invented demo servers — see databases.mjs. Not awaited, because a
@@ -541,9 +553,33 @@ async function boot() {
      */
     databases.install()
 
-    // One data connection in Properties rather than two, with the readings
-    // under it — see properties.mjs.
-    properties.install()
+    /*
+     * One data connection in Properties rather than two, with the readings
+     * under it — see properties.mjs.
+     *
+     * It is given `saveToServer` because the studio's own save is discarded
+     * below, and linking a reading to a column has to reach the server: that
+     * stored layout is the only thing `/live/values` reads.
+     */
+    properties.install({ save: saveToServer })
+
+    // The equipment designer picked by group, and the drawing uploaded from
+    // the form rather than from behind the Shape select — see equipment.mjs.
+    equipment.install()
+
+    // The external database form, against `/connections` rather than the
+    // studio's simulated gateway — see db-form.mjs.
+    dbForm.install()
+
+    /*
+     * Which tables each database offers when a reading is linked.
+     *
+     * After `databases.install()`, deliberately: this wraps `catalog` on top
+     * of that one so it narrows whatever the layer below produced, rather than
+     * being bypassed by it. Not awaited — a slow list should not hold up the
+     * loop, and the panel redraws when it lands.
+     */
+    tableVisibility.install()
 
     // Designs live on the server from here: the browser keeps no copy, and
     // Save means a new version rather than a file or a localStorage entry.

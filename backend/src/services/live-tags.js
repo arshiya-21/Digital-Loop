@@ -98,3 +98,50 @@ export function linkedTags(layout, databaseName) {
   out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return out.slice(0, MAX_TAGS)
 }
+
+/** The studio's name for a database somebody registered here: `conn_<id>`. */
+const REGISTERED = /^conn_([A-Za-z0-9_-]{1,120})$/
+
+/**
+ * Every reading in a layout that points at a database registered here.
+ *
+ * The counterpart to `linkedTags`: those are SandMan's to answer for, these
+ * are ours. Grouped by connection, because reading them means opening that
+ * database once and asking for all of its readings together rather than once
+ * per reading.
+ *
+ * Same discipline as above — the table, the column and the row filter come
+ * from the stored layout, and a reading missing either half of its address is
+ * skipped rather than guessed at.
+ */
+export function externalTags(layout) {
+  const readings = layout?.REG
+  if (!readings || typeof readings !== 'object') return new Map()
+
+  const byConnection = new Map()
+  let taken = 0
+
+  for (const [id, reading] of Object.entries(readings)) {
+    if (taken >= MAX_TAGS) break
+    const link = reading?.link
+    if (!link || !link.table || !link.col) continue
+
+    const named = REGISTERED.exec(String(link.src || ''))
+    if (!named) continue
+
+    const tag = { id, table: String(link.table), column: String(link.col) }
+    if (link.keyCol) tag.keyColumn = String(link.keyCol)
+    if (link.keyVal) tag.keyValue = String(link.keyVal)
+    if (link.tcol) tag.timeColumn = String(link.tcol)
+
+    const connectionId = named[1]
+    if (!byConnection.has(connectionId)) byConnection.set(connectionId, [])
+    byConnection.get(connectionId).push(tag)
+    taken += 1
+  }
+
+  for (const tags of byConnection.values()) {
+    tags.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  }
+  return byConnection
+}

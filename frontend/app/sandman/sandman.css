@@ -482,6 +482,126 @@ body.present .dl-empty {
    studio sets `display` on several of these itself. */
 .dl-hidden { display: none !important; }
 
+/* ------------------------------------------------------- range navigator ---
+ *
+ * The strip under the individuals chart: the whole run of records, small,
+ * with the part being charted picked out. The window buttons choose how much
+ * is shown; this chooses which part, and nothing wider than three hours is
+ * ever drawn in the chart itself.
+ *
+ * The padding matches the chart's own plot area (70 px of axis on the left,
+ * 96 px of σ labels on the right) so a point under the handle is the same
+ * point above it. */
+.dl-nav {
+  padding: 0 96px 0 70px;
+  margin: 2px 0 4px;
+}
+
+.dl-nav-strip {
+  position: relative;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel2);
+  overflow: hidden;
+  cursor: crosshair;
+  /* The drag is ours; the page must not scroll under a finger on a tablet. */
+  touch-action: none;
+}
+
+.dl-nav-strip canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Everything outside the window, dimmed — so the strip reads as "you are
+   looking at this part of that". */
+.dl-nav-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--panel);
+  opacity: 0.66;
+  pointer-events: none;
+}
+
+.dl-nav-dim#dlNavLeft { left: 0; }
+.dl-nav-dim#dlNavRight { right: 0; }
+
+.dl-nav-sel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(31, 111, 235, 0.1);
+  border-left: 2px solid #1f6feb;
+  border-right: 2px solid #1f6feb;
+  cursor: grab;
+}
+
+.dl-nav-sel:active { cursor: grabbing; }
+
+.dl-nav-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 11px;
+  cursor: ew-resize;
+  background: #1f6feb;
+  opacity: 0.9;
+}
+
+.dl-nav-grip[data-grip='from'] { left: -2px; border-radius: 4px 0 0 4px; }
+.dl-nav-grip[data-grip='to'] { right: -2px; border-radius: 0 4px 4px 0; }
+
+/* Two hairlines, so a grip reads as something to take hold of. */
+.dl-nav-grip::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  width: 5px;
+  height: 11px;
+  transform: translateY(-50%);
+  border-left: 1px solid rgba(255, 255, 255, 0.85);
+  border-right: 1px solid rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.dl-nav-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.dl-nav-now {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.dl-nav-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dl-nav-latest {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 10.5px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.dl-nav-latest:hover { border-color: #1f6feb; color: #1f6feb; }
+
 /* ------------------------------------------- one data connection, not two ---
  *
  * The drawer that holds the Database → Table → Column flow, opened by
@@ -511,6 +631,59 @@ body.present .dl-empty {
 .dl-add-drawer .db-step.off { display: none; }
 
 .dl-add-drawer[hidden] { display: none; }
+
+/*
+ * Save, at the foot of each reading.
+ *
+ * The fields already write as they change; this is the confirmation that they
+ * did — see `addSaveToReadings` in properties.mjs.
+ */
+.dl-save-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--bd, #e2e8f0);
+}
+
+.dl-save-row .dl-saved { color: var(--ok, #1f8a4c); }
+
+/*
+ * Table and Column on an existing reading, in place of the typed data tag —
+ * see `linkByDropdown` in properties.mjs. Side by side, because they are one
+ * answer in two parts.
+ */
+.dl-link-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The hidden attribute has to beat the panel's own display rules. */
+.ix-card [hidden] { display: none !important; }
+
+/*
+ * Step 4 of the Add reading flow: what to call the reading, and a way to check
+ * the column before making one — see `addNameAndTest` in properties.mjs. Laid
+ * out like the studio's own steps, so the four read as one sequence.
+ */
+.dl-step4 .dl-step4-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.dl-step4-acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dl-step4-acts .note { min-width: 0; }
 
 /* The studio hides its search box until its own button is pressed; inside the
    drawer the drawer is what hides things, so this must not stay hidden. */

@@ -48,7 +48,10 @@ async function openTunnel(row) {
   const ssh = new SshClient()
   const privateKey = unseal(row.tunnel_private_key)
   if (!privateKey) {
-    throw new Error('This connection is set to use a jump box but has no key. Generate one first.')
+    throw new Error(
+      'This connection is set to use an SSH tunnel but has no private key. ' +
+      'Paste the key file, or generate one and install its public half on the tunnel server.'
+    )
   }
 
   await new Promise((resolve, reject) => {
@@ -60,6 +63,12 @@ async function openTunnel(row) {
       port: row.tunnel_port || 22,
       username: row.tunnel_user,
       privateKey,
+      /*
+       * Only when there is one. `ssh2` treats an empty passphrase as an
+       * attempt to decrypt, so passing '' for an unencrypted key fails with a
+       * message about the key being malformed rather than about the passphrase.
+       */
+      passphrase: unseal(row.tunnel_passphrase) || undefined,
       readyTimeout: CONNECT_TIMEOUT_MS,
     })
   })
@@ -110,7 +119,8 @@ async function askMysql(row, where, question) {
   })
   try {
     return await question({
-      query: async sql => (await connection.query({ sql, timeout: QUERY_TIMEOUT_MS }))[0],
+      query: async (sql, values) =>
+        (await connection.query({ sql, timeout: QUERY_TIMEOUT_MS, values: values || [] }))[0],
     })
   } finally {
     await connection.end().catch(() => {})
@@ -137,7 +147,14 @@ async function askSqlServer(row, where, question) {
   })
   await pool.connect()
   try {
-    return await question({ query: async sql => (await pool.request().query(sql)).recordset })
+    return await question({
+      query: async (sql, values) => {
+        const request = pool.request()
+        // `@p1`, `@p2`… to match `DIALECT.sqlserver.param`.
+        ;(values || []).forEach((value, index) => request.input(`p${index + 1}`, value))
+        return (await request.query(sql)).recordset
+      },
+    })
   } finally {
     await pool.close().catch(() => {})
   }
@@ -163,7 +180,7 @@ async function askPostgres(row, where, question) {
   })
   await client.connect()
   try {
-    return await question({ query: async sql => (await client.query(sql)).rows })
+    return await question({ query: async (sql, values) => (await client.query(sql, values || [])).rows })
   } finally {
     await client.end().catch(() => {})
   }
@@ -189,6 +206,37 @@ const ENGINES = {
   azuresql: askSqlServer,
 }
 
+/**
+ * How each engine spells the three things a value query needs.
+ *
+ *   quote   an identifier, so a column called `order` or `index` still works
+ *   param   a placeholder, so a value is never spliced into SQL
+ *   one     "just the newest row", which SQL Server puts at the front
+ *
+ * Quoting is belt and braces: every name reaching it has already been matched
+ * against `information_schema`, so it is one the database has. Both together
+ * is the right amount for the only code here that touches a plant table.
+ */
+const DIALECT = {
+  mysql: {
+    quote: name => `\`${String(name).replaceAll('`', '``')}\``,
+    param: () => '?',
+    one: sql => `${sql} LIMIT 1`,
+  },
+  postgres: {
+    quote: name => `"${String(name).replaceAll('"', '""')}"`,
+    param: index => `$${index}`,
+    one: sql => `${sql} LIMIT 1`,
+  },
+  sqlserver: {
+    quote: name => `[${String(name).replaceAll(']', ']]')}]`,
+    param: index => `@p${index}`,
+    one: sql => sql.replace(/^SELECT /, 'SELECT TOP 1 '),
+  },
+}
+DIALECT.mariadb = DIALECT.mysql
+DIALECT.azuresql = DIALECT.sqlserver
+
 /** Open whatever this row describes, ask one question, and close everything. */
 async function ask(row, question) {
   const engine = ENGINES[row.engine]
@@ -210,6 +258,185 @@ const VERSION_SQL = {
   postgres: 'SELECT version() AS version',
   sqlserver: 'SELECT @@VERSION AS version',
   azuresql: 'SELECT @@VERSION AS version',
+}
+
+/**
+ * The newest record of each reading, from a registered database.
+ *
+ * ⚠ **The only thing in this file that reads a plant table.** Everything else
+ * asks `information_schema` and nothing else, which is what kept a compromised
+ * studio from becoming a query console. This is the deliberate exception, and
+ * it is built so that it cannot become one either:
+ *
+ *   - `wanted` comes from the **layout stored on the server**, never from a
+ *     request. A browser cannot name a table; it can only ask for the loop it
+ *     is already allowed to open — see `routes/live.js`.
+ *   - Every table and column is checked against the live schema first. A name
+ *     that is not in `information_schema` is dropped with a reason, never
+ *     interpolated.
+ *   - What survives that is quoted for the engine, and the row filter's
+ *     **value** is a bound parameter, never text in the statement.
+ *   - One row per reading, newest first. There is no way to ask for more.
+ *
+ * A reading whose table or column has since been dropped is an error against
+ * that reading, not a failure of the whole poll: one renamed column must not
+ * blank a screen full of good ones.
+ */
+/**
+ * A number as a number, text as text.
+ *
+ * `DECIMAL`, `NUMERIC` and `BIGINT` arrive from mysql2 and pg as **strings**,
+ * because they can hold values a JavaScript number cannot. A plant reading is
+ * a measurement, and the studio only accepts a number — so a column typed
+ * `DECIMAL(10,2)`, which is how most of them are, produced a reading that
+ * stayed blank with nothing saying why.
+ *
+ * Converted only when the whole string is a number. A batch code of `0012` is
+ * text and stays text; so does anything that merely starts with a digit.
+ */
+function readable(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number' || typeof value === 'boolean') return value
+  if (value instanceof Date) return value.toISOString()
+
+  const text = String(value).trim()
+  if (text && Number.isFinite(Number(text))) return Number(text)
+  return text
+}
+
+/** When a record was taken, in a form every reader agrees on. */
+function moment(value) {
+  if (!value) return null
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString()
+  const parsed = new Date(String(value))
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString()
+}
+
+export async function latestValues(row, wanted) {
+  const out = { values: {}, errors: {} }
+  if (!Array.isArray(wanted) || !wanted.length) return out
+
+  const dialect = DIALECT[row.engine]
+  if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
+
+  // One introspection for the whole batch, so a poll of twenty readings is
+  // one schema read rather than twenty.
+  const schema = await introspect(row)
+  const tables = new Map(
+    (schema.tables || []).map(table => [table.name, new Set((table.columns || []).map(c => c.name))])
+  )
+
+  const usable = []
+  for (const tag of wanted) {
+    const columns = tables.get(tag.table)
+    if (!columns) { out.errors[tag.id] = `There is no table "${tag.table}" in this database.`; continue }
+    if (!columns.has(tag.column)) { out.errors[tag.id] = `There is no column "${tag.column}" in "${tag.table}".`; continue }
+    if (tag.keyColumn && !columns.has(tag.keyColumn)) {
+      out.errors[tag.id] = `There is no column "${tag.keyColumn}" in "${tag.table}".`
+      continue
+    }
+    // An ordering column that no longer exists is not fatal: without it the
+    // newest row is whatever the database returns first, which is still a
+    // reading, and saying so in an error would blank a working one.
+    const time = tag.timeColumn && columns.has(tag.timeColumn) ? tag.timeColumn : null
+    usable.push({ ...tag, time })
+  }
+  if (!usable.length) return out
+
+  await ask(row, async ({ query }) => {
+    for (const tag of usable) {
+      const filtered = !!(tag.keyColumn && tag.keyValue)
+      const select = `SELECT ${dialect.quote(tag.column)} AS value` +
+        (tag.time ? `, ${dialect.quote(tag.time)} AS at` : '')
+      const from = ` FROM ${dialect.quote(tag.table)}`
+      const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} = ${dialect.param(1)}` : ''
+      const order = tag.time ? ` ORDER BY ${dialect.quote(tag.time)} DESC` : ''
+
+      try {
+        const rows = await query(dialect.one(select + from + where + order), filtered ? [tag.keyValue] : [])
+        const first = Array.isArray(rows) ? rows[0] : null
+        out.values[tag.id] = first
+          ? { value: readable(first.value), recordedAt: moment(first.at) }
+          : null
+        if (!first) {
+          // Naming the filter, because a filter matching nothing is by far
+          // the likeliest reason a table full of rows answers with none —
+          // and "no rows yet" sent people looking at the database instead.
+          out.errors[tag.id] = filtered
+            ? `No rows where "${tag.keyColumn}" = "${tag.keyValue}".`
+            : `"${tag.table}" has no rows.`
+        }
+      } catch (error) {
+        // The driver's message, trimmed. It names the table and column, which
+        // is what somebody needs — and never the password, which is not
+        // interpolated anywhere above.
+        out.errors[tag.id] = String(error?.message || 'That column could not be read.').slice(0, 200)
+      }
+    }
+  })
+
+  return out
+}
+
+/** The most a chart is given, however many rows the table holds. */
+const MAX_POINTS = 500
+
+/**
+ * The recent records of one reading, oldest last, for its chart.
+ *
+ * The same read as `latestValues` with the limit lifted and the order kept,
+ * and fenced the same way: the table and the column come from the stored
+ * layout, both are matched against the live schema before they go anywhere
+ * near a statement, and the row filter's value is bound rather than written
+ * in.
+ *
+ * Without an ordering column there is no time series to draw — rows in
+ * whatever order the database returns them are not a trend — so that is said
+ * rather than guessed at.
+ */
+export async function recentValues(row, tag, points = 200) {
+  const dialect = DIALECT[row.engine]
+  if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
+
+  const schema = await introspect(row)
+  const table = (schema.tables || []).find(entry => entry.name === tag.table)
+  if (!table) throw new Error(`There is no table "${tag.table}" in this database.`)
+
+  const columns = new Set((table.columns || []).map(column => column.name))
+  if (!columns.has(tag.column)) throw new Error(`There is no column "${tag.column}" in "${tag.table}".`)
+
+  const time = tag.timeColumn && columns.has(tag.timeColumn) ? tag.timeColumn : null
+  if (!time) {
+    throw new Error(
+      `"${tag.table}" has no date or time column, so its records cannot be put in order.`
+    )
+  }
+
+  const filtered = !!(tag.keyColumn && columns.has(tag.keyColumn) && tag.keyValue)
+  const wanted = Math.min(Math.max(Number(points) || 200, 1), MAX_POINTS)
+
+  const select = `SELECT ${dialect.quote(tag.column)} AS value, ${dialect.quote(time)} AS at`
+  const from = ` FROM ${dialect.quote(tag.table)}`
+  const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} = ${dialect.param(1)}` : ''
+  const order = ` ORDER BY ${dialect.quote(time)} DESC`
+
+  /*
+   * The limit is a number this function chose, bounded above, and written into
+   * the statement — not a parameter. MySQL and SQL Server both refuse a bound
+   * parameter in that position, and a clamped integer is not user input by the
+   * time it reaches here.
+   */
+  const limited = row.engine === 'sqlserver' || row.engine === 'azuresql'
+    ? `${select} ${from}${where}${order}`.replace(/^SELECT /, `SELECT TOP ${wanted} `)
+    : `${select}${from}${where}${order} LIMIT ${wanted}`
+
+  const rows = await ask(row, async ({ query }) => query(limited, filtered ? [tag.keyValue] : []))
+
+  // Newest first out of the database, oldest first onto a chart.
+  return (Array.isArray(rows) ? rows : [])
+    .map(record => ({ value: readable(record.value), recordedAt: moment(record.at) }))
+    .filter(record => typeof record.value === 'number')
+    .reverse()
 }
 
 /**

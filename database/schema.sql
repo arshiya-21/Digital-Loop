@@ -248,6 +248,35 @@ CREATE TABLE IF NOT EXISTS alarm_event (
  * (DL_SECRET_KEY). `tunnel_public_key` is deliberately plain: it is public,
  * and it is what somebody installs on the jump box.
  */
+/**
+ * Which of a database's tables are worth offering.
+ *
+ * A plant database routinely has a hundred and fifty tables and six that
+ * anybody links a reading to. The dropdown in *Add reading* was showing all of
+ * them, in schema order, which made finding the right one a scrolling exercise
+ * repeated for every reading on every item.
+ *
+ * So a database can be told which tables to offer. `scope` names the database:
+ *
+ *   customer:<foundryId>   the foundry's own, which differs per plant
+ *   conn:<connectionId>    one somebody registered, which does not
+ *
+ * One row means "only these". No row at all means every table, which is what a
+ * database that nobody has narrowed should do — the filter is an improvement
+ * on the list, never a prerequisite for having one.
+ *
+ * `tables` is a JSON array of names. Names, not ids: a table dropped and
+ * recreated is the same table to whoever picked it, and a name that no longer
+ * exists simply stops matching.
+ */
+CREATE TABLE IF NOT EXISTS table_filter (
+  scope       VARCHAR(160) NOT NULL,
+  tables      TEXT         NOT NULL,
+  updated_by  VARCHAR(160) NULL,
+  updated_at  VARCHAR(40)  NOT NULL,
+  PRIMARY KEY (scope)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS db_connection (
   id                  VARCHAR(40)   NOT NULL,
   label               VARCHAR(160)  NOT NULL,
@@ -263,6 +292,9 @@ CREATE TABLE IF NOT EXISTS db_connection (
   tunnel_user         VARCHAR(160)  NULL,
   tunnel_private_key  TEXT          NULL,
   tunnel_public_key   TEXT          NULL,
+  -- Sealed like the private key. A key file generated with a passphrase is
+  -- useless without it, and the gateway this mirrors reads one too.
+  tunnel_passphrase   TEXT          NULL,
   last_tested_at      VARCHAR(40)   NULL,
   last_test_ok        TINYINT(1)    NULL,
   last_test_error     VARCHAR(500)  NULL,

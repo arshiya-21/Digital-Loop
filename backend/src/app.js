@@ -15,6 +15,7 @@ import { session } from './routes/sessions.js'
 import { identity } from './routes/identity.js'
 import { database } from './routes/database.js'
 import { connections } from './routes/connections.js'
+import { tableVisibility } from './routes/tableVisibility.js'
 import { loops } from './routes/loops.js'
 import { loopVersions } from './routes/loopVersions.js'
 import { assets } from './routes/assets.js'
@@ -171,6 +172,12 @@ export function createApp() {
    * most for.
    */
   site.use('/api/v1/connections', authenticate, requireAdminRole, connections.router)
+  /*
+   * Which tables each database offers in the reading dropdowns. Readable by
+   * both roles because the dropdowns are built from it; the write inside is
+   * administrator-only — see routes/tableVisibility.js.
+   */
+  site.use('/api/v1/table-visibility', authenticate, tableVisibility.router)
   // These three scope themselves to what the caller can already reach.
   site.use('/api/v1/overview', authenticate, overview.router)
   // Administration of the plant structure and the change log, both admin-only.

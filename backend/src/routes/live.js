@@ -1,10 +1,12 @@
 import { createRouter } from '../utils/router.js'
 import { loopToView } from '../utils/loop-access.js'
-import { requireLineScope } from '../middleware/auth.js'
-import { visibleLayout, linkedTags } from '../services/live-tags.js'
+import { requireLineScope, requireAdmin } from '../middleware/auth.js'
+import { visibleLayout, linkedTags, externalTags } from '../services/live-tags.js'
 import { cachedValues } from '../services/live-cache.js'
 import { readValues, readChart } from '../services/sandman.js'
-import { badRequest, notFound } from '../utils/errors.js'
+import { latestValues, recentValues } from '../services/db-connect.js'
+import { db } from '../config/db.js'
+import { badRequest, notFound, unprocessable } from '../utils/errors.js'
 
 /**
  * API 6 — LIVE READINGS
@@ -46,7 +48,53 @@ async function scope(user, loopId) {
   requireLineScope(user, loop.line_id)
 
   const layout = await visibleLayout(user, loop)
-  return { loop, tags: linkedTags(layout, user.database?.name) }
+  return {
+    loop,
+    tags: linkedTags(layout, user.database?.name),
+    /** connectionId → readings, for databases registered here. */
+    external: externalTags(layout),
+  }
+}
+
+/**
+ * Read the readings that point at databases registered here.
+ *
+ * SandMan answers for the foundry's own database; this answers for the ones an
+ * administrator added. Both end up in the same map, keyed by tag id, because
+ * to everything downstream a reading is a reading — the browser does not know
+ * or care which side of this a number came from.
+ *
+ * Not cached: `latestValues` opens the database, asks, and closes, and a poll
+ * is thirty seconds apart. A second cache in front of that would mostly add a
+ * way for the two halves of one screen to disagree about the time.
+ *
+ * A connection that cannot be opened at all marks its own readings and leaves
+ * the rest alone. One unplugged historian must not blank a loop.
+ */
+async function readRegistered(byConnection) {
+  const values = {}
+  const errors = {}
+
+  for (const [connectionId, tags] of byConnection) {
+    const row = await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(connectionId)
+    if (!row) {
+      for (const tag of tags) errors[tag.id] = 'That database is no longer registered.'
+      continue
+    }
+
+    try {
+      const answer = await latestValues(row, tags)
+      Object.assign(values, answer.values)
+      Object.assign(errors, answer.errors)
+    } catch (error) {
+      // The host and the driver's complaint, never the password — it is not
+      // interpolated into anything `latestValues` builds.
+      const why = String(error?.message || 'could not be reached').slice(0, 200)
+      for (const tag of tags) errors[tag.id] = `${row.label}: ${why}`
+    }
+  }
+
+  return { values, errors }
 }
 
 /**
@@ -60,35 +108,100 @@ async function scope(user, loopId) {
  * plant database nothing.
  */
 live.get('/values', async ({ user, query, req }) => {
-  const { loop, tags } = await scope(user, query.loopId)
+  const { loop, tags, external } = await scope(user, query.loopId)
 
-  if (!tags.length) {
+  const registeredCount = [...external.values()].reduce((total, list) => total + list.length, 0)
+
+  if (!tags.length && !registeredCount) {
     req.logNote = 'no linked readings'
     return { loopId: loop.id, lineId: loop.line_id, tagCount: 0, values: {}, errors: {}, stale: false }
   }
 
-  const answer = await cachedValues(
-    String(user.foundry.id), String(loop.line_id), tags,
-    () => readValues({ foundry: String(user.foundry.id), line: String(loop.line_id), tags })
-  )
+  /*
+   * Both halves at once.
+   *
+   * SandMan's readings and the registered databases' are independent, and a
+   * slow historian should not hold up the foundry's own numbers — so they are
+   * asked for together rather than one after the other.
+   */
+  const [fromSandMan, fromRegistered] = await Promise.all([
+    tags.length
+      ? cachedValues(
+          String(user.foundry.id), String(loop.line_id), tags,
+          () => readValues({ foundry: String(user.foundry.id), line: String(loop.line_id), tags })
+        )
+      : Promise.resolve({ values: {}, errors: {} }),
+    registeredCount ? readRegistered(external) : Promise.resolve({ values: {}, errors: {} }),
+  ])
 
   // Counts and freshness only — never a reading, never a table name.
-  req.logNote = `${tags.length} tags` +
-    (answer.stale ? ', stale' : answer.cached ? ', cached' : ', from SandMan')
+  req.logNote = `${tags.length}+${registeredCount} tags` +
+    (fromSandMan.stale ? ', stale' : fromSandMan.cached ? ', cached' : ', read')
 
   return {
     loopId: loop.id,
     lineId: loop.line_id,
-    tagCount: tags.length,
+    tagCount: tags.length + registeredCount,
     /** `{ "<tagId>": { value, date, time, shift, recordedAt } | null }` */
-    values: answer.values || {},
+    values: { ...(fromSandMan.values || {}), ...fromRegistered.values },
     /** Per-tag reasons — "unknown column" and the like. Never a value. */
-    errors: answer.errors || {},
+    errors: { ...(fromSandMan.errors || {}), ...fromRegistered.errors },
     /** True when SandMan could not be reached and this is the last good read. */
-    stale: !!answer.stale,
-    ...(answer.since ? { since: answer.since } : {}),
-    cached: !!answer.cached,
+    stale: !!fromSandMan.stale,
+    ...(fromSandMan.since ? { since: fromSandMan.since } : {}),
+    cached: !!fromSandMan.cached,
   }
+})
+
+/**
+ * POST /api/v1/live/preview
+ *
+ * One value from a table and column somebody is **in the middle of choosing**,
+ * so the Add reading flow can say whether data is coming before a reading is
+ * made out of it.
+ *
+ * This is the one endpoint where the table and the column come from the
+ * request rather than from a stored layout, which is why it is fenced:
+ *
+ *   - **Administrators only.** An operator has no use for it and no way in.
+ *   - One source: the foundry's own database, or one registered here. Nothing
+ *     else is accepted.
+ *   - One row. The same read the poll does, through the same code.
+ *   - The loop is checked first, so the line is one the caller's launch named.
+ *
+ * It stores nothing and changes nothing.
+ */
+live.post('/preview', async ({ user, body }) => {
+  requireAdmin(user)
+
+  const { loop } = await scope(user, body?.loopId)
+  const source = String(body?.source || '')
+  const table = String(body?.table || '').trim()
+  const column = String(body?.column || '').trim()
+  if (!table || !column) throw badRequest('invalid_field', 'A table and a column are required.')
+
+  const tag = { id: 'preview', table, column }
+  if (body?.keyColumn && body?.keyValue) {
+    tag.keyColumn = String(body.keyColumn)
+    tag.keyValue = String(body.keyValue)
+  }
+  if (body?.timeColumn) tag.timeColumn = String(body.timeColumn)
+
+  if (source === 'customer') {
+    const answer = await readValues({
+      foundry: String(user.foundry.id), line: String(loop.line_id), tags: [tag],
+    })
+    return { value: answer?.values?.preview ?? null, error: answer?.errors?.preview ?? null }
+  }
+
+  const named = /^conn_([A-Za-z0-9_-]{1,120})$/.exec(source)
+  if (!named) throw badRequest('invalid_field', 'That is not a database this service reads.')
+
+  const row = await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(named[1])
+  if (!row) throw notFound('No such database connection.')
+
+  const answer = await latestValues(row, [tag])
+  return { value: answer.values.preview ?? null, error: answer.errors.preview ?? null }
 })
 
 /** Only these reach SandMan; anything else the caller adds is dropped. */
@@ -109,7 +222,59 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/
  * drifting apart silently.
  */
 live.get('/chart', async ({ user, query }) => {
-  const { loop, tags } = await scope(user, query.loopId)
+  const { loop, tags, external } = await scope(user, query.loopId)
+
+  /*
+   * A reading on a database registered here is charted from that database.
+   *
+   * SandMan answers for its own, and this endpoint used to assume every
+   * chartable reading was one of those — so opening the trend on a reading
+   * from a plant historian answered 404, and the window said "Could not be
+   * loaded" beside a value it was already showing.
+   *
+   * `processControl` is null for these: it is SandMan's own calculation, with
+   * its subgroup rules and its limits. Working out something similar here and
+   * labelling it the same would be two different charts under one name.
+   */
+  const wantedTag = String(query.tag || '')
+  for (const [connectionId, list] of external) {
+    const mine = list.find(entry => entry.id === wantedTag)
+    if (!mine) continue
+
+    const connection = await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(connectionId)
+    if (!connection) throw notFound('That database is no longer registered.')
+
+    const points = Number(query.points)
+    let series
+    try {
+      series = await recentValues(
+        connection, mine,
+        Number.isFinite(points) && points >= 1 ? Math.round(points) : 200
+      )
+    } catch (error) {
+      /*
+       * A dropped column, a renamed table, a table with no timestamp: each is
+       * something somebody can fix, and each used to arrive as a bare
+       * `internal_error` that said nothing. The driver's own words are the
+       * useful ones, and nothing in them is a credential — the password is
+       * not interpolated into any statement `recentValues` builds.
+       */
+      throw unprocessable(
+        'chart_unreadable',
+        String(error?.message || 'Those records could not be read.').slice(0, 300)
+      )
+    }
+
+    return {
+      tag: mine.id,
+      loopId: loop.id,
+      dateFrom: series[0]?.recordedAt ?? null,
+      dateTo: series.at(-1)?.recordedAt ?? null,
+      series: series.map(record => ({ value: record.value, recordedAt: record.recordedAt })),
+      processControl: null,
+      source: connection.label,
+    }
+  }
 
   const wanted = String(query.tag || '')
   if (!wanted) throw badRequest('tag_required', 'A tag is required.')

@@ -84,6 +84,8 @@ const publicShape = row => ({
         /** Public by definition: this is what goes in authorized_keys. */
         publicKey: row.tunnel_public_key,
         hasKey: !!row.tunnel_private_key,
+        /** Whether the key is protected — never by what. */
+        hasPassphrase: !!row.tunnel_passphrase,
       }
     : null,
   lastTest: row.last_tested_at
@@ -180,7 +182,7 @@ function readBody(body, partial) {
     if (body.tunnel === null) {
       Object.assign(out, {
         tunnel_host: null, tunnel_port: null, tunnel_user: null,
-        tunnel_private_key: null, tunnel_public_key: null,
+        tunnel_private_key: null, tunnel_public_key: null, tunnel_passphrase: null,
       })
     } else {
       const host = text(body.tunnel.host)
@@ -195,6 +197,42 @@ function readBody(body, partial) {
       out.tunnel_host = host.slice(0, 255)
       out.tunnel_port = port
       out.tunnel_user = user.slice(0, 128)
+
+      /*
+       * A key somebody already has, rather than one generated here.
+       *
+       * The gateway this mirrors points `sshtunnel` at a key file on disk; the
+       * equivalent here is pasting that file's contents once, after which it is
+       * sealed and never readable again. `/keypair` remains for the other case
+       * — no key yet, and a public half to install on the jump box.
+       *
+       * Absent means "leave it", empty string means "remove it", the same rule
+       * the password follows.
+       */
+      if (body.tunnel.privateKey !== undefined) {
+        const key = String(body.tunnel.privateKey)
+        if (key.trim()) {
+          if (!/BEGIN [A-Z ]*PRIVATE KEY/.test(key)) {
+            throw badRequest(
+              'invalid_field',
+              '"tunnel.privateKey" does not look like a private key file. Paste the whole file, ' +
+              'including the BEGIN and END lines.'
+            )
+          }
+          requireSealing()
+          out.tunnel_private_key = seal(key)
+          // A supplied key has no public half here; whoever owns it has it.
+          out.tunnel_public_key = null
+        } else {
+          out.tunnel_private_key = null
+        }
+      }
+
+      if (body.tunnel.passphrase !== undefined) {
+        const phrase = String(body.tunnel.passphrase)
+        if (phrase) requireSealing()
+        out.tunnel_passphrase = phrase ? seal(phrase) : null
+      }
     }
   }
 
@@ -350,6 +388,79 @@ connections.post('/:id/keypair', async ({ user, params }) => {
 })
 
 /* -------------------------------------------------------- using the thing ---*/
+
+/**
+ * Can these settings be reached? Nothing is stored, and nothing is changed.
+ *
+ * Pressing Test used to mean saving first, because the only test there was
+ * tested a stored row. That is the wrong way round: somebody checking a host
+ * and a password has not decided to keep them, and a failed test would leave a
+ * half-right connection behind for them to find and delete.
+ *
+ * So this takes the form's contents, seals the secrets in memory, tries them,
+ * and lets all of it fall out of scope. The sealing is not ceremony: every
+ * engine below reads its password through `unseal`, so a row shaped like a
+ * stored one is what makes this the same code path rather than a second one
+ * that could drift.
+ *
+ * A reply never echoes anything that was sent.
+ */
+connections.post('/test', async ({ user, body }) => {
+  requireAdmin(user)
+
+  // A name is for the list, not for connecting — testing before naming it is
+  // the normal order, so one is stood in rather than demanded.
+  const fields = readBody({ ...body, label: text(body.label) || 'Untitled' }, false)
+  const row = {
+    engine: fields.engine,
+    host: fields.host,
+    port: fields.port ?? DEFAULT_PORT[fields.engine],
+    database_name: fields.database_name,
+    username: fields.username,
+    password: fields.password ?? null,
+    use_tls: fields.use_tls ?? 0,
+    tunnel_host: fields.tunnel_host ?? null,
+    tunnel_port: fields.tunnel_port ?? null,
+    tunnel_user: fields.tunnel_user ?? null,
+    tunnel_private_key: fields.tunnel_private_key ?? null,
+    tunnel_passphrase: fields.tunnel_passphrase ?? null,
+  }
+
+  /*
+   * An existing connection being edited may be tested without its password
+   * being typed again — the form leaves the field blank to keep what is
+   * stored. `use` names that row, and only its secrets are borrowed.
+   */
+  const borrowFrom = text(body.use)
+  if (borrowFrom) {
+    const stored = await mustExist(borrowFrom)
+    if (row.password === null) row.password = stored.password
+    if (row.tunnel_private_key === null) row.tunnel_private_key = stored.tunnel_private_key
+    if (row.tunnel_passphrase === null) row.tunnel_passphrase = stored.tunnel_passphrase
+  }
+
+  const result = await testConnection(row)
+
+  /*
+   * How many tables are in it, while the settings are in hand.
+   *
+   * Without this the browser would have to save in order to count, which is
+   * the thing this endpoint exists to avoid. A database that answers but whose
+   * tables cannot be listed is still reachable, so the count is omitted rather
+   * than turning the whole test into a failure.
+   */
+  let tableCount = null
+  if (result.ok) {
+    try {
+      tableCount = (await introspect(row)).tables.length
+    } catch { /* reachable, not readable — said by the absent count */ }
+  }
+
+  await audit(user.id, 'connection.try', 'connection', borrowFrom || null, {
+    engine: row.engine, host: row.host, ok: result.ok, stored: false,
+  })
+  return { ...result, tableCount }
+})
 
 /** Can it be reached? The answer is recorded so the panel can show it later. */
 connections.post('/:id/test', async ({ user, params }) => {

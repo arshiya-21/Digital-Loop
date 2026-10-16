@@ -70,6 +70,7 @@ export const api = {
   get: path => request('GET', path),
   post: (path, body) => request('POST', path, body ?? {}),
   patch: (path, body) => request('PATCH', path, body),
+  put: (path, body) => request('PUT', path, body ?? {}),
   delete: path => request('DELETE', path),
 }
 
@@ -108,10 +109,14 @@ export const databaseApi = { get: () => api.get('/database') }
  * who is not an administrator.
  */
 export const connectionApi = {
+  /** What a connection may be: the engines, and the port each one listens on. */
+  engines: () => api.get('/connections/engines'),
   list: () => api.get('/connections'),
   create: body => api.post('/connections', body),
   update: (id, body) => api.patch(`/connections/${id}`, body),
   remove: id => api.delete(`/connections/${id}`),
+  /** Try settings that have not been saved. Stores nothing, changes nothing. */
+  try: body => api.post('/connections/test', body),
   test: id => api.post(`/connections/${id}/test`, {}),
   schema: id => api.get(`/connections/${id}/schema`),
   keypair: id => api.post(`/connections/${id}/keypair`, {}),

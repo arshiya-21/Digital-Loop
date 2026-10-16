@@ -573,7 +573,8 @@ const panel = await evaluate(`(() => {
   out.databaseDropdown = !!drawer?.querySelector('#dbDb');
   out.offered = [...(drawer?.querySelectorAll('#dbDb option') || [])].map(o => o.textContent.trim());
 
-  // One step at a time: Column is not there until a table has been chosen.
+  // One step at a time, from nothing chosen: the database is asked for first,
+  // and the table, the column and the name each wait for the one before.
   out.stepsWhenOpened = [...drawer.querySelectorAll('.db-step')].map(step =>
     (step.querySelector('i')?.textContent || '?') +
     (getComputedStyle(step).display === 'none' ? ':hidden' : ':shown'));
@@ -597,8 +598,9 @@ check('which offers the foundry database and nothing invented',
   panel.offered)
 check('the dropdown opens directly under the heading, not below the readings',
   panel.childOrder?.[1] === 'dlAddDrawer', panel.childOrder)
-check('and the steps come one at a time — no column until a table is chosen',
-  panel.stepsWhenOpened?.at(-1) === '3:hidden', panel.stepsWhenOpened)
+check('and the steps come one at a time — only the database to begin with',
+  panel.stepsWhenOpened?.join(' ') === '1:shown 2:hidden 3:hidden 4:hidden',
+  panel.stepsWhenOpened)
 
 console.log('\nCONTROL CHART — real records, and SandMan\'s own')
 
