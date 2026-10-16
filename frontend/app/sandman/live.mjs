@@ -1350,35 +1350,24 @@ function useARealSpread() {
 /* -------------------------------------------------------- one colour ---*/
 
 /**
- * The chart in one colour, and no rule violations.
+ * The markers in one colour, and no rule violations.
  *
- * The studio's palette is the textbook one: green inside ±1σ, amber, orange,
- * red — and red markers for every point the Western Electric rules flag. On a
- * set point that genuinely holds at 25.0 for an hour that painted sixty
- * markers red and lit the legend's "Rule violation", because eight points in a
- * row on one side of a centre line **computed from those same points** is a
- * rule, and on a flat set point it is a certainty. The chart was shouting
- * about its own arithmetic.
+ * The studio colours each point by the zone it is in — amber past ±1σ, orange
+ * past ±2σ — and red for every point the Western Electric rules flag. On a set
+ * point that genuinely holds at 25.0 for an hour that painted sixty markers
+ * red and lit the legend's "Rule violation", because eight points in a row on
+ * one side of a centre line **computed from those same points** is a rule, and
+ * on a flat set point it is a certainty. The chart was shouting about its own
+ * arithmetic.
  *
- * So the zones and the markers are one blue ramp, and the violation marking is
- * gone: no red dots, no rules panel, no violation count. What a reading is
- * supposed to stay between is Min / Max under Edit limits, and the chart draws
- * those as the lines they are.
+ * So the series is drawn in one blue, the colour of the line it sits on, and
+ * the violation marking is gone: no red dots, no rules panel, no violation
+ * count. The zone bands behind it are the studio's own and are left alone —
+ * they are the scale, and they say where a point is without shouting.
  */
-const BLUE = ['#1f6feb', '#2563eb', '#1d4ed8', '#1e3a8a']
+const BLUE = ['#1f6feb', '#1f6feb', '#1f6feb', '#1f6feb']
 
 function readInBlue() {
-  const zones = peek('ZC')
-  if (zones) {
-    zones.c = 'rgba(31,111,235,.13)'
-    zones.b = 'rgba(31,111,235,.085)'
-    zones.a = 'rgba(31,111,235,.045)'
-    zones.out = 'rgba(148,163,184,.12)'
-    zones.l1 = '#93c5fd'
-    zones.l2 = '#60a5fa'
-    zones.l3 = '#2563eb'
-  }
-
   const markers = peek('PTC')
   if (Array.isArray(markers)) markers.splice(0, markers.length, ...BLUE)
 
