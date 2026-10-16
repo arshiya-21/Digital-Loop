@@ -794,10 +794,9 @@ function hideMovingRange() {
  * "Collecting data… · Points 0" was saying.
  *
  * The other end was just as wrong. Eight hours of batch records is two hundred
- * markers shoulder to shoulder, every run of them flagged, the σ labels on the
- * right stacked on top of each other: a chart nobody can read, of a process
- * that is fine. So the widest button is three hours, and reaching the rest of
- * the records is the navigator's job rather than a wider window's.
+ * markers shoulder to shoulder: still offered, because a shift is a thing
+ * people want to see, but not what a chart opens on. It opens on two hours,
+ * and reaching the rest of the records is the navigator's job.
  */
 const LADDER = [
   [60, '1 min'],
@@ -820,20 +819,29 @@ const LADDER = [
   [31_536_000, '1 year'],
 ]
 
+/** The three windows a plant reads in: a run, half a shift, a shift. */
+const HOURS = [
+  [7_200, '2 h'],
+  [14_400, '4 h'],
+  [28_800, '8 h'],
+]
+
 /**
- * Three windows, measured in markers rather than in hours.
+ * Three windows for a reading the hours do not fit.
  *
- * A fixed ladder of hours cannot suit both: a batch set point records every
- * two minutes, a lab result once a day, and "2 h" is sixty points of the first
- * and none of the second. So the buttons are built from the spacing of the
- * records themselves — about thirty markers, about sixty, about ninety — and
- * then named in whatever unit that lands on. Sixty is the one a chart opens
- * on: dense enough to show the process moving, sparse enough to read.
+ * A lab result recorded once a day has one point in eight hours, and three
+ * buttons that all say "Collecting data…" are three ways of showing nothing.
+ * For those the buttons are built from the spacing of the records themselves
+ * — about thirty markers, about sixty, about ninety — and named in whatever
+ * unit that lands on.
  */
 const MARKERS = [30, 60, 90]
 
-/** Where the default lands when nothing has been loaded yet. */
+/** Two hours: the one a chart opens on. */
 const DEFAULT_WINDOW = 7_200
+
+/** Below this gap between records, the hours hold enough to be worth drawing. */
+const DENSE_ENOUGH = 20 * 60
 
 /** The usual gap between two records, in seconds. */
 function spacingOf(points) {
@@ -857,14 +865,18 @@ const rungFor = seconds => {
 /**
  * The buttons for a reading, and which of them a chart opens on.
  *
- * Three rungs, always distinct. A reading whose records are seconds apart has
- * thirty, sixty and ninety markers all landing on the same rung of the ladder,
- * and collapsing them would leave one button that cannot be changed — so a
- * repeat takes the next rung up instead.
+ * 2 h, 4 h and 8 h wherever the records come often enough to fill them, which
+ * on a sand line is nearly everywhere — a run, half a shift, a shift, and two
+ * hours to open on. Anything sparser falls back to three rungs of the ladder,
+ * always distinct: a reading whose records are seconds apart has thirty, sixty
+ * and ninety markers landing on the same rung, and collapsing them would leave
+ * one button that cannot be changed, so a repeat takes the next rung up.
  */
 function windowsFor(points) {
   const spacing = spacingOf(points)
-  if (!spacing) return { offered: [[3_600, '1 h'], [7_200, '2 h'], [10_800, '3 h']], opens: DEFAULT_WINDOW }
+  if (!spacing || spacing <= DENSE_ENOUGH) {
+    return { offered: HOURS, opens: DEFAULT_WINDOW }
+  }
 
   const offered = []
   let opens = DEFAULT_WINDOW
@@ -908,14 +920,16 @@ function useDayWindows() {
   const span = spanOf(points)
 
   /*
-   * The chart opens on the narrowest button that still holds every record, so
-   * a reading with twenty minutes of history is not drawn in the last corner
-   * of a two-hour plot. Anything longer opens on the sixty-marker window and
-   * is dragged from there.
+   * Two hours, unless there are not two hours of records.
+   *
+   * A reading with twenty minutes of history would be drawn in the last
+   * corner of a two-hour plot, so that one opens on the narrowest button that
+   * holds it. Everything else opens on 2 h however long the run is — eight
+   * hours of it is what the navigator is for.
    */
   if (points.length) {
-    const fits = offered.find(([seconds]) => seconds >= span)
-    TR.win = fits ? fits[0] : opens
+    const tooShort = span > 0 && span < opens
+    TR.win = tooShort ? (offered.find(([seconds]) => seconds >= span) || [opens])[0] : opens
   }
 
   segment.innerHTML = offered.map(([seconds, label]) =>
