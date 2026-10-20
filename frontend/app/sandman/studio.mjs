@@ -137,6 +137,96 @@ export const setMode = mode => fn('setMode')?.(mode)
 export const setPresent = on => fn('setPresent')?.(on)
 export const toast = text => fn('toast')?.(text)
 
+const escapeHtml = value =>
+  String(value ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+/**
+ * Ask for a name, in the studio's own modal.
+ *
+ * Used where a name is part of the decision rather than a detail to fix
+ * afterwards — the first save of a line's loop, which is the one that names
+ * it. Resolves with the trimmed name, or null if the person backed out, by
+ * Cancel or by Escape or by closing the box some other way: a null means
+ * nothing was decided and the caller must not save.
+ *
+ * Deliberately not `window.prompt`. That is the operating system's box, in its
+ * own style, and on a kiosk browser it may not appear at all.
+ */
+export function askName({ title, label = 'Name', value = '', hint = '', action = 'Save' }) {
+  const open = fn('openModal')
+  const close = fn('closeModal')
+  // Without the studio's modal there is nothing to ask with. The caller gets
+  // what it suggested rather than a save that silently never happens.
+  if (!open || !close) return Promise.resolve(String(value || '').trim() || null)
+
+  return new Promise(resolve => {
+    open(`<h3>${escapeHtml(title)}</h3>
+ ${hint ? `<div class="note">${escapeHtml(hint)}</div>` : ''}
+ <div class="fld" style="margin-top:10px"><label for="dlAskName">${escapeHtml(label)}</label>
+ <input id="dlAskName" autocomplete="off" spellcheck="false" value="${escapeHtml(value)}"></div>
+ <div class="mact"><button type="button" class="ib" id="dlAskCancel">Cancel</button><button type="button" class="ib pri" id="dlAskGo">${escapeHtml(action)}</button></div>`)
+
+    const input = document.getElementById('dlAskName')
+    const modal = document.getElementById('modal')
+    let settled = false
+
+    /*
+     * The box can also be closed by Escape or by the studio opening something
+     * else over it, and a promise nobody settles would leave Save waiting for
+     * ever. So the modal itself is watched: once it is gone, the answer is no.
+     */
+    /*
+     * `closeModal` only takes the `on` class off the box — the markup stays
+     * where it is — so "is the field still there" is not the question. The
+     * question is whether the box is still showing.
+     */
+    const showing = () =>
+      !!document.getElementById('dlAskName') && !!modal?.classList.contains('on')
+
+    const watch = modal
+      ? new MutationObserver(() => {
+          if (!showing()) finish(null, true)
+        })
+      : null
+    watch?.observe(modal, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+
+    /** `gone` means the box has already been taken off the screen by something else. */
+    function finish(answer, gone = false) {
+      if (settled) return
+      settled = true
+      watch?.disconnect()
+      if (!gone) close()
+      resolve(answer)
+    }
+
+    const go = () => {
+      const name = input.value.trim()
+      if (!name) {
+        toast('Give the loop a name')
+        input.focus()
+        return
+      }
+      finish(name)
+    }
+
+    document.getElementById('dlAskGo').onclick = go
+    document.getElementById('dlAskCancel').onclick = () => finish(null)
+    input.onkeydown = event => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        go()
+      }
+    }
+
+    // A frame later: the studio's modal sets focus itself as it opens, and the
+    // later of the two wins.
+    requestAnimationFrame(() => {
+      input.focus()
+      input.select()
+    })
+  })
+}
+
 /**
  * Put the whole loop on the screen.
  *

@@ -432,7 +432,31 @@ async function saveToServer() {
       studio.toast('Pick a line first, then Save to create its design.')
       return
     }
-    const name = document_.DOC?.name?.trim() || `${designs.lineNameFor(standingLine)} loop`
+    /*
+     * The one save that asks.
+     *
+     * This is the save that names the line's loop, and the name is what
+     * everyone sees from then on — in the Open list, in the publish banner, in
+     * every toast. Afterwards Save stores a new version and says so, because
+     * asking for the same name on every save is a dialog to dismiss, not a
+     * decision to make.
+     */
+    const drawn = document_.DOC?.name?.trim()
+    const suggested = drawn && !/^(new flowsheet|untitled)/i.test(drawn)
+      ? drawn
+      : `${designs.lineNameFor(standingLine)} loop`
+
+    const name = await studio.askName({
+      title: 'Name this loop',
+      label: 'Loop name',
+      value: suggested,
+      hint: `It is the loop for ${designs.lineNameFor(standingLine)}, and this is its first version.`,
+    })
+    if (!name) {
+      studio.toast('Not saved — nothing has been stored for this line yet.')
+      return
+    }
+
     const made = await designs.create(name, standingLine, document_)
     await openDesign(made.id)
     studio.toast(`Created ${name} on ${designs.lineNameFor(standingLine)} as version 1.`)
