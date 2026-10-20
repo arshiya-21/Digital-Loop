@@ -204,10 +204,109 @@ function replaceCatalog() {
   window.catalog = replaced
 }
 
+/* ------------------------------------------- the link wizard's first step ---*/
+
+const escapeHtml = value =>
+  String(value ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+/**
+ * The foundry's own database, in the wizard that opens after placing
+ * equipment.
+ *
+ * "Where does this equipment's data live?" lists `sources()`, which is the
+ * registered databases and nothing else — the foundry's own is not in that
+ * list anywhere in the studio. It has its own card on the Data sources page,
+ * its own entry in the inspector's dropdown and its own branch in `catalog()`,
+ * but in this wizard it simply was not offered: a plant that had registered
+ * nothing saw an empty box and no way forward except "Add or manage data
+ * sources", for a database it had already been given.
+ *
+ * The studio understands the source id `customer` everywhere else — `SRC()`
+ * resolves it through `customerSource()` — so the card added here is the one
+ * the wizard would have drawn if the list had included it.
+ */
+function offerTheFoundryDatabase() {
+  const original = window.lwRender
+  if (typeof original !== 'function' || original.__dlCustomer) return
+
+  const replaced = function lwRenderWithTheFoundryDatabase() {
+    const answer = original.apply(this, arguments)
+    try {
+      addFoundryCard()
+      storeWhatItLinks()
+    } catch (error) {
+      // The wizard is drawn either way; without the card it is what it was.
+      console.error('Offering the foundry database failed:', error)
+    }
+    return answer
+  }
+
+  replaced.__dlCustomer = true
+  replaced.original = original
+  window.lwRender = replaced
+}
+
+function addFoundryCard() {
+  const wizard = peek('LW')
+  if (!wizard || wizard.step !== 1) return
+
+  const grid = document.querySelector('#mbox .src-g')
+  if (!grid || grid.querySelector('[data-dl-foundry]')) return
+
+  const source = window.customerSource?.()
+  if (!source) return
+
+  const chosen = wizard.src === 'customer'
+  const card = document.createElement('label')
+  card.className = `src pick ${chosen ? 'on' : ''}`
+  card.dataset.dlFoundry = '1'
+  card.innerHTML =
+    `<input type="radio" name="lwS" value="customer"${chosen ? ' checked' : ''}>` +
+    '<div class="src-h"><span class="src-i">★</span><div style="min-width:0">' +
+    `<b>${escapeHtml(source.name)}</b>` +
+    '<div class="note mono" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+    `${escapeHtml(source.host)} · ${escapeHtml(source.db)}</div></div></div>`
+
+  // First, because it is the one most readings come from.
+  grid.prepend(card)
+
+  card.querySelector('input').onchange = () => {
+    Object.assign(wizard, { src: 'customer', db: null, table: null, keyCol: '' })
+    window.lwRender?.()
+  }
+}
+
+/**
+ * Save links means save links.
+ *
+ * The wizard's last step writes `link` onto each reading and calls `changed()`
+ * — the studio's own save, which is deliberately discarded here because
+ * designs live on the server. Linking is the one change that has to reach it
+ * anyway: the stored layout is the only thing `/live/values` reads, so a link
+ * made here and not stored is a reading that shows nothing after a reload.
+ */
+function storeWhatItLinks() {
+  const save = document.getElementById('lwSave')
+  if (!save || save.dataset.dlStores) return
+  save.dataset.dlStores = '1'
+
+  const studioHandler = save.onclick
+  save.onclick = event => {
+    const answer = studioHandler?.call(save, event)
+    linked?.()
+    return answer
+  }
+}
+
+/** Told when the wizard has linked readings, so they can be stored. */
+let linked = null
+
 /** Wrap once, then load. Safe to call again. */
-export async function install() {
+export async function install({ onLinked } = {}) {
+  if (typeof onLinked === 'function') linked = onLinked
   replaceSources()
   replaceCatalog()
+  offerTheFoundryDatabase()
   await load()
   // The properties panel may already be open on an equipment item.
   window.renderProps?.()

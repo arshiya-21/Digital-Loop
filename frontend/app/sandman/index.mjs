@@ -575,7 +575,9 @@ async function boot() {
      * slow list should not hold up the loop appearing; the properties panel
      * redraws when it lands.
      */
-    databases.install()
+    // `onLinked` because the studio's own linking wizard writes links too, and
+    // those have to reach the server like the ones made in Properties do.
+    databases.install({ onLinked: properties.persist })
 
     /*
      * One data connection in Properties rather than two, with the readings

@@ -68,7 +68,15 @@ const registered = source => /^conn_/.test(String(source || ''))
 let persistToServer = null
 
 let pending = null
-function persist() {
+/**
+ * Store the layout, shortly.
+ *
+ * Exported because linking is not only done here: the studio's own wizard,
+ * the one that opens after placing equipment, writes links too, and a link
+ * that does not reach the server is a reading that reads nothing after the
+ * next reload — see `databases.mjs`.
+ */
+export function persist() {
   if (!persistToServer) return
   clearTimeout(pending)
   // A few seconds, so picking a table and then its column is one version
