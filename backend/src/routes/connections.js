@@ -299,8 +299,19 @@ connections.post('/', async ({ user, body }) => {
     tunnel_host: fields.tunnel_host ?? null,
     tunnel_port: fields.tunnel_port ?? null,
     tunnel_user: fields.tunnel_user ?? null,
-    tunnel_private_key: null,
-    tunnel_public_key: null,
+    /*
+     * The key as it was sent, sealed.
+     *
+     * These were hard-coded null, from when the only way to have a key was to
+     * generate one here with `/keypair`. Pasting an existing key came later
+     * and this did not move with it: a connection registered with a tunnel was
+     * stored with its host, port and user and without the key — so the form
+     * insisted on a key, said it had saved, and the tunnel could never
+     * authenticate. Nothing said so until the first read failed.
+     */
+    tunnel_private_key: fields.tunnel_private_key ?? null,
+    tunnel_public_key: fields.tunnel_public_key ?? null,
+    tunnel_passphrase: fields.tunnel_passphrase ?? null,
     created_by: user.id,
     created_at: now(),
     updated_at: now(),
@@ -310,12 +321,13 @@ connections.post('/', async ({ user, body }) => {
     `INSERT INTO db_connection
        (id, label, engine, host, port, database_name, username, password, use_tls,
         tunnel_host, tunnel_port, tunnel_user, tunnel_private_key, tunnel_public_key,
-        created_by, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        tunnel_passphrase, created_by, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     row.id, row.label, row.engine, row.host, row.port, row.database_name, row.username,
     row.password, row.use_tls, row.tunnel_host, row.tunnel_port, row.tunnel_user,
-    row.tunnel_private_key, row.tunnel_public_key, row.created_by, row.created_at, row.updated_at
+    row.tunnel_private_key, row.tunnel_public_key, row.tunnel_passphrase,
+    row.created_by, row.created_at, row.updated_at
   )
 
   // The host and the user, never the password — an audit log is read often.
@@ -350,6 +362,13 @@ connections.delete('/:id', async ({ user, params }) => {
   const existing = await mustExist(params.id)
 
   await db.prepare('DELETE FROM db_connection WHERE id = ?').run(existing.id)
+  /*
+   * And the list of tables somebody chose to show for it.
+   *
+   * A filter outlives its database otherwise: a row keyed `conn:<id>` for a
+   * connection nobody can see, kept until the table is read by hand.
+   */
+  await db.prepare('DELETE FROM table_filter WHERE scope = ?').run(`conn:${existing.id}`)
   await audit(user.id, 'connection.delete', 'connection', existing.id, { label: existing.label })
   return noContent()
 })

@@ -253,6 +253,23 @@ const ADDED_DB = {
   username: process.env.DL_DB_USER,
   password: process.env.DL_DB_PASSWORD || '',
 }
+/**
+ * Take away what an earlier run left.
+ *
+ * Registered databases are not scoped to a plant — an administrator registers
+ * one and every loop can read it — so a fixture this suite abandons is a
+ * fixture somebody sees in their own Data sources panel the next morning. A
+ * run that throws half way through never reaches its own teardown, so each run
+ * starts by clearing the last one's, matched on the name this suite gives
+ * them, and does the same at the end.
+ */
+async function sweepTestConnections() {
+  for (const conn of (await call('GET', '/connections')).body || []) {
+    if (/^Added DB /.test(conn.label || '')) await call('DELETE', `/connections/${conn.id}`)
+  }
+}
+await sweepTestConnections()
+
 const addedDb = await call('POST', '/connections', ADDED_DB)
 if (addedDb.status !== 201) {
   console.error(`Could not register the test database: ${JSON.stringify(addedDb.body)}`)
@@ -698,9 +715,7 @@ ws.close()
 for (const loop of (await call('GET', '/loops')).body || []) {
   await call('DELETE', `/loops/${loop.id}`)
 }
-for (const conn of (await call('GET', '/connections')).body || []) {
-  if (conn.label === ADDED_DB.label) await call('DELETE', `/connections/${conn.id}`)
-}
+await sweepTestConnections()
 
 console.log(`\n${passed} passed, ${failed} failed`)
 stop()

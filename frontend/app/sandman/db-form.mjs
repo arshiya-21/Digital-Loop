@@ -405,7 +405,28 @@ async function report(connectionId, tell) {
  * tables the database actually has — which is the thing somebody is looking
  * for when they open this page.
  */
+/**
+ * Whether a connection goes through a jump box, for its card.
+ *
+ * A tunnel is the part of a connection that explains the others: why the host
+ * is a private address, why the database answers from here and nowhere else.
+ * It was configured in the form and then invisible everywhere afterwards, so
+ * the only way to know was to open the form again.
+ *
+ * One request per time the panel is drawn, shared by every card on it.
+ */
+let listOnce = null
+
+function tunnelOf(connectionId) {
+  if (!listOnce) listOnce = connectionApi.list().catch(() => [])
+  return listOnce.then(rows =>
+    (Array.isArray(rows) ? rows : []).find(row => row.id === connectionId)?.tunnel || null)
+}
+
 function fillInList() {
+  // Drawn again means asked again: a tunnel may have just been added.
+  listOnce = null
+
   const box = document.getElementById('mbox')
   if (!box) return
 
@@ -420,10 +441,10 @@ function fillInList() {
 
     const linked = (note.textContent.split('·')[0] || '').trim()
     note.textContent = `${linked} · counting tables…`
-    tableCount(connectionId).then(count => {
+    Promise.all([tableCount(connectionId), tunnelOf(connectionId)]).then(([count, tunnel]) => {
       note.textContent = `${linked} · ${
         count === null ? 'tables unavailable' : `${count} table${count === 1 ? '' : 's'}`
-      }`
+      }${tunnel ? ` · through ${tunnel.user}@${tunnel.host}` : ''}`
     })
   }
 

@@ -1202,6 +1202,40 @@ if (sealingOff) {
   check('two connections may not share a name',
     (await call(ADMIN, 'POST', '/connections', connBody)).status === 400)
 
+  /*
+   * A tunnel given when the connection is *created*, not added afterwards.
+   *
+   * The suite only ever patched one on, and the create path quietly dropped
+   * the key and the passphrase: a database registered through the form with a
+   * jump box was stored with the host, the port and the user and nothing to
+   * authenticate with. It said it had saved, and the first read failed.
+   */
+  const PASTED_KEY =
+    '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA\n-----END OPENSSH PRIVATE KEY-----'
+  const tunnelled = await call(ADMIN, 'POST', '/connections', {
+    ...connBody,
+    label: `Suite tunnelled ${stamp}`,
+    tunnel: {
+      host: 'jump.invalid', port: 22, user: 'rds-tunnel',
+      privateKey: PASTED_KEY, passphrase: 'a phrase',
+    },
+  })
+  check('a tunnel may be configured as the connection is created',
+    tunnelled.status === 201 && tunnelled.body?.tunnel?.user === 'rds-tunnel', tunnelled.body?.tunnel)
+  check('the pasted key is kept',
+    tunnelled.body?.tunnel?.hasKey === true, tunnelled.body?.tunnel)
+  check('and so is its passphrase',
+    tunnelled.body?.tunnel?.hasPassphrase === true, tunnelled.body?.tunnel)
+  check('neither of which is ever sent back',
+    !JSON.stringify(tunnelled.body).includes('PRIVATE KEY') &&
+    !JSON.stringify(tunnelled.body).includes('a phrase'), Object.keys(tunnelled.body || {}))
+  check('a key that is not a key is refused', (await call(ADMIN, 'POST', '/connections', {
+    ...connBody,
+    label: `Suite badkey ${stamp}`,
+    tunnel: { host: 'jump.invalid', user: 'tunnel', privateKey: 'paste it here' },
+  })).status === 400)
+  if (tunnelled.body?.id) await call(ADMIN, 'DELETE', `/connections/${tunnelled.body.id}`)
+
   const keys = await call(ADMIN, 'PATCH', `/connections/${connId}`, {
     tunnel: { host: 'jump.invalid', port: 22, user: 'tunnel' },
   })
