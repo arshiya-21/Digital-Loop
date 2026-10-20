@@ -563,16 +563,45 @@ check('publish succeeds once every item is tagged',
   published.status === 200 && published.body.status === 'published' && published.body.publishedVersion === 2,
   published.body)
 
-// ------------------------------------------------------- one design per line ---
-log.push('LOOPS — a line has one design')
-const second = await call(ADMIN, 'POST', '/loops', { name: 'Another one', lineId })
-check('a second design on the same line is refused',
-  second.status === 409 && second.body.error === 'line_has_design', second.body)
-check('and the refusal names the design already there',
-  /Line 1 loop/.test(second.body.message || ''), second.body?.message)
+// ------------------------------------------------- several loops on a line ---
+log.push('LOOPS — a line may hold several, one of them published')
+const second = await call(ADMIN, 'POST', '/loops', { name: 'Rebuild 2027', lineId })
+check('a second loop on the same line is allowed',
+  second.status === 201 && second.body.lineId === String(lineId), second.body)
+check('and it starts as a draft', second.body?.status === 'draft', second.body?.status)
+check('the first one is still published',
+  (await call(ADMIN, 'GET', `/loops/${designId}`)).body?.status === 'published')
+
+const sameName = await call(ADMIN, 'POST', '/loops', { name: 'Rebuild 2027', lineId })
+check('two loops on a line may not share a name',
+  sameName.status === 409 && sameName.body.error === 'name_taken', sameName.body)
+check('and the refusal says which one is already called that',
+  /Rebuild 2027/.test(sameName.body?.message || ''), sameName.body?.message)
+
+/*
+ * One published loop per line.
+ *
+ * The publish view and the live readings follow the published loop, and two
+ * of those on one line is a question with no answer — so publishing the
+ * second takes the first off the plant's screens, and says so.
+ */
+await call(ADMIN, 'POST', `/loops/${second.body.id}/versions`, {
+  layout: { format: 'sandman-loop', version: 1, name: 'Rebuild 2027', nodes: [], edges: [] },
+})
+const tookOver = await call(ADMIN, 'POST', `/loops/${second.body.id}/publish`, {})
+check('publishing the second one succeeds',
+  tookOver.status === 200 && tookOver.body.status === 'published', tookOver.body)
+check('and it says which loop it replaced',
+  (tookOver.body?.replaced || []).includes('Line 1 loop'), tookOver.body?.replaced)
+check('the first is no longer published',
+  (await call(ADMIN, 'GET', `/loops/${designId}`)).body?.status === 'draft')
+
+// Put the line back the way the rest of the suite expects it.
+await call(ADMIN, 'POST', `/loops/${designId}/publish`, {})
+await call(ADMIN, 'DELETE', `/loops/${second.body.id}`)
 
 const onLine2 = await call(ADMIN, 'POST', '/loops', { name: 'Line 2 loop', lineId: line2Id })
-check('but another line may have its own', onLine2.status === 201, onLine2.body)
+check('another line may have its own', onLine2.status === 201, onLine2.body)
 await call(ADMIN, 'DELETE', `/loops/${onLine2.body.id}`)
 
 // -------------------------------------------------------------- view access ---

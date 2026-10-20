@@ -169,6 +169,24 @@ async function migrate() {
     await pool.query('ALTER TABLE db_connection ADD COLUMN tunnel_passphrase TEXT NULL AFTER tunnel_public_key')
     console.log('   ·  db_connection.tunnel_passphrase: added')
   }
+
+  /*
+   * A line used to hold exactly one loop, enforced by a unique key. It now
+   * holds as many as somebody draws — the one the plant is running, a rebuild
+   * beside it, a trial — with one of them published at a time. Databases
+   * created under the old rule still carry the key, which would refuse the
+   * second loop with a duplicate-key error rather than the clear answer.
+   */
+  const [onePerLine] = await pool.query(
+    `SELECT INDEX_NAME AS name FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'design'
+       AND INDEX_NAME = 'design_one_per_line'
+     LIMIT 1`
+  )
+  if (onePerLine.length) {
+    await pool.query('ALTER TABLE design DROP INDEX design_one_per_line')
+    console.log('   ·  design: a line may now hold more than one loop')
+  }
 }
 
 /**

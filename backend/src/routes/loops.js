@@ -5,7 +5,7 @@ import { created, noContent } from '../utils/respond.js'
 import { badRequest, notFound, forbidden, conflict } from '../utils/errors.js'
 import { validateLayout, layoutTags } from '../services/layout-validation.js'
 import {
-  canDesign, loopToDesign, loopToView, designOnLine, publicLoop, required,
+  canDesign, loopToDesign, loopToView, designNamedOnLine, publicLoop, required,
 } from '../utils/loop-access.js'
 
 /**
@@ -182,12 +182,15 @@ loops.get('/:loopId/tags', async ({ user, params }) => {
 // ------------------------------------------------------------ design access ---
 
 /**
- * Create the design for a line. An initial layout may be supplied.
+ * Create a loop on a line. An initial layout may be supplied.
  *
- * **A line has one design.** That is the model: a production line is a real
- * thing with one arrangement of equipment, and the studio offers lines rather
- * than a list of loops because choosing a line is choosing its design. A
- * second one on the same line is refused rather than quietly allowed.
+ * **A line may hold several.** It used to hold exactly one, on the reasoning
+ * that a production line is a real thing with one arrangement of equipment —
+ * but a rebuild is drawn months before it is built, and a trial beside the
+ * running loop is how anybody checks one. So the line keeps as many as
+ * somebody draws, told apart by name, and exactly one of them is published:
+ * that is the one the publish view and the live readings follow, and
+ * `/loops/:id/publish` is what keeps it to one.
  */
 loops.post('/', async ({ user, body }) => {
   if (!canDesign(user)) {
@@ -201,11 +204,16 @@ loops.post('/', async ({ user, body }) => {
   requireLineScope(user, lineId)
   const line = user.lines.find(entry => String(entry.id) === String(lineId))
 
-  const already = await designOnLine(user.foundry.id, lineId)
-  if (already) {
-    throw conflict('line_has_design',
-      `${line.name} already has a digital loop, "${already.name}". ` +
-      'A line has one design — open it and edit, or delete it first.')
+  /*
+   * A line may hold several loops — what it may not hold is two with the same
+   * name. The name is how somebody tells them apart in Open and in every
+   * message about them, so two called "Rebuild" is a list nobody can use.
+   */
+  const sameName = await designNamedOnLine(user.foundry.id, lineId, name)
+  if (sameName) {
+    throw conflict('name_taken',
+      `${line.name} already has a loop called "${sameName.name}". ` +
+      'Open that one to edit it, or give this one another name.')
   }
 
   const layout = body.layout ?? {

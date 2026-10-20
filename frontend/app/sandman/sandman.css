@@ -482,6 +482,20 @@ body.present .dl-empty {
    studio sets `display` on several of these itself. */
 .dl-hidden { display: none !important; }
 
+/* The loops on a line, in the Open box. The studio's own source cards are
+   labels around a radio; these are buttons, so they need the cursor and the
+   left alignment that `.src` takes for granted. */
+.dl-loop-pick {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.dl-loop-pick .src-i {
+  color: #1f9d55;
+}
+
 /* ------------------------------------------------------- range navigator ---
  *
  * The strip under the individuals chart: the whole run of records, small,

@@ -152,41 +152,34 @@ const escapeHtml = value =>
  * Deliberately not `window.prompt`. That is the operating system's box, in its
  * own style, and on a kiosk browser it may not appear at all.
  */
-export function askName({ title, label = 'Name', value = '', hint = '', action = 'Save' }) {
+/**
+ * Open a question in the studio's modal and settle when it is answered.
+ *
+ * Every dialog here has the same two ways of ending badly: the person presses
+ * Escape, or the studio opens something else over the top. Either leaves a
+ * promise nobody settles and a Save waiting for ever, so the modal itself is
+ * watched — `closeModal` only takes the `on` class off the box, and the markup
+ * stays where it is, so "is the box still showing" is the question rather than
+ * "is the field still there".
+ *
+ * The markup must carry `id="dlAskBox"` somewhere: that is what being open
+ * means here.
+ */
+function ask(markup, wire) {
   const open = fn('openModal')
   const close = fn('closeModal')
-  // Without the studio's modal there is nothing to ask with. The caller gets
-  // what it suggested rather than a save that silently never happens.
-  if (!open || !close) return Promise.resolve(String(value || '').trim() || null)
+  if (!open || !close) return Promise.resolve(null)
 
   return new Promise(resolve => {
-    open(`<h3>${escapeHtml(title)}</h3>
- ${hint ? `<div class="note">${escapeHtml(hint)}</div>` : ''}
- <div class="fld" style="margin-top:10px"><label for="dlAskName">${escapeHtml(label)}</label>
- <input id="dlAskName" autocomplete="off" spellcheck="false" value="${escapeHtml(value)}"></div>
- <div class="mact"><button type="button" class="ib" id="dlAskCancel">Cancel</button><button type="button" class="ib pri" id="dlAskGo">${escapeHtml(action)}</button></div>`)
-
-    const input = document.getElementById('dlAskName')
+    open(markup)
     const modal = document.getElementById('modal')
     let settled = false
 
-    /*
-     * The box can also be closed by Escape or by the studio opening something
-     * else over it, and a promise nobody settles would leave Save waiting for
-     * ever. So the modal itself is watched: once it is gone, the answer is no.
-     */
-    /*
-     * `closeModal` only takes the `on` class off the box — the markup stays
-     * where it is — so "is the field still there" is not the question. The
-     * question is whether the box is still showing.
-     */
     const showing = () =>
-      !!document.getElementById('dlAskName') && !!modal?.classList.contains('on')
+      !!document.getElementById('dlAskBox') && !!modal?.classList.contains('on')
 
     const watch = modal
-      ? new MutationObserver(() => {
-          if (!showing()) finish(null, true)
-        })
+      ? new MutationObserver(() => { if (!showing()) finish(null, true) })
       : null
     watch?.observe(modal, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
 
@@ -199,32 +192,173 @@ export function askName({ title, label = 'Name', value = '', hint = '', action =
       resolve(answer)
     }
 
-    const go = () => {
-      const name = input.value.trim()
-      if (!name) {
-        toast('Give the loop a name')
-        input.focus()
-        return
-      }
-      finish(name)
-    }
-
-    document.getElementById('dlAskGo').onclick = go
-    document.getElementById('dlAskCancel').onclick = () => finish(null)
-    input.onkeydown = event => {
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        go()
-      }
-    }
-
-    // A frame later: the studio's modal sets focus itself as it opens, and the
-    // later of the two wins.
-    requestAnimationFrame(() => {
-      input.focus()
-      input.select()
-    })
+    wire(finish)
   })
+}
+
+/**
+ * Ask for a name, in the studio's own modal.
+ *
+ * Used where a name is part of the decision rather than a detail to fix
+ * afterwards — the first save of a line's loop, which is the one that names
+ * it. Resolves with the trimmed name, or null if the person backed out: a null
+ * means nothing was decided and the caller must not save.
+ *
+ * Deliberately not `window.prompt`. That is the operating system's box, in its
+ * own style, and on a kiosk browser it may not appear at all.
+ */
+export function askName({ title, label = 'Name', value = '', hint = '', action = 'Save' }) {
+  const open = fn('openModal')
+  // Without the studio's modal there is nothing to ask with. The caller gets
+  // what it suggested rather than a save that silently never happens.
+  if (!open) return Promise.resolve(String(value || '').trim() || null)
+
+  return ask(
+    `<div id="dlAskBox"><h3>${escapeHtml(title)}</h3>
+ ${hint ? `<div class="note">${escapeHtml(hint)}</div>` : ''}
+ <div class="fld" style="margin-top:10px"><label for="dlAskName">${escapeHtml(label)}</label>
+ <input id="dlAskName" autocomplete="off" spellcheck="false" value="${escapeHtml(value)}"></div>
+ <div class="mact"><button type="button" class="ib" id="dlAskCancel">Cancel</button><button type="button" class="ib pri" id="dlAskGo">${escapeHtml(action)}</button></div></div>`,
+    finish => {
+      const input = document.getElementById('dlAskName')
+      const go = () => {
+        const name = input.value.trim()
+        if (!name) {
+          toast('Give the loop a name')
+          input.focus()
+          return
+        }
+        finish(name)
+      }
+
+      document.getElementById('dlAskGo').onclick = go
+      document.getElementById('dlAskCancel').onclick = () => finish(null)
+      input.onkeydown = event => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          go()
+        }
+      }
+
+      // A frame later: the studio's modal sets focus itself as it opens, and
+      // the later of the two wins.
+      requestAnimationFrame(() => {
+        input.focus()
+        input.select()
+      })
+    }
+  )
+}
+
+/**
+ * A version of this loop, or a loop of its own?
+ *
+ * Asked when the canvas was started with New on a line that already holds a
+ * loop. Both answers are reasonable — redrawing the line, or drawing a rebuild
+ * beside it — and nothing on the screen says which, so saving silently either
+ * way is how somebody loses a loop or ends up with two they did not mean.
+ *
+ * Resolves `{ as: 'version' }`, `{ as: 'new', name }`, or null for "not now".
+ */
+export function askSaveTarget({ lineName, loopName, version, items, drawn }) {
+  return ask(
+    `<div id="dlAskBox"><h3>Save to ${escapeHtml(lineName)}</h3>
+ <div class="note">${escapeHtml(lineName)} already holds <b>${escapeHtml(loopName)}</b>, last saved as version ${
+   Number(version) || 1
+ }${items == null ? '' : ` with ${items} item${items === 1 ? '' : 's'}`}. The canvas has ${drawn} item${
+   drawn === 1 ? '' : 's'
+ }.</div>
+ <div class="fld" style="margin-top:12px">
+   <label class="chk"><input type="radio" name="dlAskAs" value="new" checked> A new loop on this line</label>
+   <label class="chk"><input type="radio" name="dlAskAs" value="version"> A new version of ${escapeHtml(loopName)}</label>
+ </div>
+ <div class="fld" id="dlAskNameRow"><label for="dlAskName">Loop name</label>
+ <input id="dlAskName" autocomplete="off" spellcheck="false" value=""></div>
+ <div class="mact"><button type="button" class="ib" id="dlAskCancel">Cancel</button><button type="button" class="ib pri" id="dlAskGo">Save</button></div></div>`,
+    finish => {
+      const input = document.getElementById('dlAskName')
+      const nameRow = document.getElementById('dlAskNameRow')
+      const chosen = () => document.querySelector('input[name="dlAskAs"]:checked')?.value || 'new'
+
+      for (const radio of document.querySelectorAll('input[name="dlAskAs"]')) {
+        radio.onchange = () => {
+          nameRow.hidden = chosen() !== 'new'
+          if (!nameRow.hidden) input.focus()
+        }
+      }
+
+      const go = () => {
+        if (chosen() === 'version') {
+          finish({ as: 'version' })
+          return
+        }
+        const name = input.value.trim()
+        if (!name) {
+          toast('Give the new loop a name')
+          input.focus()
+          return
+        }
+        if (name === loopName) {
+          toast(`${loopName} is the loop already on this line — give the new one another name`)
+          input.focus()
+          return
+        }
+        finish({ as: 'new', name })
+      }
+
+      document.getElementById('dlAskGo').onclick = go
+      document.getElementById('dlAskCancel').onclick = () => finish(null)
+      input.onkeydown = event => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          go()
+        }
+      }
+      requestAnimationFrame(() => input.focus())
+    }
+  )
+}
+
+/**
+ * Which loop on this line?
+ *
+ * Open used to have nothing to offer — a line held one loop, so choosing the
+ * line was choosing it. Now it lists them: which is published, which version
+ * each is on, and when it was last touched.
+ *
+ * Resolves with a loop id, or null.
+ */
+export function askWhichLoop({ lineName, loops, openId }) {
+  const when = at => {
+    const date = new Date(at)
+    return Number.isNaN(date.getTime())
+      ? ''
+      : date.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+  }
+
+  const row = loop => `
+  <button type="button" class="src pick dl-loop-pick${loop.id === openId ? ' on' : ''}" data-loop="${escapeHtml(loop.id)}">
+    <div class="src-h"><span class="src-i">${loop.status === 'published' ? '●' : '○'}</span>
+      <div style="min-width:0"><b>${escapeHtml(loop.name)}</b>
+      <div class="note">${
+        loop.status === 'published' ? 'Published — this is what the plant sees' : 'Draft'
+      }${loop.updatedAt ? ` · last saved ${escapeHtml(when(loop.updatedAt))}` : ''}${
+        loop.id === openId ? ' · open now' : ''
+      }</div></div></div>
+  </button>`
+
+  return ask(
+    `<div id="dlAskBox"><h3>Loops on ${escapeHtml(lineName)}</h3>
+ <div class="note">A line may hold several. The published one is what the plant sees.</div>
+ <div class="src-g" style="margin-top:10px">${loops.map(row).join('')}</div>
+ <div class="mact"><button type="button" class="ib" id="dlAskCancel">Cancel</button></div></div>`,
+    finish => {
+      for (const button of document.querySelectorAll('[data-loop]')) {
+        button.onclick = () => finish(button.dataset.loop)
+      }
+      document.getElementById('dlAskCancel').onclick = () => finish(null)
+    }
+  )
 }
 
 /**

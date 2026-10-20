@@ -149,6 +149,34 @@ function followPublishView(strip) {
  */
 let standingLine = null
 
+/**
+ * Whether the canvas was started with New since the last open or save.
+ *
+ * A line may hold several loops, so a blank canvas on a line that already has
+ * one is ambiguous: redrawing the line, or drawing a rebuild beside it. This
+ * is what makes the next Save ask instead of guessing — and it is cleared by
+ * opening anything or by saving, so it only ever colours the save that
+ * follows New.
+ */
+let startedFresh = false
+
+/**
+ * The studio's New, which clears the canvas.
+ *
+ * The ribbon routes it through the hidden File select rather than a function
+ * of its own — `fileAct('blank')` sets the value and dispatches `change` — so
+ * that is what this listens for, in the capture phase, before the studio acts
+ * on it.
+ */
+function watchForNew() {
+  const file = document.getElementById('selFile')
+  if (!file || file.dataset.dlWatched) return
+  file.dataset.dlWatched = '1'
+  file.addEventListener('change', event => {
+    if (event.target.value === 'blank') startedFresh = true
+  }, true)
+}
+
 function refreshLineStrip() {
   const select = $('#dlLine')
   if (!select) return
@@ -314,6 +342,8 @@ async function openLine(lineId) {
 async function openDesign(designId) {
   const layout = await designs.open(designId)
   standingLine = designs.current.lineId
+  // Whatever was on the canvas is gone; the next Save is about this loop.
+  startedFresh = false
 
   /*
    * A design from the previous studio.
@@ -406,6 +436,41 @@ async function saveToServer() {
   const document_ = studio.read()
 
   /*
+   * A canvas started with New, on a line that already holds a loop.
+   *
+   * Both answers are reasonable — redrawing the line, or drawing a rebuild
+   * beside what is running — and nothing on the screen says which, so this is
+   * the one save that has to ask. Everything else goes straight through.
+   */
+  if (startedFresh && designs.current && standingLine) {
+    const open = designs.current
+    const answer = await studio.askSaveTarget({
+      lineName: designs.lineNameFor(standingLine) || open.lineName,
+      loopName: open.name,
+      version: open.latestVersion,
+      items: openedWith,
+      drawn: studio.size(document_),
+    })
+    if (!answer) {
+      studio.toast('Not saved — nothing on the server has changed.')
+      return
+    }
+
+    if (answer.as === 'new') {
+      const made = await designs.create(answer.name, standingLine, document_)
+      startedFresh = false
+      await openDesign(made.id)
+      studio.toast(
+        `Created ${answer.name} on ${designs.lineNameFor(standingLine)} as version 1. ` +
+        `${open.name} is untouched.`
+      )
+      return
+    }
+    // A version of the loop that is open: the ordinary path below.
+    startedFresh = false
+  }
+
+  /*
    * Do not replace a drawn loop with an empty one without asking.
    *
    * Clearing a line deliberately is legitimate, so this confirms rather than
@@ -424,9 +489,8 @@ async function saveToServer() {
     }
   }
 
-  // Standing on an empty line, Save is what creates the design. A line has one
-  // design, so there is nothing to choose: the line is already picked and the
-  // canvas is already the first version.
+  // Standing on a line with nothing open, Save is what creates the loop: the
+  // line is already picked and the canvas is already its first version.
   if (!designs.current) {
     if (!standingLine) {
       studio.toast('Pick a line first, then Save to create its design.')
@@ -458,6 +522,7 @@ async function saveToServer() {
     }
 
     const made = await designs.create(name, standingLine, document_)
+    startedFresh = false
     await openDesign(made.id)
     studio.toast(`Created ${name} on ${designs.lineNameFor(standingLine)} as version 1.`)
     return
@@ -466,6 +531,7 @@ async function saveToServer() {
   const version = await designs.save(document_)
   // What is on the canvas now is the thing to compare against next time.
   openedWith = studio.size(document_)
+  startedFresh = false
   studio.toast(
     `Saved ${designs.current.name} as version ${version}. ` +
     (designs.current.status === 'published'
@@ -475,6 +541,46 @@ async function saveToServer() {
   refreshLineStrip()
 }
 
+/**
+ * Open — which loop on this line.
+ *
+ * It used to have nothing to offer: a line held one loop, so choosing the line
+ * in the strip above was choosing it. Now it lists them, says which one the
+ * plant is seeing, and opens whichever is picked.
+ */
+async function openAnotherLoop() {
+  const lineId = standingLine || designs.current?.lineId
+  if (!lineId) {
+    studio.toast('Pick a line at the top first.')
+    return
+  }
+
+  // The list is the server's, not a copy from when the studio opened: somebody
+  // else may have drawn one since.
+  try {
+    await designs.reload()
+  } catch (error) {
+    studio.toast(error.message)
+  }
+
+  const lineName = designs.lineNameFor(lineId) || 'this line'
+  const onLine = designs.designsOnLine(lineId)
+  if (!onLine.length) {
+    studio.toast(`Nothing has been drawn for ${lineName} yet — draw it and press Save.`)
+    return
+  }
+
+  const chosen = await studio.askWhichLoop({
+    lineName,
+    loops: onLine,
+    openId: designs.current?.id || null,
+  })
+  if (!chosen || chosen === designs.current?.id) return
+
+  await openDesign(chosen)
+  studio.toast(`Opened ${designs.current.name}.`)
+}
+
 async function togglePublish() {
   if (!designs.current) return
   try {
@@ -482,8 +588,14 @@ async function togglePublish() {
       await designs.unpublish()
       studio.toast(`${designs.current.name} hidden — nobody in this foundry can open it now.`)
     } else {
-      await designs.publish()
-      studio.toast(`${designs.current.name} published — everyone in this foundry can see it.`)
+      const result = await designs.publish()
+      // A line shows one loop at a time, so publishing this one took the other
+      // off the plant's screens. Said here rather than found out there.
+      const replaced = (result?.replaced || []).join(', ')
+      studio.toast(
+        `${designs.current.name} published — everyone in this foundry can see it.` +
+        (replaced ? ` ${replaced} is no longer published.` : '')
+      )
     }
     refreshLineStrip()
   } catch (error) {
@@ -612,8 +724,9 @@ async function boot() {
     studio.captureSaves(() => {})
     studio.captureButtons({
       onSave: saveToServer,
-      onOpen: () => studio.toast('Choose a line at the top to open its loop.'),
+      onOpen: openAnotherLoop,
     })
+    watchForNew()
     studio.captureSaveShortcut(saveToServer)
 
     try {

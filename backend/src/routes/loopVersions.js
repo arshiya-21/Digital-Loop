@@ -78,6 +78,28 @@ loopVersions.post('/:loopId/publish', async ({ user, params, body }) => {
   const layout = JSON.parse(target.layout)
   requireDataTags(layout)
 
+  /*
+   * One published loop per line.
+   *
+   * A line may hold several — the one the plant is running, a rebuild being
+   * drawn beside it — but the publish view and the live readings follow the
+   * published one, and two of those on a line is a question with no answer.
+   * So publishing one takes the other off the plant's screens, which is said
+   * in the reply rather than discovered on the floor.
+   */
+  const replaced = await db.prepare(
+    `SELECT id, name FROM design
+     WHERE foundry_id = ? AND line_id = ? AND status = 'published' AND id <> ?`
+  ).all(loop.foundry_id, loop.line_id, loop.id)
+
+  for (const other of replaced) {
+    await db.prepare(
+      "UPDATE design SET status = 'draft', published_version_id = NULL, updated_at = ? WHERE id = ?"
+    ).run(now(), other.id)
+    await audit(user.id, 'loop.unpublish', 'design', other.id,
+      { because: 'another loop on this line was published', instead: loop.name })
+  }
+
   await db.prepare("UPDATE design SET status = 'published', published_version_id = ?, updated_at = ? WHERE id = ?")
     .run(target.id, now(), loop.id)
   await audit(user.id, 'loop.publish', 'design', loop.id, { version: target.version })
@@ -85,6 +107,8 @@ loopVersions.post('/:loopId/publish', async ({ user, params, body }) => {
   return {
     ...publicLoop(await db.prepare('SELECT * FROM design WHERE id = ?').get(loop.id)),
     publishedVersion: target.version,
+    /** What this took off the plant's screens, if anything. */
+    replaced: replaced.map(other => other.name),
   }
 })
 

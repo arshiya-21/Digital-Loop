@@ -33,6 +33,7 @@ import { open as unseal } from './secrets.js'
 
 const CONNECT_TIMEOUT_MS = 8000
 const QUERY_TIMEOUT_MS = 15000
+const SSH_READY_TIMEOUT_MS = 20000
 
 /** Caps, so one enormous schema cannot fill a response or a browser. */
 const LIMITS = { tables: 5000, columnsTotal: 200000 }
@@ -69,7 +70,13 @@ async function openTunnel(row) {
        * message about the key being malformed rather than about the passphrase.
        */
       passphrase: unseal(row.tunnel_passphrase) || undefined,
-      readyTimeout: CONNECT_TIMEOUT_MS,
+      /*
+       * Longer than the database's own timeout. A jump box across the
+       * internet routinely takes several seconds to finish the SSH handshake,
+       * and at 8 s a busy moment failed the whole poll with "Timed out while
+       * waiting for handshake" — for a reading that answered fine a poll later.
+       */
+      readyTimeout: SSH_READY_TIMEOUT_MS,
     })
   })
 
@@ -319,12 +326,9 @@ export async function latestValues(row, wanted) {
   const dialect = DIALECT[row.engine]
   if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
 
-  // One introspection for the whole batch, so a poll of twenty readings is
-  // one schema read rather than twenty.
-  const schema = await introspect(row)
-  const tables = new Map(
-    (schema.tables || []).map(table => [table.name, new Set((table.columns || []).map(c => c.name))])
-  )
+  // One schema for the whole batch, and usually a remembered one — see
+  // `schemaFor`. A poll of twenty readings is one schema read at most.
+  const tables = await tablesFor(row, wanted)
 
   const usable = []
   for (const tag of wanted) {
@@ -398,11 +402,8 @@ export async function recentValues(row, tag, points = 200) {
   const dialect = DIALECT[row.engine]
   if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
 
-  const schema = await introspect(row)
-  const table = (schema.tables || []).find(entry => entry.name === tag.table)
-  if (!table) throw new Error(`There is no table "${tag.table}" in this database.`)
-
-  const columns = new Set((table.columns || []).map(column => column.name))
+  const columns = (await tablesFor(row, [tag])).get(tag.table)
+  if (!columns) throw new Error(`There is no table "${tag.table}" in this database.`)
   if (!columns.has(tag.column)) throw new Error(`There is no column "${tag.column}" in "${tag.table}".`)
 
   const time = tag.timeColumn && columns.has(tag.timeColumn) ? tag.timeColumn : null
@@ -485,7 +486,55 @@ SCHEMA_SQL.azuresql = SCHEMA_SQL.sqlserver
  */
 export async function introspect(row) {
   const rows = await ask(row, ({ query }) => query(SCHEMA_SQL[row.engine]))
+  const schema = shapeSchema(row, rows)
+  schemas.set(schemaKey(row), { at: Date.now(), schema })
+  return schema
+}
 
+/**
+ * The schema the poll checks names against, kept for a few minutes.
+ *
+ * Every poll used to introspect first, which is a whole connection of its own:
+ * on a database across the internet that is several seconds before the one
+ * row it wanted was even asked for, so a reading said "no row yet" for the
+ * first fifteen seconds of every open. The check is still made on every read —
+ * against a schema at most this old.
+ *
+ * A name that is missing from the remembered schema is looked up again before
+ * it is called missing, so a column added a minute ago is not refused for the
+ * rest of the window. Editing the connection changes `updated_at`, which is in
+ * the key, so a re-pointed connection never answers from the old schema.
+ */
+const SCHEMA_TTL_MS = 5 * 60_000
+const schemas = new Map()
+
+const schemaKey = row => `${row.id}\u0000${row.updated_at || ''}`
+
+async function schemaFor(row, { fresh = false } = {}) {
+  const hit = schemas.get(schemaKey(row))
+  if (!fresh && hit && Date.now() - hit.at < SCHEMA_TTL_MS) return { schema: hit.schema, cached: true }
+  return { schema: await introspect(row), cached: false }
+}
+
+/** Every table name → its column names. */
+const columnsByTable = schema =>
+  new Map((schema.tables || []).map(table => [table.name, new Set((table.columns || []).map(c => c.name))]))
+
+/** Does the schema have every name this reading needs? */
+const knows = (tables, tag) => {
+  const columns = tables.get(tag.table)
+  return !!columns && columns.has(tag.column) && (!tag.keyColumn || columns.has(tag.keyColumn))
+}
+
+/** The tables of a schema, re-read once if a remembered copy lacks a name. */
+async function tablesFor(row, tags) {
+  const first = await schemaFor(row)
+  const tables = columnsByTable(first.schema)
+  if (!first.cached || tags.every(tag => knows(tables, tag))) return tables
+  return columnsByTable((await schemaFor(row, { fresh: true })).schema)
+}
+
+function shapeSchema(row, rows) {
   const byTable = new Map()
   let columns = 0
   for (const record of rows) {

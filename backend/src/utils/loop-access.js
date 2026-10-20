@@ -66,15 +66,30 @@ export async function loopToView(user, id) {
 }
 
 /**
- * The design on a line, if there is one.
+ * The loops on a line.
  *
- * A line has one design or none. That is the rule the whole model rests on:
- * choosing a line is choosing a design, which is why the studio offers lines
- * rather than a list of loops.
+ * A line used to hold exactly one. It now holds as many as somebody draws —
+ * the one the plant is running, a rebuild beside it, a trial — and one of them
+ * is published at a time. That published one is what the publish view and the
+ * live readings follow, which is why `publishedOnLine` exists separately.
  */
-export const designOnLine = async (foundryId, lineId) =>
-  (await db.prepare('SELECT * FROM design WHERE foundry_id = ? AND line_id = ?')
-    .get(String(foundryId), String(lineId))) || null
+export const designsOnLine = async (foundryId, lineId) =>
+  await db.prepare('SELECT * FROM design WHERE foundry_id = ? AND line_id = ? ORDER BY updated_at DESC')
+    .all(String(foundryId), String(lineId))
+
+/** The one the plant is seeing on this line, if any. */
+export const publishedOnLine = async (foundryId, lineId) =>
+  (await db.prepare(
+    `SELECT * FROM design
+     WHERE foundry_id = ? AND line_id = ? AND status = 'published'
+       AND published_version_id IS NOT NULL
+     ORDER BY updated_at DESC LIMIT 1`
+  ).get(String(foundryId), String(lineId))) || null
+
+/** A loop on this line already called that, if any. Names are how they differ. */
+export const designNamedOnLine = async (foundryId, lineId, name) =>
+  (await db.prepare('SELECT * FROM design WHERE foundry_id = ? AND line_id = ? AND name = ?')
+    .get(String(foundryId), String(lineId), String(name))) || null
 
 // ------------------------------------------------------------- formatting ---
 

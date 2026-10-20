@@ -235,6 +235,17 @@ async function pollOnce() {
     const hadProblems = problems.size
     problems.clear()
     for (const [id, why] of Object.entries(answer.errors || {})) problems.set(id, why)
+    /*
+     * Linked here, but the server was not asked about it.
+     *
+     * The server reads the stored layout, so a link that has not been saved
+     * is not in it — and without this the reading would say "Reading…" for
+     * ever, waiting for an answer nobody is going to give.
+     */
+    const answered = { ...(answer.values || {}), ...(answer.errors || {}) }
+    for (const id of linkedIds()) {
+      if (!(id in answered)) problems.set(id, 'Not read yet — this link is not in the saved loop. Save, then wait a moment.')
+    }
     if (hadProblems !== problems.size) changed = true
 
     for (const [id, record] of Object.entries(answer.values || {})) {
@@ -318,6 +329,7 @@ export function start(id) {
 /** Stop watching, and forget what was read. */
 export function stop() {
   clearInterval(timer)
+  clearTimeout(soon)
   timer = null
   loopId = null
   records.clear()
@@ -390,6 +402,7 @@ function followDocumentChanges() {
       // timer, and restarting it on every keystroke would reset the minute.
       const wanted = linkedIds().length > 0
       if (wanted !== !!timer) schedule()
+      else if (timer && linkedIds().some(id => !records.has(id))) askSoon()
     }, 400)
     return result
   }
@@ -397,6 +410,20 @@ function followDocumentChanges() {
   replaced.__dlLive = true
   replaced.original = original
   window.changed = replaced
+}
+
+/**
+ * A reading was just linked: ask once it has been stored, not at the next tick.
+ *
+ * The server reads the stored layout, and Properties stores a link a moment
+ * after it is chosen — so asking straight away would find the old layout, and
+ * waiting for the timer left the new reading saying nothing for up to thirty
+ * seconds. A few seconds covers the store.
+ */
+let soon = null
+function askSoon() {
+  clearTimeout(soon)
+  soon = setTimeout(pollOnce, 4000)
 }
 
 /** Ask again as soon as somebody comes back to the tab. */
@@ -523,6 +550,7 @@ function markChips() {
       const attr = title ? ` title="${title.replaceAll('"', '&quot;')}"` : ''
       if (problems.has(id)) return `<span class="ix-chip err"${attr}>Not read</span>`
       if (stale) return `<span class="ix-chip stale"${attr}><i></i>Stale</span>`
+      if (!records.has(id)) return `<span class="ix-chip wait"${attr}>Reading…</span>`
       if (!records.get(id)) return `<span class="ix-chip wait"${attr}>No record</span>`
       return `<span class="ix-chip live"${attr}><i></i>Live</span>`
     }
@@ -640,7 +668,15 @@ function decorate() {
           ? `● ${text || 'Last known reading'} — SandMan is not answering`
           : records.get(id)
             ? `● Live from ${from} · ${text}`
-            : ours
+            /*
+             * Not answered yet is not the same as answered with nothing. A
+             * database across the internet takes seconds to answer, and
+             * saying "no row" in the meantime sent people to check a table
+             * that was full.
+             */
+            : !records.has(id)
+              ? `● Reading from ${from}…`
+              : ours
               ? `● Linked — ${from} has no row for this column yet`
               : '● Linked — the line has no record for this column yet'
     status.classList.toggle('dl-stale', replaying() || stale || !!problem)

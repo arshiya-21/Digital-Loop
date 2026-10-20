@@ -4,9 +4,10 @@ import { session, isAdmin } from './session.mjs'
 /**
  * The designs in this plant.
  *
- * A line has one design. That is the model the whole studio rests on: choosing
- * a line is choosing a design, which is why the chrome offers lines rather than
- * a list of loops.
+ * A line may hold several loops — the one the plant is running, a rebuild
+ * being drawn beside it, a trial — and one of them is published at a time.
+ * Choosing a line opens that published one, or the most recent where nothing
+ * is published; Open lists the rest.
  *
  * Nothing here caches for longer than a single interaction — the server is the
  * record, and the browser holding its own copy is how two people editing the
@@ -40,9 +41,23 @@ export async function reload() {
 /** Which line a design is on, whichever shape the listing returned it in. */
 export const lineIdOf = design => String(design.lineId ?? design.line?.id ?? '')
 
-/** The design on a line, or null. */
-export const designOnLine = lineId =>
-  designs.find(design => lineIdOf(design) === String(lineId)) || null
+/** Every loop on a line, newest first. */
+export const designsOnLine = lineId =>
+  designs
+    .filter(design => lineIdOf(design) === String(lineId))
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+
+/**
+ * The loop a line opens on: the published one, else the most recent.
+ *
+ * A line may hold several now, but it shows one at a time, and the one worth
+ * opening is the one the plant is looking at. Where nothing is published that
+ * is whichever was touched last, which is the one somebody was working on.
+ */
+export const designOnLine = lineId => {
+  const onLine = designsOnLine(lineId)
+  return onLine.find(design => design.status === 'published') || onLine[0] || null
+}
 
 /**
  * Open a design and return its layout.
@@ -131,15 +146,17 @@ export async function rename(name) {
  */
 export function caption() {
   if (!current) return 'No design on this line yet'
-  if (!isAdmin()) return `v${current.version} · published`
+  // The loop's name, because a line may hold more than one of them now.
+  const which = designsOnLine(current.lineId).length > 1 ? `${current.name} · ` : ''
+  if (!isAdmin()) return `${which}v${current.version} · published`
 
   const ahead =
     current.status === 'published' &&
     current.publishedVersion > 0 &&
     current.latestVersion > current.publishedVersion
   return ahead
-    ? `Editing v${current.latestVersion} · the plant sees v${current.publishedVersion}`
-    : `v${current.latestVersion} · ${current.status}`
+    ? `${which}Editing v${current.latestVersion} · the plant sees v${current.publishedVersion}`
+    : `${which}v${current.latestVersion} · ${current.status}`
 }
 
 export { ApiError }

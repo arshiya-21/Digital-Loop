@@ -51,7 +51,10 @@ CREATE TABLE IF NOT EXISTS design (
   created_at            VARCHAR(40)   NOT NULL,
   updated_at            VARCHAR(40)   NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY design_one_per_line (foundry_id, line_id),
+  -- A line may hold several loops: the one the plant is running, a rebuild
+  -- being drawn beside it, a trial. Only one of them is published at a time —
+  -- that is the one the publish view and the live readings follow — and
+  -- `POST /loops/:id/publish` is what enforces it.
   KEY design_by_line (foundry_id, line_id, status),
   CONSTRAINT design_status CHECK (status IN ('draft', 'published', 'archived'))
   -- `published_version_id` deliberately carries no foreign key. It would point
