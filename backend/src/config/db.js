@@ -187,6 +187,44 @@ async function migrate() {
     await pool.query('ALTER TABLE design DROP INDEX design_one_per_line')
     console.log('   ·  design: a line may now hold more than one loop')
   }
+
+  /*
+   * A registered database belongs to the plant that registered it.
+   *
+   * They used to be global: every foundry saw every connection, which is one
+   * plant's host and account on another plant's screen. The column is added
+   * null for rows registered before this, and those stay visible to everyone
+   * — vanishing from a loop that already reads them would be worse than being
+   * over-shared, and claiming one for a foundry is a deliberate act rather
+   * than a migration's guess.
+   *
+   * The label went with it: unique across the whole table, so two plants
+   * could not each have a "Plant historian".
+   */
+  const [scoped] = await pool.query(
+    `SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_connection'
+       AND COLUMN_NAME = 'foundry_id'`
+  )
+  if (!scoped.length) {
+    await pool.query('ALTER TABLE db_connection ADD COLUMN foundry_id VARCHAR(80) NULL AFTER id')
+    await pool.query('ALTER TABLE db_connection ADD KEY connection_by_foundry (foundry_id)')
+    console.log('   ·  db_connection.foundry_id: added — databases belong to a plant')
+  }
+
+  const [globalLabel] = await pool.query(
+    `SELECT INDEX_NAME AS name FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'db_connection'
+       AND INDEX_NAME = 'connection_label'
+     LIMIT 1`
+  )
+  if (globalLabel.length) {
+    await pool.query('ALTER TABLE db_connection DROP INDEX connection_label')
+    await pool.query(
+      'ALTER TABLE db_connection ADD UNIQUE KEY connection_label_per_foundry (foundry_id, label)'
+    )
+    console.log('   ·  db_connection: names are unique within a plant, not across all of them')
+  }
 }
 
 /**

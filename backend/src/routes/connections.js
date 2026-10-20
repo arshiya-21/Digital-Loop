@@ -98,9 +98,31 @@ const publicShape = row => ({
 
 const rowById = async id => await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(id)
 
-async function mustExist(id) {
+/**
+ * Whether this session may see a registered database.
+ *
+ * A connection belongs to the foundry that registered it. It holds that
+ * plant's host, account and password, and the tables it reads are that
+ * plant's own — so another foundry has no business listing it, testing it or
+ * linking a reading to it.
+ *
+ * `foundry_id` is null on connections registered before this existed. Those
+ * stay visible to everyone rather than vanishing from loops that already read
+ * them; claiming one for a foundry is a deliberate act, not a migration's
+ * guess at which plant it belonged to.
+ */
+const belongsTo = (row, user) =>
+  !row.foundry_id || String(row.foundry_id) === String(user.foundry?.id)
+
+/**
+ * The connection, or a 404.
+ *
+ * 404 rather than 403 for another plant's: whether they have a database
+ * called that is not this caller's business either.
+ */
+async function mustExist(user, id) {
   const row = await rowById(id)
-  if (!row) throw notFound('No such database connection.')
+  if (!row || !belongsTo(row, user)) throw notFound('No such database connection.')
   return row
 }
 
@@ -263,14 +285,19 @@ connections.get('/engines', async ({ user }) => {
 
 connections.get('/', async ({ user }) => {
   requireAdmin(user)
+  // This plant's own, and the ones registered before they were scoped to a
+  // plant at all — see `belongsTo`.
   // Parenthesised: `await x.all().map(f)` reads `.map` off the promise.
-  return (await db.prepare('SELECT * FROM db_connection ORDER BY label').all())
-    .map(publicShape)
+  return (await db.prepare(
+    `SELECT * FROM db_connection
+     WHERE foundry_id = ? OR foundry_id IS NULL
+     ORDER BY label`
+  ).all(String(user.foundry.id))).map(publicShape)
 })
 
 connections.get('/:id', async ({ user, params }) => {
   requireAdmin(user)
-  return publicShape(await mustExist(params.id))
+  return publicShape(await mustExist(user, params.id))
 })
 
 /* --------------------------------------------------------------- writing ---*/
@@ -281,13 +308,21 @@ connections.post('/', async ({ user, body }) => {
   const fields = readBody(body, false)
   if (fields.port === undefined) fields.port = DEFAULT_PORT[fields.engine]
 
-  if (await db.prepare('SELECT 1 FROM db_connection WHERE label = ?').get(fields.label)) {
+  // Within this plant. Another foundry calling one of its own databases
+  // "Plant historian" is not this one's concern, and is not visible here.
+  const taken = await db.prepare(
+    `SELECT 1 FROM db_connection
+     WHERE label = ? AND (foundry_id = ? OR foundry_id IS NULL)`
+  ).get(fields.label, String(user.foundry.id))
+  if (taken) {
     throw badRequest('label_taken', `A connection called "${fields.label}" already exists.`)
   }
 
   const id = uid('con')
   const row = {
     id,
+    /** The plant that registered it, and the only one that may read it. */
+    foundry_id: String(user.foundry.id),
     label: fields.label,
     engine: fields.engine,
     host: fields.host,
@@ -319,13 +354,13 @@ connections.post('/', async ({ user, body }) => {
 
   await db.prepare(
     `INSERT INTO db_connection
-       (id, label, engine, host, port, database_name, username, password, use_tls,
+       (id, foundry_id, label, engine, host, port, database_name, username, password, use_tls,
         tunnel_host, tunnel_port, tunnel_user, tunnel_private_key, tunnel_public_key,
         tunnel_passphrase, created_by, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
-    row.id, row.label, row.engine, row.host, row.port, row.database_name, row.username,
-    row.password, row.use_tls, row.tunnel_host, row.tunnel_port, row.tunnel_user,
+    row.id, row.foundry_id, row.label, row.engine, row.host, row.port, row.database_name,
+    row.username, row.password, row.use_tls, row.tunnel_host, row.tunnel_port, row.tunnel_user,
     row.tunnel_private_key, row.tunnel_public_key, row.tunnel_passphrase,
     row.created_by, row.created_at, row.updated_at
   )
@@ -339,7 +374,7 @@ connections.post('/', async ({ user, body }) => {
 
 connections.patch('/:id', async ({ user, params, body }) => {
   requireAdmin(user)
-  const existing = await mustExist(params.id)
+  const existing = await mustExist(user, params.id)
 
   const fields = readBody(body, true)
   if (!Object.keys(fields).length) return publicShape(existing)
@@ -359,7 +394,7 @@ connections.patch('/:id', async ({ user, params, body }) => {
 
 connections.delete('/:id', async ({ user, params }) => {
   requireAdmin(user)
-  const existing = await mustExist(params.id)
+  const existing = await mustExist(user, params.id)
 
   await db.prepare('DELETE FROM db_connection WHERE id = ?').run(existing.id)
   /*
@@ -390,7 +425,7 @@ connections.delete('/:id', async ({ user, params }) => {
 connections.post('/:id/keypair', async ({ user, params }) => {
   requireAdmin(user)
   requireSealing()
-  const existing = await mustExist(params.id)
+  const existing = await mustExist(user, params.id)
 
   const { privateKey, publicKey } = generateTunnelKeyPair(`digital-loop-${existing.label}`)
   await db.prepare(
@@ -452,7 +487,7 @@ connections.post('/test', async ({ user, body }) => {
    */
   const borrowFrom = text(body.use)
   if (borrowFrom) {
-    const stored = await mustExist(borrowFrom)
+    const stored = await mustExist(user, borrowFrom)
     if (row.password === null) row.password = stored.password
     if (row.tunnel_private_key === null) row.tunnel_private_key = stored.tunnel_private_key
     if (row.tunnel_passphrase === null) row.tunnel_passphrase = stored.tunnel_passphrase
@@ -484,7 +519,7 @@ connections.post('/test', async ({ user, body }) => {
 /** Can it be reached? The answer is recorded so the panel can show it later. */
 connections.post('/:id/test', async ({ user, params }) => {
   requireAdmin(user)
-  const existing = await mustExist(params.id)
+  const existing = await mustExist(user, params.id)
 
   const result = await testConnection(existing)
   await db.prepare(
@@ -504,7 +539,7 @@ connections.post('/:id/test', async ({ user, params }) => {
  */
 connections.get('/:id/schema', async ({ user, params }) => {
   requireAdmin(user)
-  const existing = await mustExist(params.id)
+  const existing = await mustExist(user, params.id)
 
   const schema = await introspect(existing)
   return {

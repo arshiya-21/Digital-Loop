@@ -71,12 +71,27 @@ async function scope(user, loopId) {
  * A connection that cannot be opened at all marks its own readings and leaves
  * the rest alone. One unplugged historian must not blank a loop.
  */
-async function readRegistered(byConnection) {
+/**
+ * A registered database this session may read.
+ *
+ * Scoped to the foundry that registered it: a layout can name any connection
+ * id it likes, and only this plant's own — or one registered before databases
+ * belonged to a plant at all — may be opened. Without this, a loop could be
+ * saved pointing at another foundry's historian and would read from it.
+ */
+async function connectionFor(user, connectionId) {
+  const row = await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(connectionId)
+  if (!row) return null
+  if (row.foundry_id && String(row.foundry_id) !== String(user.foundry?.id)) return null
+  return row
+}
+
+async function readRegistered(user, byConnection) {
   const values = {}
   const errors = {}
 
   for (const [connectionId, tags] of byConnection) {
-    const row = await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(connectionId)
+    const row = await connectionFor(user, connectionId)
     if (!row) {
       for (const tag of tags) errors[tag.id] = 'That database is no longer registered.'
       continue
@@ -131,7 +146,7 @@ live.get('/values', async ({ user, query, req }) => {
           () => readValues({ foundry: String(user.foundry.id), line: String(loop.line_id), tags })
         )
       : Promise.resolve({ values: {}, errors: {} }),
-    registeredCount ? readRegistered(external) : Promise.resolve({ values: {}, errors: {} }),
+    registeredCount ? readRegistered(user, external) : Promise.resolve({ values: {}, errors: {} }),
   ])
 
   // Counts and freshness only — never a reading, never a table name.
@@ -197,7 +212,7 @@ live.post('/preview', async ({ user, body }) => {
   const named = /^conn_([A-Za-z0-9_-]{1,120})$/.exec(source)
   if (!named) throw badRequest('invalid_field', 'That is not a database this service reads.')
 
-  const row = await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(named[1])
+  const row = await connectionFor(user, named[1])
   if (!row) throw notFound('No such database connection.')
 
   const answer = await latestValues(row, [tag])
@@ -241,7 +256,7 @@ live.get('/chart', async ({ user, query }) => {
     const mine = list.find(entry => entry.id === wantedTag)
     if (!mine) continue
 
-    const connection = await db.prepare('SELECT * FROM db_connection WHERE id = ?').get(connectionId)
+    const connection = await connectionFor(user, connectionId)
     if (!connection) throw notFound('That database is no longer registered.')
 
     const points = Number(query.points)

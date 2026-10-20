@@ -282,6 +282,11 @@ CREATE TABLE IF NOT EXISTS table_filter (
 
 CREATE TABLE IF NOT EXISTS db_connection (
   id                  VARCHAR(40)   NOT NULL,
+  -- The plant that registered it, and the only one that may read it: a
+  -- connection holds that plant's host, account and password. Null on the ones
+  -- registered before databases were scoped to a plant; those stay visible to
+  -- every foundry rather than vanishing from loops that already read them.
+  foundry_id          VARCHAR(80)   NULL,
   label               VARCHAR(160)  NOT NULL,
   engine              VARCHAR(20)   NOT NULL,
   host                VARCHAR(255)  NOT NULL,
@@ -305,7 +310,12 @@ CREATE TABLE IF NOT EXISTS db_connection (
   created_at          VARCHAR(40)   NOT NULL,
   updated_at          VARCHAR(40)   NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY connection_label (label)
+  -- Names are unique within a plant, not across all of them: two foundries may
+  -- each have a database they call "Plant historian", and neither can see the
+  -- other's. (MySQL treats nulls as distinct in a unique key, so the legacy
+  -- rows above are not held to it.)
+  UNIQUE KEY connection_label_per_foundry (foundry_id, label),
+  KEY connection_by_foundry (foundry_id)
   -- `engine` deliberately carries no CHECK constraint.
   --
   -- It used to list the engines, which meant adding MariaDB, PostgreSQL or

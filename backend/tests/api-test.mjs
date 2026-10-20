@@ -1232,6 +1232,42 @@ if (sealingOff) {
     (await call(ADMIN, 'POST', '/connections', connBody)).status === 400)
 
   /*
+   * A registered database belongs to the plant that registered it.
+   *
+   * They were global: every foundry listed every connection, which is one
+   * plant's host and account on another plant's screen — and a layout naming
+   * that connection id would have been read from.
+   */
+  const OTHER_ADMIN = await signIn({
+    user: 'admin.elsewhere', name: 'Another plant administrator', role: 'admin',
+    foundry: `FND-ELSEWHERE-${stamp}`, foundryName: 'Some other foundry',
+    lines: [{ id: `ELSE-1-${stamp}`, name: 'Their line' }],
+  })
+  const theirs = await call(OTHER_ADMIN, 'GET', '/connections')
+  check('another plant does not see this one\'s databases',
+    theirs.status === 200 && !theirs.body.some(row => row.id === connId),
+    theirs.body?.map(row => row.label))
+  check('nor open one by its id',
+    (await call(OTHER_ADMIN, 'GET', `/connections/${connId}`)).status === 404)
+  check('nor change it',
+    (await call(OTHER_ADMIN, 'PATCH', `/connections/${connId}`, { label: 'Mine now' })).status === 404)
+  check('nor test it',
+    (await call(OTHER_ADMIN, 'POST', `/connections/${connId}/test`, {})).status === 404)
+  check('nor read its schema',
+    (await call(OTHER_ADMIN, 'GET', `/connections/${connId}/schema`)).status === 404)
+  check('nor delete it',
+    (await call(OTHER_ADMIN, 'DELETE', `/connections/${connId}`)).status === 404)
+  check('and it is still here afterwards',
+    (await call(ADMIN, 'GET', `/connections/${connId}`)).status === 200)
+
+  const sameNameElsewhere = await call(OTHER_ADMIN, 'POST', '/connections', connBody)
+  check('but another plant may use the same name for its own',
+    sameNameElsewhere.status === 201, sameNameElsewhere.body)
+  if (sameNameElsewhere.body?.id) {
+    await call(OTHER_ADMIN, 'DELETE', `/connections/${sameNameElsewhere.body.id}`)
+  }
+
+  /*
    * A tunnel given when the connection is *created*, not added afterwards.
    *
    * The suite only ever patched one on, and the create path quietly dropped
