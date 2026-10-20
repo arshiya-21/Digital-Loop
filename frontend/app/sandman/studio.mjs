@@ -330,17 +330,50 @@ export function captureSaves(onChange) {
  * dispatcher, where the failure would be silent.
  */
 export function captureButtons({ onSave, onOpen }) {
-  // The studio wires these with `.onclick`, so assigning over it replaces the
-  // handler outright rather than running alongside it — which is what we want:
-  // its Save keeps a copy in this browser, and ours is the only one that
-  // reaches the plant.
-  const wire = (id, handler) => {
-    const button = document.getElementById(id)
-    if (!button || !handler) return
+  /*
+   * Replaced, not merely re-pointed.
+   *
+   * The ribbon wires these with `addEventListener`, so setting `onclick` adds
+   * a second handler rather than replacing the first: pressing Save ran both,
+   * the loop went to the server **and** the studio opened its own "Save to My
+   * loops" box over the top of it. Swapping the button for a copy of itself
+   * takes the studio's listener with it, because a clone carries the markup
+   * and none of the listeners — leaving one Save that does one thing.
+   */
+  const wire = (id, handler, title) => {
+    const old = document.getElementById(id)
+    if (!old || !handler) return
+    const button = old.cloneNode(true)
+    if (title) button.title = title
+    old.replaceWith(button)
     button.onclick = () => Promise.resolve(handler()).catch(error => toast(error.message))
   }
-  wire('bSave', onSave)
-  wire('bOpen', onOpen)
+  wire('bSave', onSave, 'Save this loop to the plant (Ctrl+S)')
+  wire('bOpen', onOpen, 'Open the loop drawn for a line')
+  hideBrowserCopies()
+}
+
+/**
+ * Take "Save as… (new name in My loops)" out of the Export menu.
+ *
+ * The same browser copy by another route — and the only item in that menu that
+ * writes one. The menu is built fresh on every click, so this filters what it
+ * is given rather than hunting for the item afterwards.
+ */
+function hideBrowserCopies() {
+  const original = fn('menu')
+  if (!original || original.__dlCaptured) return
+
+  const replaced = function menuWithoutBrowserCopies(event, items, options) {
+    const kept = Array.isArray(items)
+      ? items.filter(item => !(item && typeof item.t === 'string' && /my loops/i.test(item.t)))
+      : items
+    return original.call(this, event, kept, options)
+  }
+
+  replaced.__dlCaptured = true
+  replaced.original = original
+  window.menu = replaced
 }
 
 /**
