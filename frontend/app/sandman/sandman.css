@@ -482,6 +482,112 @@ body.present .dl-empty {
    studio sets `display` on several of these itself. */
 .dl-hidden { display: none !important; }
 
+/* ------------------------------------------------- the query on a reading ---
+ *
+ * What this reading runs, under the table and column it runs against, with a
+ * button that runs it now. The statement wraps rather than scrolls: a query
+ * you have to drag sideways to read is one nobody reads. */
+.dl-query {
+  margin: 8px 0 2px;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel2);
+}
+
+.dl-query-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.dl-query-sql {
+  display: block;
+  font: 11px/1.55 var(--mono, 'IBM Plex Mono', monospace);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dl-query-says {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.dl-query-says:empty { display: none; }
+
+/* The two ways of asking: the statement the dropdowns produce, or one you
+   write. The tabs are the studio's own segmented control, shrunk to fit a
+   panel column. */
+.dl-query-tabs {
+  font-size: 11px;
+}
+
+.dl-query-tabs button {
+  padding: 3px 8px;
+  height: auto;
+  font-size: 11px;
+}
+
+.dl-sql-text {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 7px;
+  background: var(--panel);
+  color: var(--text);
+  font: 11px/1.5 var(--mono, 'IBM Plex Mono', monospace);
+  resize: vertical;
+}
+
+.dl-sql-text[hidden] { display: none; }
+
+/* Making a query the reading, and going back. */
+.dl-query-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dl-query-acts[hidden] { display: none; }
+
+/* The rows. Scrolls in both directions rather than widening the panel, which
+   a wide table would otherwise do to the whole inspector. */
+.dl-sql-rows {
+  max-height: 190px;
+  overflow: auto;
+  margin-top: 6px;
+}
+
+.dl-sql-rows:empty { display: none; }
+
+.dl-sql-table {
+  border-collapse: collapse;
+  font: 10.5px/1.5 var(--mono, 'IBM Plex Mono', monospace);
+  white-space: nowrap;
+}
+
+.dl-sql-table th,
+.dl-sql-table td {
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+  text-align: left;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dl-sql-table th {
+  position: sticky;
+  top: 0;
+  background: var(--panel2);
+  font-weight: 600;
+}
+
 /* "Build your sand loop", placed on the drawing area rather than centred on
    the window — see `anchorEmptyCardToThePage`. The studio's own rule is
    `inset: 0` with flex centring, so this takes the box out of that and lets

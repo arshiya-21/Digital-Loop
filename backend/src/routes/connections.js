@@ -5,7 +5,7 @@ import { badRequest, notFound, unprocessable } from '../utils/errors.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { seal, sealingAvailable } from '../services/secrets.js'
 import { generateTunnelKeyPair } from '../services/ssh-keys.js'
-import { testConnection, introspect } from '../services/db-connect.js'
+import { testConnection, introspect, runQuery } from '../services/db-connect.js'
 
 /**
  * `/api/v1/connections` — plant databases somebody registered.
@@ -528,6 +528,48 @@ connections.post('/:id/test', async ({ user, params }) => {
 
   await audit(user.id, 'connection.test', 'connection', existing.id, { ok: result.ok })
   return result
+})
+
+/**
+ * POST /api/v1/connections/:id/query — run one SELECT and show the rows.
+ *
+ * Picking a table and a column answers "link this reading to that"; it does
+ * not answer "is there anything in there, and what does it look like?". That
+ * question is asked in SQL, and asking it anywhere else means leaving the
+ * studio, finding a client, and finding the credentials — which are here and
+ * deliberately unreadable.
+ *
+ * So: one SELECT, against one registered database, by an administrator of the
+ * foundry that registered it. `runQuery` holds the fence — one statement,
+ * SELECT or WITH only, a read-only transaction that is rolled back, a row cap
+ * and the engine's query timeout. Nothing is stored and no reading changes.
+ *
+ * The statement is audited without its text: what was asked of a plant
+ * database is between the administrator and that database, and an audit log
+ * is read often and by more people.
+ */
+connections.post('/:id/query', async ({ user, params, body }) => {
+  requireAdmin(user)
+  const existing = await mustExist(user, params.id)
+
+  const started = Date.now()
+  let answer
+  try {
+    answer = await runQuery(existing, body?.sql, body?.limit)
+  } catch (error) {
+    /*
+     * The database's own words, trimmed — "Unknown column 'x' in field list"
+     * is the whole point of pressing Run, and it names nothing secret. A
+     * refusal from `runQuery` arrives the same way.
+     */
+    throw unprocessable('query_failed', String(error?.message || 'That query could not be run.').slice(0, 400))
+  }
+
+  await audit(user.id, 'connection.query', 'connection', existing.id, {
+    label: existing.label, rows: answer.rowCount, ms: Date.now() - started,
+  })
+
+  return { ...answer, via: existing.label, tookMs: Date.now() - started }
 })
 
 /**

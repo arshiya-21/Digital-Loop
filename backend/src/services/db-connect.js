@@ -319,6 +319,112 @@ function moment(value) {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString()
 }
 
+/**
+ * Run one SELECT against a registered database and give back its rows.
+ *
+ * This is the one place a statement somebody typed reaches a plant database,
+ * so the fence is explicit:
+ *
+ *   - **administrators only**, and only against a database their own foundry
+ *     registered — the route checks both before calling this;
+ *   - **one statement.** A semicolon inside is refused outright, and MySQL is
+ *     connected with `multipleStatements: false` besides;
+ *   - **SELECT or WITH.** Nothing else is run at all, so there is no UPDATE,
+ *     no DELETE and no DDL to roll back;
+ *   - **inside a read-only transaction** on MySQL and PostgreSQL, rolled back
+ *     whatever happens. SQL Server has no read-only transaction to ask for,
+ *     so there the first three rules are the fence;
+ *   - **capped and timed out.** At most `limit` rows come back, and the
+ *     engine's own query timeout still applies.
+ *
+ * The account is whatever was registered. A connection given write permission
+ * is a connection that can write, which is a decision made when it is
+ * registered rather than here — this neither widens it nor pretends to.
+ */
+/**
+ * Why this statement may not be run, or null.
+ *
+ * One place, so the query box, the preview and every poll of a reading that
+ * carries its own statement are held to the same rule. Not a cleaner: it
+ * refuses rather than rewrites, because quietly changing somebody's SQL and
+ * running something else is worse than saying no.
+ */
+export function safeToRun(sql) {
+  const statement = String(sql || '').trim().replace(/;+\s*$/, '')
+  if (!statement) return 'There is nothing to run.'
+  if (statement.includes(';')) return 'One statement at a time — take out the semicolon.'
+  if (!/^(select|with)\b/i.test(statement)) {
+    return 'Only SELECT may be run here. This reads the plant\'s data; it does not change it.'
+  }
+  return null
+}
+
+/** The first column of a row as the value, the second as its time. */
+function positional(record) {
+  const values = Object.values(record || {})
+  return { value: values[0], at: values.length > 1 ? values[1] : null }
+}
+
+export async function runQuery(row, sql, limit = 200) {
+  const statement = String(sql || '').trim().replace(/;+\s*$/, '')
+  const refusal = safeToRun(statement)
+  if (refusal) throw new Error(refusal)
+
+  const cap = Math.max(1, Math.min(1000, Number(limit) || 200))
+  const readOnly = {
+    mysql: 'START TRANSACTION READ ONLY',
+    mariadb: 'START TRANSACTION READ ONLY',
+    postgres: 'BEGIN READ ONLY',
+  }[row.engine]
+
+  return await ask(row, async ({ query }) => {
+    if (readOnly) await query(readOnly, [])
+    try {
+      const rows = await query(statement, [])
+      const list = Array.isArray(rows) ? rows : []
+      const kept = list.slice(0, cap)
+      return {
+        // From the first row, because that is what every driver here gives
+        // back: rows as objects keyed by column name.
+        columns: kept.length ? Object.keys(kept[0]) : [],
+        rows: kept.map(record => Object.values(record).map(readable)),
+        rowCount: list.length,
+        truncated: list.length > kept.length,
+      }
+    } finally {
+      if (readOnly) await query('ROLLBACK', []).catch(() => {})
+    }
+  })
+}
+
+/**
+ * The statement a reading runs, as text, for somebody to look at.
+ *
+ * Built from the same pieces `latestValues` builds it from — same quoting,
+ * same ordering, same one-row wrapper — so what is shown is what runs rather
+ * than a second description that can drift from it. The row filter stays a
+ * bound parameter here too: it is listed beside the statement rather than
+ * pasted into it, because that is how it reaches the database.
+ */
+export function readStatement(engine, tag) {
+  const dialect = DIALECT[engine]
+  // A reading with a statement of its own: that statement is the answer.
+  if (tag?.sql) return { sql: String(tag.sql), params: [] }
+  if (!dialect || !tag?.table || !tag?.column) return null
+
+  const filtered = !!(tag.keyColumn && tag.keyValue)
+  const select = `SELECT ${dialect.quote(tag.column)} AS value` +
+    (tag.timeColumn ? `, ${dialect.quote(tag.timeColumn)} AS at` : '')
+  const from = ` FROM ${dialect.quote(tag.table)}`
+  const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} = ${dialect.param(1)}` : ''
+  const order = tag.timeColumn ? ` ORDER BY ${dialect.quote(tag.timeColumn)} DESC` : ''
+
+  return {
+    sql: dialect.one(select + from + where + order),
+    params: filtered ? [String(tag.keyValue)] : [],
+  }
+}
+
 export async function latestValues(row, wanted) {
   const out = { values: {}, errors: {} }
   if (!Array.isArray(wanted) || !wanted.length) return out
@@ -332,6 +438,21 @@ export async function latestValues(row, wanted) {
 
   const usable = []
   for (const tag of wanted) {
+    /*
+     * A reading that carries its own statement.
+     *
+     * There is no table or column to check against the schema — the whole
+     * point of writing one is that the answer comes from somewhere a single
+     * table and column cannot say, a join or an aggregate. `safeToRun` is
+     * the check instead: one statement, SELECT or WITH, nothing else.
+     */
+    if (tag.sql) {
+      const refusal = safeToRun(tag.sql)
+      if (refusal) { out.errors[tag.id] = refusal; continue }
+      usable.push({ ...tag, time: null })
+      continue
+    }
+
     const columns = tables.get(tag.table)
     if (!columns) { out.errors[tag.id] = `There is no table "${tag.table}" in this database.`; continue }
     if (!columns.has(tag.column)) { out.errors[tag.id] = `There is no column "${tag.column}" in "${tag.table}".`; continue }
@@ -349,16 +470,25 @@ export async function latestValues(row, wanted) {
 
   await ask(row, async ({ query }) => {
     for (const tag of usable) {
-      const filtered = !!(tag.keyColumn && tag.keyValue)
-      const select = `SELECT ${dialect.quote(tag.column)} AS value` +
+      const filtered = !tag.sql && !!(tag.keyColumn && tag.keyValue)
+      const select = tag.sql ? null : `SELECT ${dialect.quote(tag.column)} AS value` +
         (tag.time ? `, ${dialect.quote(tag.time)} AS at` : '')
-      const from = ` FROM ${dialect.quote(tag.table)}`
+      const from = tag.sql ? '' : ` FROM ${dialect.quote(tag.table)}`
       const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} = ${dialect.param(1)}` : ''
       const order = tag.time ? ` ORDER BY ${dialect.quote(tag.time)} DESC` : ''
 
       try {
-        const rows = await query(dialect.one(select + from + where + order), filtered ? [tag.keyValue] : [])
-        const first = Array.isArray(rows) ? rows[0] : null
+        /*
+         * The statement as written, or the one built from the table and
+         * column. A written one is read positionally — first column the
+         * value, second the time if there is one — because the names in
+         * somebody's own SELECT are theirs to choose.
+         */
+        const rows = tag.sql
+          ? await query(tag.sql, [])
+          : await query(dialect.one(select + from + where + order), filtered ? [tag.keyValue] : [])
+        const row_ = Array.isArray(rows) ? rows[0] : null
+        const first = tag.sql && row_ ? positional(row_) : row_
         out.values[tag.id] = first
           ? { value: readable(first.value), recordedAt: moment(first.at) }
           : null
@@ -366,9 +496,11 @@ export async function latestValues(row, wanted) {
           // Naming the filter, because a filter matching nothing is by far
           // the likeliest reason a table full of rows answers with none —
           // and "no rows yet" sent people looking at the database instead.
-          out.errors[tag.id] = filtered
-            ? `No rows where "${tag.keyColumn}" = "${tag.keyValue}".`
-            : `"${tag.table}" has no rows.`
+          out.errors[tag.id] = tag.sql
+            ? 'That query returned no rows.'
+            : filtered
+              ? `No rows where "${tag.keyColumn}" = "${tag.keyValue}".`
+              : `"${tag.table}" has no rows.`
         }
       } catch (error) {
         // The driver's message, trimmed. It names the table and column, which
@@ -401,6 +533,39 @@ const MAX_POINTS = 500
 export async function recentValues(row, tag, points = 200) {
   const dialect = DIALECT[row.engine]
   if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
+
+  /*
+   * A reading with a statement of its own is charted from that statement.
+   *
+   * It is run as written — not widened, not re-limited — so a query ending
+   * in `LIMIT 1` charts one point, which is the honest answer to what was
+   * asked for rather than a different query nobody wrote. Columns are read
+   * positionally: value first, time second. Without a second column there is
+   * nothing to put a point on a time axis with, and that is said plainly.
+   */
+  if (tag.sql) {
+    const refusal = safeToRun(tag.sql)
+    if (refusal) throw new Error(refusal)
+
+    const rows = await ask(row, async ({ query }) => query(String(tag.sql), []))
+    const list = (Array.isArray(rows) ? rows : []).slice(0, MAX_POINTS)
+    if (list.length && Object.keys(list[0]).length < 2) {
+      throw new Error(
+        'This reading\'s query returns one column, so there is no time to chart it against. ' +
+        'Add the timestamp column as the second one.'
+      )
+    }
+
+    const charted = list
+      .map(record => positional(record))
+      .map(record => ({ value: readable(record.value), recordedAt: moment(record.at) }))
+      .filter(record => typeof record.value === 'number' && record.recordedAt)
+
+    // Newest first out of most such queries, oldest first onto a chart.
+    const ordered = charted.slice().sort((a, b) =>
+      String(a.recordedAt).localeCompare(String(b.recordedAt)))
+    return ordered.slice(-Math.min(Math.max(Number(points) || 200, 1), MAX_POINTS))
+  }
 
   const columns = (await tablesFor(row, [tag])).get(tag.table)
   if (!columns) throw new Error(`There is no table "${tag.table}" in this database.`)

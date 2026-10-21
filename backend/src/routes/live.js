@@ -4,7 +4,7 @@ import { requireLineScope, requireAdmin } from '../middleware/auth.js'
 import { visibleLayout, linkedTags, externalTags } from '../services/live-tags.js'
 import { cachedValues } from '../services/live-cache.js'
 import { readValues, readChart } from '../services/sandman.js'
-import { latestValues, recentValues } from '../services/db-connect.js'
+import { latestValues, recentValues, readStatement } from '../services/db-connect.js'
 import { db } from '../config/db.js'
 import { badRequest, notFound, unprocessable } from '../utils/errors.js'
 
@@ -193,20 +193,65 @@ live.post('/preview', async ({ user, body }) => {
   const source = String(body?.source || '')
   const table = String(body?.table || '').trim()
   const column = String(body?.column || '').trim()
-  if (!table || !column) throw badRequest('invalid_field', 'A table and a column are required.')
 
-  const tag = { id: 'preview', table, column }
-  if (body?.keyColumn && body?.keyValue) {
-    tag.keyColumn = String(body.keyColumn)
-    tag.keyValue = String(body.keyValue)
+  /*
+   * A statement of its own, tried before it becomes the reading.
+   *
+   * The same read the poll will do — `latestValues` runs it, fenced the same
+   * way — so "will this work as a reading?" is answered by doing it rather
+   * than by promising.
+   */
+  const written = typeof body?.sql === 'string' ? body.sql.trim() : ''
+  if (!written && (!table || !column)) {
+    throw badRequest('invalid_field', 'A table and a column, or a query, are required.')
   }
-  if (body?.timeColumn) tag.timeColumn = String(body.timeColumn)
+
+  const tag = written ? { id: 'preview', sql: written } : { id: 'preview', table, column }
+  if (!written) {
+    if (body?.keyColumn && body?.keyValue) {
+      tag.keyColumn = String(body.keyColumn)
+      tag.keyValue = String(body.keyValue)
+    }
+    if (body?.timeColumn) tag.timeColumn = String(body.timeColumn)
+  }
+
+  // SandMan reads a table and a column. A statement is ours to run, against a
+  // database registered here, and there is no way to hand it one.
+  if (written && source === 'customer') {
+    throw badRequest('invalid_field',
+      'SandMan reads the foundry\'s own database a column at a time — a query can only be run ' +
+      'against a database registered here.')
+  }
+
+  /*
+   * What was run, and how long it took.
+   *
+   * "Is anything coming out of this column?" is answered by a value, and
+   * "why not?" is answered by the statement — the table it really reads, the
+   * ordering column it really sorts by, the row filter it really applies.
+   * Both come back here so the studio can show them side by side instead of
+   * describing a query it cannot see.
+   */
+  const started = Date.now()
 
   if (source === 'customer') {
     const answer = await readValues({
       foundry: String(user.foundry.id), line: String(loop.line_id), tags: [tag],
     })
-    return { value: answer?.values?.preview ?? null, error: answer?.errors?.preview ?? null }
+    return {
+      value: answer?.values?.preview ?? null,
+      error: answer?.errors?.preview ?? null,
+      tookMs: Date.now() - started,
+      via: 'SandMan',
+      /*
+       * SandMan builds its own statement against the foundry's database, so
+       * there is none to show here. What it was asked for is said instead —
+       * claiming to show SQL this service never wrote would be a guess
+       * dressed as a fact.
+       */
+      query: null,
+      asked: { table: tag.table, column: tag.column, line: String(loop.line_id) },
+    }
   }
 
   const named = /^conn_([A-Za-z0-9_-]{1,120})$/.exec(source)
@@ -216,7 +261,16 @@ live.post('/preview', async ({ user, body }) => {
   if (!row) throw notFound('No such database connection.')
 
   const answer = await latestValues(row, [tag])
-  return { value: answer.values.preview ?? null, error: answer.errors.preview ?? null }
+  const statement = readStatement(row.engine, tag)
+  return {
+    value: answer.values.preview ?? null,
+    error: answer.errors.preview ?? null,
+    tookMs: Date.now() - started,
+    via: row.label,
+    query: statement?.sql ?? null,
+    /** The row filter, bound rather than pasted into the statement. */
+    params: statement?.params ?? [],
+  }
 })
 
 /** Only these reach SandMan; anything else the caller adds is dropped. */

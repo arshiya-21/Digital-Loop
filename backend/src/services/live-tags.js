@@ -124,15 +124,28 @@ export function externalTags(layout) {
   for (const [id, reading] of Object.entries(readings)) {
     if (taken >= MAX_TAGS) break
     const link = reading?.link
-    if (!link || !link.table || !link.col) continue
+    /*
+     * Either a table and a column, or a statement of its own.
+     *
+     * A reading on a registered database may carry `sql` instead: a join, a
+     * WHERE nobody can express as one row filter, an aggregate. The engine
+     * runs it as written and reads the first column of the first row — see
+     * `latestValues`. Everything else about the reading is unchanged.
+     */
+    const written = typeof link?.sql === 'string' ? link.sql.trim() : ''
+    if (!link || (!written && (!link.table || !link.col))) continue
 
     const named = REGISTERED.exec(String(link.src || ''))
     if (!named) continue
 
-    const tag = { id, table: String(link.table), column: String(link.col) }
-    if (link.keyCol) tag.keyColumn = String(link.keyCol)
-    if (link.keyVal) tag.keyValue = String(link.keyVal)
-    if (link.tcol) tag.timeColumn = String(link.tcol)
+    const tag = written
+      ? { id, sql: written.slice(0, 4000) }
+      : { id, table: String(link.table), column: String(link.col) }
+    if (!written) {
+      if (link.keyCol) tag.keyColumn = String(link.keyCol)
+      if (link.keyVal) tag.keyValue = String(link.keyVal)
+      if (link.tcol) tag.timeColumn = String(link.tcol)
+    }
 
     const connectionId = named[1]
     if (!byConnection.has(connectionId)) byConnection.set(connectionId, [])

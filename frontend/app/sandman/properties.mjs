@@ -35,6 +35,7 @@
 import { peek } from './studio.mjs'
 import { api } from './api.mjs'
 import { watching } from './live.mjs'
+import { connectionIdFrom } from './databases.mjs'
 
 /**
  * A database somebody registered here, rather than the foundry's own.
@@ -280,6 +281,7 @@ function restructure() {
   addNameAndTest(drawer)
   addSaveToReadings(connection)
   linkByDropdown(connection)
+  showTheQuery(connection)
 }
 
 /* ------------------------------------------- naming it, and checking it first ---*/
@@ -354,11 +356,14 @@ function addNameAndTest(drawer) {
         table: pick.table,
         column: pick.column,
       })
+      // How long it took, because "is this quick enough to poll?" is the
+      // other half of "is anything there?".
+      const took = Number.isFinite(answer?.tookMs) ? ` · ${answer.tookMs} ms` : ''
       if (answer?.value && answer.value.value !== null && answer.value.value !== undefined) {
         const when = answer.value.recordedAt || answer.value.date || ''
-        tell(`Latest value ${answer.value.value}${when ? ` · ${when}` : ''}`, 'tx0')
+        tell(`Latest value ${answer.value.value}${when ? ` · ${when}` : ''}${took}`, 'tx0')
       } else {
-        tell(answer?.error || 'No record for that column yet', 'tx2')
+        tell(`${answer?.error || 'No record for that column yet'}${took}`, 'tx2')
       }
     } catch (error) {
       tell(error?.message || 'That could not be read', 'tx3')
@@ -368,6 +373,388 @@ function addNameAndTest(drawer) {
 
 const escapeText = value =>
   String(value ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+/* ------------------------------------- the query, and reading it right now ---*/
+
+/**
+ * How each engine quotes a name. Mirrors `DIALECT` in `db-connect.js`.
+ *
+ * A copy, deliberately: this draws the statement before anybody has run
+ * anything, so it cannot come from the server. What it draws is replaced by
+ * the server's own text the moment Read now is pressed, which is the one that
+ * actually ran — so a drift between the two shows itself immediately rather
+ * than hiding.
+ */
+const QUOTE = {
+  mysql: name => `\`${String(name).replaceAll('`', '``')}\``,
+  mariadb: name => `\`${String(name).replaceAll('`', '``')}\``,
+  postgres: name => `"${String(name).replaceAll('"', '""')}"`,
+  sqlserver: name => `[${String(name).replaceAll(']', ']]')}]`,
+  azuresql: name => `[${String(name).replaceAll(']', ']]')}]`,
+}
+
+/** The studio's own words for a database type, in our engine names. */
+const ENGINE_OF = { mysql: 'mysql', mssql: 'sqlserver', postgres: 'postgres' }
+
+/**
+ * Columns that time something a tool did, not something the plant did.
+ *
+ * `_watermark_ts` is a replication watermark: when a row was copied into this
+ * database, not when the pour happened. It sorts almost the same almost all
+ * the time, which is what makes it the wrong answer — it is right until a
+ * backfill or a replay puts the rows in a different order from the events.
+ * Picked last, never first, and the reading says which column it is using so
+ * it can be changed.
+ */
+const BOOKKEEPING = /^_|watermark|sync|etl|ingest|inserted|created_?at$|load_?ts/i
+
+/**
+ * Which column makes "the newest row" mean something.
+ *
+ * The link carries one when the reading was made through a flow that found
+ * it. Where it does not — an older link, or a table catalogued without a
+ * timestamp — the table's own columns are asked: a date or time column the
+ * plant writes first, then an id, then whatever is left including the
+ * bookkeeping ones.
+ */
+function newestBy(link, table) {
+  if (link.tcol) return link.tcol
+  return orderingChoices(table)[0]?.n || null
+}
+
+/**
+ * Every column this table could be ordered by, best first.
+ *
+ * Timestamps the plant writes, then ids, then the bookkeeping columns — and
+ * the whole list, because the only person who knows which column means "most
+ * recent" in their own schema is the one looking at this panel.
+ */
+function orderingChoices(table) {
+  const columns = (table?.cols || []).filter(column =>
+    column.t === 'datetime' || /(^|_)id$/i.test(column.n) || column.t === 'int')
+
+  const rank = column =>
+    (BOOKKEEPING.test(column.n) ? 2 : 0) + (column.t === 'datetime' ? 0 : 1)
+
+  return columns
+    .map((column, order) => ({ ...column, order }))
+    .sort((a, b) => rank(a) - rank(b) || a.order - b.order)
+}
+
+/**
+ * The statement behind a reading, as text.
+ *
+ * Written out in full — database, table, column, the ordering that makes
+ * "newest" mean something, the row filter if there is one — because that is
+ * the thing somebody checks against their own database when a reading says
+ * "no record".
+ *
+ * For a database registered here it is the statement this service runs, and
+ * `Read now` replaces it with the server's own text, which is authoritative.
+ * For the foundry's own database SandMan runs the read and this is the query
+ * that read amounts to: the same database, table, column and ordering, said
+ * in SQL rather than in prose. It is labelled as such by the caller.
+ */
+function statementFor(source, link, table) {
+  const engine = source?.engine || ENGINE_OF[source?.type]
+  const quote = QUOTE[engine]
+  if (!quote || !link?.table || !link?.col) return null
+
+  const where = source?.db ? `${quote(source.db)}.${quote(link.table)}` : quote(link.table)
+  const order = newestBy(link, table)
+  const filtered = !!(link.keyCol && link.keyVal)
+
+  const whole = `SELECT ${quote(link.col)}` +
+    (order ? `, ${quote(order)}` : '') +
+    ` FROM ${where}` +
+    (filtered ? ` WHERE ${quote(link.keyCol)} = ?` : '') +
+    (order ? ` ORDER BY ${quote(order)} DESC` : '')
+
+  return /^(sqlserver|azuresql)$/.test(engine)
+    ? whole.replace(/^SELECT /, 'SELECT TOP 1 ')
+    : `${whole} LIMIT 1`
+}
+
+/**
+ * What this reading asks the database, and two ways to ask it.
+ *
+ *   From the dropdowns   the statement the table and column above produce,
+ *                        shown as it is and run with Read now: one row,
+ *                        through the server, by the same code the poll uses.
+ *   Write your own       the same statement, editable. Change the limit, add
+ *                        a WHERE, look at the whole table — whatever answers
+ *                        "is there anything in there?".
+ *
+ * The second only exists for a database registered here. The foundry's own is
+ * read by SandMan, which answers for a table and a column and has no way to
+ * run a statement, so that tab says so rather than offering something that
+ * cannot work.
+ *
+ * Neither touches the reading: nothing here stores anything or changes a link.
+ */
+function showTheQuery(section) {
+  const reg = peek('REG')
+  const resolve = peek('SRC')
+  if (!reg) return
+
+  for (const card of section.querySelectorAll('.ix-card[data-tid]')) {
+    const tag = reg[card.dataset.tid]
+    const link = tag?.link
+    // A reading is either a table and a column, or a statement of its own.
+    if (!link || (!link.sql && (!link.table || !link.col))) continue
+
+    const source = typeof resolve === 'function' ? resolve(link.src) : null
+    const connection = connectionIdFrom(link.src)
+
+    /*
+     * The table's own columns, so the statement can order by something real.
+     * The catalogue is what the dropdowns above were filled from, so this is
+     * the same list — no second question to anybody.
+     */
+    let table = null
+    try {
+      const groups = window.catalog?.(source)
+      const group = Array.isArray(groups)
+        ? groups.find(entry => entry.name === link.db) || groups[0]
+        : null
+      table = group?.tables?.find(entry => entry.name === link.table) || null
+    } catch { /* no catalogue — the statement simply has no ORDER BY */ }
+
+    const statement = statementFor(source, link, table)
+
+    let box = card.querySelector('.dl-query')
+    if (!box) {
+      box = document.createElement('div')
+      box.className = 'dl-query'
+      box.innerHTML =
+        '<div class="dl-query-head">' +
+        '<div class="seg dl-query-tabs">' +
+        '<button type="button" data-q="auto" class="on">From the dropdowns</button>' +
+        '<button type="button" data-q="own">Write your own</button>' +
+        '</div>' +
+        '<button type="button" class="sb dl-query-go"></button>' +
+        '</div>' +
+        '<code class="dl-query-sql"></code>' +
+        '<textarea class="dl-sql-text mono" rows="3" spellcheck="false" hidden></textarea>' +
+        /*
+         * And the one that makes it the reading.
+         *
+         * Running a query answers "is it there?"; this answers "then read it
+         * from now on" — the poll runs this statement every thirty seconds
+         * instead of building one from the table and column.
+         */
+        '<div class="dl-query-acts" hidden>' +
+        '<button type="button" class="sb dl-query-adopt">Use for this reading</button>' +
+        '<button type="button" class="sb dl-query-drop" hidden>Go back to Table and Column</button>' +
+        '</div>' +
+        '<p class="note dl-query-says"></p>' +
+        '<div class="dl-sql-rows"></div>'
+      const row = card.querySelector('.dl-link-row')
+      if (row) row.after(box)
+      else card.querySelector('.ix-grp')?.append(box)
+    }
+
+    const shown = box.querySelector('.dl-query-sql')
+    const editor = box.querySelector('.dl-sql-text')
+    const says = box.querySelector('.dl-query-says')
+    const rows = box.querySelector('.dl-sql-rows')
+    const go = box.querySelector('.dl-query-go')
+    const acts = box.querySelector('.dl-query-acts')
+    const adopt = box.querySelector('.dl-query-adopt')
+    const drop = box.querySelector('.dl-query-drop')
+
+    /** Whether this reading is driven by a statement rather than by the picks. */
+    const driven = typeof link.sql === 'string' && !!link.sql.trim()
+
+    /**
+     * The statement from the dropdowns, with the row filter beside it — and,
+     * where SandMan does the reading, a line saying whose statement it is.
+     *
+     * SandMan builds its own against the foundry's database, so this is the
+     * query that read amounts to rather than the text it sends. Saying which
+     * is the difference between showing somebody the query and inventing one.
+     */
+    const fromDropdowns = driven
+      ? link.sql + '\n-- this reading runs your query, every poll.'
+      : statement
+        ? statement +
+          (link.keyCol && link.keyVal ? `    — with ? = ${link.keyVal}` : '') +
+          (connection ? '' : '\n-- SandMan runs the read; this is what it comes to.')
+        : `SandMan reads the newest ${link.table}.${link.col} for this line.`
+
+    const tell = (text, tone = '') => {
+      says.textContent = text
+      says.className = `note dl-query-says ${tone}`
+    }
+
+    const show = mode => {
+      box.dataset.mode = mode
+      for (const tab of box.querySelectorAll('[data-q]')) {
+        tab.classList.toggle('on', tab.dataset.q === mode)
+      }
+      shown.hidden = mode !== 'auto'
+      editor.hidden = mode !== 'own'
+      go.textContent = mode === 'auto' ? 'Read now' : 'Run'
+      rows.innerHTML = ''
+      says.textContent = ''
+
+      // Adopting is for the tab where a statement is written; going back is
+      // offered wherever a statement is already driving the reading.
+      acts.hidden = !connection || (mode !== 'own' && !driven)
+      adopt.hidden = mode !== 'own'
+      drop.hidden = !driven
+
+      if (mode === 'own' && !connection) {
+        go.hidden = true
+        editor.hidden = true
+        tell('SandMan reads the foundry\'s own database a column at a time. ' +
+          'There is no statement to write against it from here — use the dropdowns above.')
+        return
+      }
+      go.hidden = false
+      if (mode === 'own' && !editor.value) {
+        /*
+         * Opened on whatever this reading runs today: its own statement if it
+         * has one, otherwise the one the dropdowns make. Editing that is what
+         * "write your own" usually means — widen it, drop the filter, join.
+         */
+        editor.value = link.sql || statement || `SELECT * FROM ${link.table}`
+        editor.placeholder = `SELECT * FROM ${link.table || 'a_table'}`
+      }
+    }
+
+    shown.textContent = fromDropdowns
+    show(box.dataset.mode || 'auto')
+
+    for (const tab of box.querySelectorAll('[data-q]')) {
+      tab.onclick = () => show(tab.dataset.q)
+    }
+
+    /** One row, through the reading's own path. */
+    const readNow = async () => {
+      const loop = watching()
+      if (!loop) { tell('Open a loop first.'); return }
+
+      tell('Reading…')
+      try {
+        const answer = await api.post('/live/preview', {
+          loopId: loop,
+          source: link.src,
+          ...(driven
+            ? { sql: link.sql }
+            : {
+                table: link.table,
+                column: link.col,
+                ...(link.keyCol && link.keyVal ? { keyColumn: link.keyCol, keyValue: link.keyVal } : {}),
+                ...(link.tcol ? { timeColumn: link.tcol } : {}),
+              }),
+        })
+
+        // The statement the server actually ran, in place of ours.
+        if (answer?.query) {
+          shown.textContent = answer.query +
+            (answer.params?.length ? `    — with ? = ${answer.params.join(', ')}` : '')
+        }
+
+        const took = Number.isFinite(answer?.tookMs) ? ` · ${answer.tookMs} ms` : ''
+        const where = answer?.via ? ` from ${answer.via}` : ''
+        const record = answer?.value
+        if (record && record.value !== null && record.value !== undefined) {
+          const when = record.recordedAt || [record.date, record.time].filter(Boolean).join(' ')
+          tell(`${record.value}${when ? ` · recorded ${when}` : ''}${where}${took}`, 'tx0')
+        } else {
+          tell(`${answer?.error || 'No record for that column yet'}${took}`, 'tx2')
+        }
+      } catch (error) {
+        tell(error?.message || 'That could not be read', 'tx3')
+      }
+    }
+
+    /** Whatever is in the box, against the database it is registered with. */
+    const runOwn = async () => {
+      const sql = editor.value.trim()
+      if (!sql) { tell('Type a query first.'); return }
+
+      tell('Running…')
+      rows.innerHTML = ''
+      try {
+        const answer = await api.post(
+          `/connections/${encodeURIComponent(connection)}/query`, { sql, limit: 50 })
+
+        const count = answer.rows?.length || 0
+        tell(count
+          ? `${answer.rowCount} row${answer.rowCount === 1 ? '' : 's'}` +
+            `${answer.truncated ? `, showing ${count}` : ''} · ${answer.tookMs} ms · ${answer.via}`
+          : `No rows · ${answer.tookMs} ms · ${answer.via}`, count ? 'tx0' : 'tx2')
+
+        if (!count) return
+        rows.innerHTML =
+          '<table class="dl-sql-table"><thead><tr>' +
+          (answer.columns || []).map(name => `<th>${escapeText(name)}</th>`).join('') +
+          '</tr></thead><tbody>' +
+          answer.rows.map(record =>
+            `<tr>${record.map(cell =>
+              `<td>${cell === null ? '<span class="note">null</span>' : escapeText(cell)}</td>`
+            ).join('')}</tr>`).join('') +
+          '</tbody></table>'
+      } catch (error) {
+        // The database's own complaint — an unknown column, a table that is
+        // not there — which is the useful half of pressing Run.
+        tell(error?.message || 'That query could not be run', 'tx3')
+        rows.innerHTML = ''
+      }
+    }
+
+    /**
+     * Make this statement the reading.
+     *
+     * Checked by running it first: a statement that answers with nothing is
+     * not something to leave a reading pointed at. The first column is the
+     * value and the second is its time — said here rather than discovered
+     * when the trend turns out to have nothing to plot against.
+     */
+    adopt.onclick = async () => {
+      const sql = editor.value.trim()
+      if (!sql) { tell('Type a query first.'); return }
+
+      const loop = watching()
+      if (!loop) { tell('Open a loop first.'); return }
+
+      tell('Checking it…')
+      try {
+        const answer = await api.post('/live/preview', { loopId: loop, source: link.src, sql })
+        const record = answer?.value
+        if (!record || record.value === null || record.value === undefined) {
+          tell(`${answer?.error || 'That query returned nothing'} — the reading is unchanged`, 'tx3')
+          return
+        }
+
+        link.sql = sql
+        persist()
+        tell(`This reading now runs your query. Latest value ${record.value}.`, 'tx0')
+        window.renderProps?.()
+      } catch (error) {
+        tell(`${error?.message || 'That query could not be used'} — the reading is unchanged`, 'tx3')
+      }
+    }
+
+    /** Back to the dropdowns: the statement is dropped, the picks are kept. */
+    drop.onclick = () => {
+      delete link.sql
+      persist()
+      window.renderProps?.()
+    }
+
+    go.onclick = () => (box.dataset.mode === 'own' ? runOwn() : readNow())
+    editor.onkeydown = event => {
+      // Enter runs it; Shift+Enter is a new line, as in every query box.
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault()
+        runOwn()
+      }
+    }
+  }
+}
 
 /* -------------------------------------------- linking an existing reading ---*/
 
@@ -432,11 +819,33 @@ function linkByDropdown(section) {
     row.className = 'dl-link-row'
     row.innerHTML =
       '<label class="ix-f">Table<select class="dl-link-table"></select></label>' +
-      '<label class="ix-f dl-link-colf">Column<select class="dl-link-col"></select></label>'
+      '<label class="ix-f dl-link-colf">Column<select class="dl-link-col"></select></label>' +
+      /*
+       * Which column means "the newest row".
+       *
+       * It was picked silently, and the first timestamp in a table is often
+       * `_watermark_ts` — when a row was copied in, not when the pour
+       * happened. That is right until a backfill puts the rows in a different
+       * order from the events, and nothing on screen said which column was
+       * being trusted. Now it says, and it can be changed.
+       */
+      '<label class="ix-f dl-link-orderf">Newest by<select class="dl-link-order"></select></label>'
 
     const tableSelect = row.querySelector('.dl-link-table')
     const columnSelect = row.querySelector('.dl-link-col')
     const columnField = row.querySelector('.dl-link-colf')
+    const orderSelect = row.querySelector('.dl-link-order')
+    const orderField = row.querySelector('.dl-link-orderf')
+
+    /*
+     * A reading driven by its own statement has no use for these: the query
+     * says which table, which column and what "newest" means. They are put
+     * away rather than left to describe something that is not being read —
+     * "Go back to Table and Column" under the query brings them back.
+     */
+    if (typeof tag.link?.sql === 'string' && tag.link.sql.trim()) {
+      row.classList.add('dl-hidden')
+    }
 
     const option = (value, label, selected) =>
       `<option value="${value.replaceAll('"', '&quot;')}"${selected ? ' selected' : ''}>${label}</option>`
@@ -452,8 +861,29 @@ function linkByDropdown(section) {
       columnField.hidden = !tableSelect.value
       columnSelect.innerHTML = option('', 'Choose a column…', !tag.link?.col) +
         columns.map(column => option(column.n, column.n, column.n === tag.link?.col)).join('')
+
+      /*
+       * And what "newest" is measured by. Ordered best first — a timestamp
+       * the plant writes, then an id, then the bookkeeping columns — with
+       * the one in use selected, whatever it is.
+       */
+      const choices = orderingChoices(table)
+      const using = newestBy(tag.link || {}, table)
+      orderField.hidden = !tableSelect.value || !choices.length
+      orderSelect.innerHTML = choices
+        .map(column => option(column.n, column.n, column.n === using)).join('') +
+        option('', 'Whatever the database returns first', !using)
     }
     fillColumns()
+
+    orderSelect.onchange = () => {
+      const link = tag.link
+      if (!link) return
+      if (orderSelect.value) link.tcol = orderSelect.value
+      else delete link.tcol
+      persist()
+      window.renderProps?.()
+    }
 
     /*
      * Written through the studio's own input.
@@ -493,7 +923,13 @@ function linkByDropdown(section) {
         delete link.keyVal
       }
 
-      const stamp = table.cols?.find(column => column.t === 'datetime')?.n
+      /*
+       * A timestamp the plant writes, in preference to one a copying tool
+       * writes — `orderingChoices` puts `_watermark_ts` and its kind last.
+       * It is only the starting answer: the "Newest by" box above says which
+       * column is in use and changes it.
+       */
+      const stamp = orderingChoices(table)[0]?.n
       if (stamp) link.tcol = stamp
 
       persist()
