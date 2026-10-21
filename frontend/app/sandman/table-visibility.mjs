@@ -187,12 +187,14 @@ async function openPanel(source, back) {
   retally()
   box.querySelector('#dlTvList')?.addEventListener('change', retally)
 
+  // While a search is showing, Select all and Clear act on what it shows.
+  const shown = () => boxes().filter(input => !input.closest('.dl-tv-row')?.hidden)
   box.querySelector('#dlTvAll').onclick = () => {
-    for (const input of boxes()) input.checked = true
+    for (const input of shown()) input.checked = true
     retally()
   }
   box.querySelector('#dlTvNone').onclick = () => {
-    for (const input of boxes()) input.checked = false
+    for (const input of shown()) input.checked = false
     retally()
   }
 
@@ -366,6 +368,8 @@ function styles() {
     .dl-tv-list { max-height: 46vh; overflow: auto; border: 1px solid var(--line, #cfd8e3);
                   border-radius: 8px; padding: 6px 10px }
     .dl-tv-row { display: flex; align-items: center; gap: 8px; padding: 2px 0 }
+    /* The search hides rows with the attribute; the rule above would undo it. */
+    .dl-tv-row[hidden] { display: none }
     .dl-tv-btn { white-space: nowrap }
 
     /* Picking a database from the Data tab, before its tables. */
