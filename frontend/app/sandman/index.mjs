@@ -522,12 +522,42 @@ async function saveToServer() {
     return
   }
 
+  /*
+   * The name on the drawing is the loop's name.
+   *
+   * The box at the top of the window is where anybody would go to name this
+   * thing, and it is the name on the drawing from then on — so a loop called
+   * "Final Version" on screen saying "Saved DemoLoop3 as version 76" is the
+   * studio disagreeing with itself. Renaming here keeps the two the same.
+   *
+   * It is a rename, not a new loop: the versions, the history and whatever is
+   * published stay exactly where they are.
+   */
+  const title = nameOnCanvas(document_)
+  let renamed = null
+  let refused = null
+  if (title && title !== designs.current.name) {
+    const was = designs.current.name
+    try {
+      await designs.rename(title)
+      renamed = was
+    } catch (error) {
+      // A name another loop on this line already has. The drawing still
+      // saves — losing the work over the label would be the worse answer —
+      // and the refusal is said in the one message about this save, not in a
+      // toast the next one wipes out.
+      refused = error.message
+    }
+  }
+
   const version = await designs.save(document_)
   // What is on the canvas now is the thing to compare against next time.
   openedWith = studio.size(document_)
   startedFresh = false
   studio.toast(
     `Saved ${designs.current.name} as version ${version}. ` +
+    (renamed ? `Renamed from ${renamed}. ` : '') +
+    (refused ? `Still called ${designs.current.name}: ${refused} ` : '') +
     (designs.current.status === 'published'
       ? 'Publish again to show it to the plant.'
       : 'Publish it when it is ready.')

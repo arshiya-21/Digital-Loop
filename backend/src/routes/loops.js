@@ -255,6 +255,15 @@ loops.patch('/:loopId', async ({ user, params, body }) => {
   const loop = await loopToDesign(user, params.loopId)
 
   const name = body.name === undefined ? loop.name : required(body, 'name', 120)
+  if (name !== loop.name) {
+    // The same rule creating one follows: a line's loops are told apart by
+    // name, so renaming onto another's is refused rather than making two.
+    const clash = await designNamedOnLine(loop.foundry_id, loop.line_id, name)
+    if (clash && clash.id !== loop.id) {
+      throw conflict('name_taken',
+        `${loop.line_name} already has a loop called "${name}". Choose another name.`)
+    }
+  }
   let status = loop.status
   if (body.status !== undefined) {
     if (!['draft', 'archived'].includes(body.status)) {
