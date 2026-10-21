@@ -661,6 +661,19 @@ check('later draft edits do NOT reach the operator',
 check('operator cannot reach version history',
   (await call(OP1, 'GET', `/loops/${designId}/versions/3`)).status === 403)
 
+/*
+ * Saves arriving together — the Save button and the save after linking a
+ * reading. They used to read the same "next version" and race for it, and
+ * MySQL answered all but one with a deadlock.
+ */
+const together = await Promise.all([1, 2, 3, 4].map(() =>
+  call(ADMIN, 'POST', `/loops/${designId}/versions`, { layout: draft2 })))
+check('saves arriving together are all stored',
+  together.every(answer => answer.status === 201), together.map(answer => answer.status))
+const numbers = together.map(answer => answer.body.version).sort((a, b) => a - b)
+check('each under its own version number',
+  new Set(numbers).size === numbers.length && numbers[3] - numbers[0] === 3, numbers)
+
 // -------------------------------------------------------------- assets API ---
 log.push('ASSETS API')
 const list = await call(OP1, 'GET', '/assets')

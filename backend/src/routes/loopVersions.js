@@ -21,16 +21,32 @@ loopVersions.post('/:loopId/versions', async ({ user, params, body }) => {
   const loop = await loopToDesign(user, params.loopId)
 
   const layout = await validateLayout(body.layout)
-  // Parenthesised: `await x.get().max` would await the property of a promise.
-  const previous = (await db
-    .prepare('SELECT MAX(version) AS max FROM design_version WHERE design_id = ?')
-    .get(loop.id)).max || 0
-  const version = previous + 1
   const versionId = uid('ver')
 
-  // `tx`, not `db`: a query on the pool while this is open takes a different
-  // connection and would commit on its own, outside the rollback.
-  await transaction(async tx => {
+  /*
+   * Two saves of one loop at the same moment.
+   *
+   * The next number used to be read before the transaction, so saves arriving
+   * together — the Save button, and the save that follows linking a reading —
+   * all read the same maximum and all tried to insert the same version. The
+   * unique key let one through and MySQL answered the others with a deadlock,
+   * which the studio showed as a failed save.
+   *
+   * So the loop's own row is locked first and the number is read under that
+   * lock: a second save waits for the first to commit and then takes the next
+   * number. A deadlock that still happens is retried once, which is what
+   * MySQL's own message asks for.
+   */
+  const store = () => transaction(async tx => {
+    // `tx`, not `db`: a query on the pool while this is open takes a different
+    // connection and would commit on its own, outside the rollback.
+    await tx.prepare('SELECT id FROM design WHERE id = ? FOR UPDATE').get(loop.id)
+    // Parenthesised: `await x.get().max` would await the property of a promise.
+    const previous = (await tx
+      .prepare('SELECT MAX(version) AS max FROM design_version WHERE design_id = ?')
+      .get(loop.id)).max || 0
+    const version = previous + 1
+
     await tx.prepare(
       `INSERT INTO design_version (id, design_id, version, layout, note, created_by, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -42,7 +58,16 @@ loopVersions.post('/:loopId/versions', async ({ user, params, body }) => {
     }
     await tx.prepare('UPDATE design SET updated_at = ? WHERE id = ?').run(now(), loop.id)
     await audit(user.id, 'loop.version', 'design', loop.id, { version }, tx)
+    return version
   })
+
+  let version
+  try {
+    version = await store()
+  } catch (error) {
+    if (error?.code !== 'ER_LOCK_DEADLOCK' && error?.errno !== 1213) throw error
+    version = await store()
+  }
 
   return created({ id: versionId, loopId: loop.id, version, createdAt: now() })
 })

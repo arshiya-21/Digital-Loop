@@ -101,13 +101,26 @@ export function landingDesign() {
 export const lineNameFor = lineId =>
   session.lines.find(line => String(line.id) === String(lineId))?.name || ''
 
-/** Save the open design as a new version. Returns the version number. */
-export async function save(layout, note) {
-  if (!current) throw new Error('No design is open, so there is nothing to save to.')
-  const saved = await loopApi.saveVersion(current.id, layout, note)
-  current.latestVersion = saved.version
-  current.version = saved.version
-  return saved.version
+/**
+ * Save the open design as a new version. Returns the version number.
+ *
+ * One at a time. The Save button and the save that follows linking a reading
+ * can fire together, and three saves of one loop in the same instant were
+ * three versions racing for one number. Each save now waits for the one
+ * before it; a failure does not hold up the next.
+ */
+let saving = Promise.resolve()
+
+export function save(layout, note) {
+  const next = saving.catch(() => {}).then(async () => {
+    if (!current) throw new Error('No design is open, so there is nothing to save to.')
+    const saved = await loopApi.saveVersion(current.id, layout, note)
+    current.latestVersion = saved.version
+    current.version = saved.version
+    return saved.version
+  })
+  saving = next
+  return next
 }
 
 /** Create the design for a line, with the canvas as its first version. */
