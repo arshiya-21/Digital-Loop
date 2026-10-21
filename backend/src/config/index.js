@@ -157,12 +157,22 @@ export const config = {
     /**
      * How long to wait for a reading before giving up.
      *
-     * Short on purpose. A studio asking every thirty seconds would rather be
-     * told "stale" quickly than hold a request open: the previous value is
-     * still on screen and still honest, and a queue of waiting requests helps
-     * nobody. Liveness has its own, shorter, timeout.
+     * It was five seconds, on the reasoning that a studio asking every thirty
+     * seconds would rather be told "stale" quickly than hold a request open.
+     * That is true of a warm SandMan and wrong about a cold one: where SandMan
+     * reaches the foundry's database through an SSH tunnel, the first read
+     * after an idle spell pays for the handshake. Measured on the plant's own
+     * SandMan: 7.1 s for the first read, 0.16 s for every one after it. At
+     * five seconds that first read always failed, the studio said SandMan
+     * could not be reached, and the next poll half a minute later worked —
+     * which reads as "production data is not coming" and is really "the first
+     * one never gets through".
+     *
+     * So: long enough for a tunnel to come up, and no longer. The value on
+     * screen stays visible while this is outstanding, and the cache below
+     * means one slow read serves every screen on the line.
      */
-    readTimeoutMs: 5000,
+    readTimeoutMs: Number(process.env.SANDMAN_READ_TIMEOUT_MS) || 20000,
     /**
      * How long a set of readings is reused before asking SandMan again.
      *

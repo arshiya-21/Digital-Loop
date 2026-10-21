@@ -70,7 +70,7 @@ for (const event of ['uncaughtException', 'unhandledRejection']) {
  * `down` makes it refuse everything, which is how "SandMan is not answering"
  * is produced without stopping the server and racing the next request.
  */
-const sandmanCalls = { values: 0, chart: 0, down: false }
+const sandmanCalls = { values: 0, chart: 0, down: false, slowOnce: false }
 
 /** The API's cache window for this run. See the spawn environment below. */
 const VALUES_CACHE_MS = 1500
@@ -98,6 +98,24 @@ const sandman = createServer((req, res) => {
     req.on('end', () => {
       const asked = JSON.parse(body || '{}')
       sandmanCalls.lastValues = asked
+      /*
+       * A cold SandMan, once.
+       *
+       * Where it reaches the foundry's database through an SSH tunnel, the
+       * first read after an idle spell waits for the handshake — measured at
+       * seven seconds on the plant's own. The old five-second timeout turned
+       * that into "SandMan could not be reached" on the first read of every
+       * loop, so the pause is here to keep the timeout honest.
+       */
+      if (sandmanCalls.slowOnce) {
+        sandmanCalls.slowOnce = false
+        setTimeout(() => answer(asked), 7000)
+        return
+      }
+      answer(asked)
+    })
+
+    const answer = asked => {
       const values = {}
       const errors = {}
       for (const tag of asked.tags || []) {
@@ -108,7 +126,7 @@ const sandman = createServer((req, res) => {
         else values[tag.id] = record(2.62, '2026-02-18', '12:12:00', 'A')
       }
       json(200, { values, errors })
-    })
+    }
     return
   }
 
@@ -1039,6 +1057,26 @@ check('a chart with SandMan down is 503, not an empty chart',
   coldChart.status === 503, coldChart.status)
 
 sandmanCalls.down = false
+
+/*
+ * A cold SandMan answers slowly, and slowly is not the same as down.
+ *
+ * Where it reaches the foundry's database through an SSH tunnel, the first
+ * read after an idle spell waits for the handshake: seven seconds, measured
+ * on the plant's own, against a five-second timeout here. Every loop's first
+ * read therefore failed with "SandMan could not be reached", and the one
+ * thirty seconds later worked — which is exactly what "the data is not
+ * coming in production" looked like.
+ */
+await new Promise(done => setTimeout(done, VALUES_CACHE_MS + 100))
+sandmanCalls.slowOnce = true
+const coldStart = Date.now()
+const afterHandshake = await call(LIVE_ADMIN, 'GET', `/live/values?loopId=${liveId}`)
+check('a slow first read is waited for, not given up on',
+  afterHandshake.status === 200 && afterHandshake.body?.values?.T_MOIST?.value === 2.62,
+  { status: afterHandshake.status, took: Date.now() - coldStart, body: afterHandshake.body?.values })
+check('and it is not marked stale, because it did answer',
+  afterHandshake.body?.stale !== true, afterHandshake.body?.stale)
 
 /*
  * A loop nobody has linked yet is not an error. It is a loop still being
