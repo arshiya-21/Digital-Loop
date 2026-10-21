@@ -482,6 +482,35 @@ body.present .dl-empty {
    studio sets `display` on several of these itself. */
 .dl-hidden { display: none !important; }
 
+/* A search above a long table list — see table-search.mjs. The count on the
+   right answers "is my word in here at all?" without reopening the list. */
+.dl-table-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 4px;
+}
+
+.dl-table-search-text {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.dl-table-search-count { white-space: nowrap; }
+
+/* Getting rid of a row filter nobody chose — see `showTheQuery` in
+   properties.mjs. Those filters were filled in automatically and match no
+   rows, so a reading with one reads empty over a column that is full. */
+.dl-filter-off {
+  margin-top: 6px;
+}
+
 /* ------------------------------------------------- the query on a reading ---
  *
  * What this reading runs, under the table and column it runs against, with a
@@ -810,3 +839,14 @@ body.present .dl-empty {
 /* The button sits in the section heading, where the Readings heading used to
    have it, rather than floating above the first reading. */
 .ix-sec h4 .ix-link { margin-left: auto; }
+
+/*
+ * SandMan's own card is taken off the Data sources page in `sources-page.mjs`,
+ * not hidden here.
+ *
+ * A rule hiding `.src.cust-src` works, and was what did it first — but the
+ * same page also carries a note promising that values stay simulated, which
+ * only code can take away. Two mechanisms for one change is one too many, and
+ * a stylesheet that hides a card hides it everywhere the studio ever draws
+ * one, including places this was never meant to touch.
+ */

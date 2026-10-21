@@ -35,6 +35,7 @@
 import { peek } from './studio.mjs'
 import { api } from './api.mjs'
 import { watching } from './live.mjs'
+import { searchable } from './table-search.mjs'
 import { connectionIdFrom } from './databases.mjs'
 
 /**
@@ -248,12 +249,16 @@ function restructure() {
 
   if (block && (!picked || picked.auto)) {
     const database = drawer.querySelector('#dbDb')
-    if (database) database.value = ''
+    if (database) database.value = firstSource(database)
     for (const step of drawer.querySelectorAll('.db-step')) {
       const number = step.querySelector('i')?.textContent?.trim()
       if (number === '2' || number === '3') step.classList.add('off')
     }
   }
+
+  // And the same search over the flow's own table list — see table-search.mjs.
+  const drawerTables = drawer.querySelector('#dbTbl')
+  if (drawerTables) searchable(drawerTables)
 
   /*
    * The readings themselves, into the same section — which is the whole point:
@@ -285,6 +290,25 @@ function restructure() {
 }
 
 /* ------------------------------------------- naming it, and checking it first ---*/
+
+/**
+ * Which source the flow opens on: the first real one in the list.
+ *
+ * It opened on nothing, so every reading began by choosing a source again —
+ * and on a plant with one database that is a question with one answer. Read
+ * from the list as it stands rather than named here, so whatever the studio
+ * offers first is what is chosen: no source name is written into this code,
+ * and a plant with none still opens on nothing.
+ *
+ * The simulated entries are skipped. They demonstrate the editor with no
+ * plant behind it, and a reading that opens on one shows an invented number
+ * by default.
+ */
+function firstSource(select) {
+  const real = [...(select?.options || [])].find(option =>
+    option.value && !/^__/.test(option.value) && !/simulated|demo/i.test(option.textContent))
+  return real?.value || ''
+}
 
 /** The three dropdowns' current answer, as the preview endpoint wants it. */
 function chosen(drawer) {
@@ -429,6 +453,29 @@ function newestBy(link, table) {
  * the whole list, because the only person who knows which column means "most
  * recent" in their own schema is the one looking at this panel.
  */
+/**
+ * The catalogue entry for the table a link points at, or null.
+ *
+ * `catalog()` is the one place that knows a table's columns and their types,
+ * for the foundry's database as well as for one registered here. Everything
+ * here is best-effort: a database whose tables have not been fetched yet
+ * simply gives nothing back, and the caller leaves what it found alone.
+ */
+function tableOf(link) {
+  const resolve = peek('SRC')
+  if (!link?.src || !link?.table || typeof window.catalog !== 'function') return null
+
+  try {
+    const source = typeof resolve === 'function' ? resolve(link.src) : null
+    if (!source) return null
+    const groups = window.catalog(source)
+    const group = Array.isArray(groups) ? groups[0] : null
+    return group?.tables?.find(entry => entry.name === link.table) || null
+  } catch {
+    return null
+  }
+}
+
 function orderingChoices(table) {
   const columns = (table?.cols || []).filter(column =>
     column.t === 'datetime' || /(^|_)id$/i.test(column.n) || column.t === 'int')
@@ -854,6 +901,9 @@ function linkByDropdown(section) {
       group.tables.map(table =>
         option(table.name, table.name, table.name === tag.link?.table)).join('')
 
+    // Two hundred tables is not a list anybody scrolls — see table-search.mjs.
+    searchable(tableSelect)
+
     const fillColumns = () => {
       const table = group.tables.find(entry => entry.name === tableSelect.value)
       const columns = table?.cols || []
@@ -915,13 +965,21 @@ function linkByDropdown(section) {
       const table = group.tables.find(entry => entry.name === tableSelect.value)
       if (!link || !table) return
 
-      if (table.key && !registered(link.src)) {
-        link.keyCol = table.key
-        link.keyVal = had.keyVal || document.querySelector('#props #ixName')?.value || ''
-      } else {
-        delete link.keyCol
-        delete link.keyVal
-      }
+      /*
+       * No row filter is invented here, for any database.
+       *
+       * The studio fills one in from the table's first text column and the
+       * equipment's name: `created_by = 'BEN-BIN'` on a table whose
+       * `created_by` holds user names. It matches nothing, so the reading
+       * says "no record" while the column it points at is full — proved
+       * against the plant's own SandMan, where the same reading answers with
+       * a value once the filter is gone.
+       *
+       * A filter is worth having only when somebody chooses it, and nothing
+       * offers that choice yet.
+       */
+      delete link.keyCol
+      delete link.keyVal
 
       /*
        * A timestamp the plant writes, in preference to one a copying tool
@@ -1015,10 +1073,34 @@ function scrubInventedValues() {
       // A text reading's sample string. Blank until the plant sends one.
       if (tag.txt !== undefined) tag.txt = ''
 
-      // And no invented row filter on a registered database — see `registered`.
-      if (tag.link && registered(tag.link.src)) {
+      /*
+       * And no invented row filter, on any database.
+       *
+       * `dbAddTag` sets `keyCol` to the table's first text column and
+       * `keyVal` to the equipment's name — `created_by = 'BEN-BIN'` on a
+       * column that holds user names. The reading then says "no record" over
+       * a column that is full, which is the hardest kind of wrong to find:
+       * everything about the link looks right.
+       */
+      if (tag.link) {
         delete tag.link.keyCol
         delete tag.link.keyVal
+
+        /*
+         * And ordered by something that is a time, where the table has one.
+         *
+         * The flow leaves `tcol` on whatever the studio picked, which on a
+         * table whose first candidate is `id` means the reading is ordered by
+         * its primary key. That finds the newest row correctly and gives the
+         * trend nothing to plot against — `id` is not a moment — so the chart
+         * came up empty beside a badge showing a perfectly good value.
+         *
+         * `orderingChoices` already ranks a real timestamp above an id and a
+         * plant column above a copying tool's, which is the same answer the
+         * Table and Column dropdowns give when a reading is relinked there.
+         */
+        const stamp = orderingChoices(tableOf(tag.link))[0]?.n
+        if (stamp) tag.link.tcol = stamp
       }
 
       /*

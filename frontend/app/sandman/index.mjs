@@ -5,6 +5,8 @@ import * as live from './live.mjs'
 import * as databases from './databases.mjs'
 import * as properties from './properties.mjs'
 import * as equipment from './equipment.mjs'
+import * as naming from './naming.mjs'
+import * as sourcesPage from './sources-page.mjs'
 import * as dbForm from './db-form.mjs'
 import * as tableVisibility from './table-visibility.mjs'
 import * as processChecks from './process-checks.mjs'
@@ -769,6 +771,15 @@ async function boot() {
     // The equipment designer picked by group, and the drawing uploaded from
     // the form rather than from behind the Shape select — see equipment.mjs.
     equipment.install()
+
+    /*
+     * What each reading is called, on the drawing as well as in the panel —
+     * and the value it reads, in Design as much as in Publish. See naming.mjs.
+     */
+    naming.install()
+
+    // SandMan's own card off the Data sources page — see sources-page.mjs.
+    sourcesPage.install()
 
     // The external database form, against `/connections` rather than the
     // studio's simulated gateway — see db-form.mjs.

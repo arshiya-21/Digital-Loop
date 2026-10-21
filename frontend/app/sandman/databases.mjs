@@ -210,6 +210,40 @@ const escapeHtml = value =>
   String(value ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
 /**
+ * `dbList()` — the Add reading flow's Database menu: the data sources, only.
+ *
+ * The studio writes "★ Customer default · <db>" into that menu itself, from
+ * `CUSTOMER.defaultDb`, ahead of everything `sources()` offers. It is there
+ * whether or not the plant reads from that database, and it could not be taken
+ * off the Data sources page because it was never on it — which left the two
+ * lists disagreeing: the page offers the databases somebody registered, and
+ * the menu offered those plus one more that nothing on the page mentions. Two
+ * answers to "where can this reading come from?" is one too many, and the
+ * extra one is the one nobody can configure.
+ *
+ * So the menu is the registered data sources and nothing else — no exception,
+ * including for a reading already linked to the foundry's database. That
+ * reading goes on reading: `linkedTags` on the server works from the stored
+ * link, which this does not touch, and the reading's own Source box still
+ * names it (see `hideSourceManagement` in live.mjs, which keeps the entry
+ * exactly where it is the one selected). What changes is only what a *new*
+ * reading may be pointed at.
+ */
+function narrowTheFlowsDatabases() {
+  const original = window.dbList
+  if (typeof original !== 'function' || original.__dlNoFixedCustomer) return
+
+  const replaced = function dbListWithoutTheFixedEntry() {
+    const list = original.apply(this, arguments)
+    return Array.isArray(list) ? list.filter(entry => !entry?.cust) : list
+  }
+
+  replaced.__dlNoFixedCustomer = true
+  replaced.original = original
+  window.dbList = replaced
+}
+
+/**
  * The foundry's own database, in the wizard that opens after placing
  * equipment.
  *
@@ -306,6 +340,7 @@ export async function install({ onLinked } = {}) {
   if (typeof onLinked === 'function') linked = onLinked
   replaceSources()
   replaceCatalog()
+  narrowTheFlowsDatabases()
   offerTheFoundryDatabase()
   await load()
   // The properties panel may already be open on an equipment item.

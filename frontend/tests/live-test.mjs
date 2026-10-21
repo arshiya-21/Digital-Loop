@@ -155,12 +155,30 @@ for (let attempt = 0; ; attempt++) {
 /* ------------------------------------------------------------- the fixture ---*/
 
 const stamp = Date.now().toString(36).slice(-5)
+/*
+ * One table the readings are linked to, and enough others to be a list.
+ *
+ * A real foundry database here is a couple of hundred tables; the search box
+ * over that list only appears above a dozen, so a fixture with one table could
+ * never show whether it works. These fifteen are named the way the plant's own
+ * are — `asset_*`, `sand_*` — so a search can be asserted to narrow to one
+ * family and not the other.
+ */
 const DATABASE = {
   name: `livetest_${stamp}`,
-  tables: [{
-    name: 'preparedsand',
-    columns: [{ name: 'pkey', type: 'int' }, { name: 'moisture', type: 'float' }],
-  }],
+  tables: [
+    {
+      name: 'preparedsand',
+      columns: [{ name: 'pkey', type: 'int' }, { name: 'moisture', type: 'float' }],
+    },
+    ...['asset', 'asset_group', 'asset_meter', 'asset_history', 'asset_spare',
+      'sand_test', 'sand_batch', 'sand_return', 'sand_addition',
+      'mould_cycle', 'mould_defect', 'pour_log', 'pour_temp',
+      'shift_log', 'operator'].map(name => ({
+      name,
+      columns: [{ name: 'id', type: 'int' }, { name: 'value', type: 'float' }],
+    })),
+  ],
 }
 const PLANT = {
   foundry: `FND-LIVETEST-${stamp}`,
@@ -218,7 +236,11 @@ const layout = {
     seq: 2,
     blocks: [{
       id: 'blk1', type: 'mixer', x: 200, y: 200, name: 'Mixer 1', props: {},
-      tags: [{ id: 'T_MOIST' }, { id: 'T_PLAIN' }],
+      /* `tagOff` is what `tagAnchor` places the labels by, and `show` is what
+         puts each one on the canvas — without them the readings exist but the
+         drawing has no badges, so nothing about the labels is testable. */
+      tagOff: { x: 0, y: 0 },
+      tags: [{ id: 'T_MOIST', show: true }, { id: 'T_PLAIN', show: true }],
     }],
     streams: [],
   },
@@ -235,7 +257,7 @@ const layout = {
       { src: 'src_db', db: 'SandMan_Prod', table: 'equipment_status', col: 'running' }),
   },
 }
-layout.DOC.blocks[0].tags.push({ id: 'T_OLD' }, { id: 'T_TEXT' })
+layout.DOC.blocks[0].tags.push({ id: 'T_OLD', show: true }, { id: 'T_TEXT', show: true })
 
 /*
  * A database an administrator registered.
@@ -445,10 +467,30 @@ check('a database an administrator registered is offered',
   (seen.sources || []).includes(ADDED_DB.label), seen.sources)
 check('its real tables are what the flow offers, not a hardcoded schema',
   (seen.addedTables || []).includes('asset'), seen.addedTables)
-check('the foundry\'s own database is still there too',
-  seen.pickable.includes(DATABASE.name), seen.pickable?.slice(0, 300))
 check('with no invitation to add one by typing a host into the browser',
   !seen.pickable.includes('__manage'), seen.pickable?.slice(0, 200))
+
+/*
+ * "★ Customer default" is not a standing entry in the source menu.
+ *
+ * The studio writes it in from `CUSTOMER.defaultDb`, ahead of everything
+ * `sources()` offers, whether or not the plant reads from that database — so
+ * the menu and the Data sources page disagreed, the page listing what somebody
+ * registered and the menu listing those plus one more.
+ *
+ * It stays where a reading already reads from it, which is the whole of the
+ * exception: taking it off that reading's own menu would show the reading as
+ * reading from something else, and the next change saved on the card would
+ * make that true.
+ */
+const menu = await evaluate(`(() => ({
+  fresh: typeof srcOptions === 'function' ? srcOptions('', false) : '',
+  linked: typeof srcOptions === 'function' ? srcOptions('customer', false) : '',
+}))()`)
+check('a reading that reads from nothing is not offered the customer default',
+  !/value="customer"/.test(menu.fresh || ''), menu.fresh?.slice(0, 300))
+check('but one that already reads from it still shows it',
+  /value="customer"/.test(menu.linked || ''), menu.linked?.slice(0, 300))
 /*
  * A demo source is a real choice, and the number it gives is invented. The
  * chip has to say which — "Linked", the studio's own answer, is the confident
@@ -456,6 +498,69 @@ check('with no invitation to add one by typing a host into the browser',
  */
 check('a reading left pointing at a removed demo server says so',
   seen.chipOld === 'Not connected', seen.chipOld)
+
+/*
+ * The Data sources page itself: SandMan's card off it, everything else on it.
+ *
+ * The studio puts "Customer default database" at the top of that page with its
+ * type, host and database name, a Test connection button and "Managed by
+ * Sandman" underneath. It is the one card there that cannot be managed — Test
+ * tests the studio's simulated gateway rather than SandMan, and the host is
+ * SandMan's to hold, not ours to print in a browser panel.
+ *
+ * What has to survive is the rest of the page: the databases an administrator
+ * registered, with Edit, Test and Delete, and ＋ Add data source opening our
+ * own form — host, account, password and the SSH tunnel — rather than the
+ * studio's simulated-gateway one.
+ */
+const page = await evaluate(`(() => {
+  closeModal?.();
+  sourcesForm();
+  const box = document.getElementById('mbox');
+  return {
+    sandmansCard: !!box?.querySelector('.src.cust-src'),
+    cards: [...(box?.querySelectorAll('.src-g .src') || [])]
+      .map(c => (c.querySelector('b')?.textContent || c.textContent.trim()).slice(0, 40)),
+    add: !!box?.querySelector('#srcAdd'),
+    edit: !!box?.querySelector('[data-se]'),
+    test: !!box?.querySelector('[data-st]'),
+    remove: !!box?.querySelector('[data-sd]'),
+    gatewayNote: /stay simulated|credential reference/i.test(box?.textContent || ''),
+  };
+})()`)
+check('SandMan\'s own card is off the Data sources page',
+  page.sandmansCard === false, page.cards)
+check('the registered database is still listed there',
+  (page.cards || []).some(name => name.includes(ADDED_DB.label)), page.cards)
+check('with Edit, Test and Delete on it',
+  page.edit && page.test && page.remove, page)
+check('and ＋ Add data source is still offered',
+  page.add === true, page)
+check('with nothing left saying the values are simulated',
+  page.gatewayNote === false, page)
+
+// Our form asks the server which engines it supports before it draws, so the
+// modal is not the one we want until that answer is back.
+await evaluate(`document.getElementById('srcAdd')?.click()`)
+await wait(1200)
+const form = await evaluate(`(() => {
+  const box = document.getElementById('mbox');
+  const text = box?.textContent || '';
+  return {
+    ours: !!box?.querySelector('[id^="dlDb"]'),
+    fields: [...(box?.querySelectorAll('input,select,textarea') || [])].map(f => f.id).filter(Boolean),
+    ssh: /ssh/i.test(text),
+    tunnel: /tunnel|jump|bastion/i.test(text),
+    gateway: /credential reference|poll every/i.test(text),
+  };
+})()`)
+check('＋ Add data source opens our form, not the studio\'s gateway one',
+  form.ours === true, form)
+check('and that form still has its SSH tunnel section',
+  form.ssh && form.tunnel, form)
+check('with the tunnel\'s own fields on it',
+  (form.fields || []).some(name => /tunnel|ssh|jump|key/i.test(name)), form.fields)
+await evaluate('closeModal?.()')
 
 /*
  * The guard is the whole point of the feature on this side. `simTick` runs
@@ -595,6 +700,22 @@ const panel = await evaluate(`(() => {
   out.stepsWhenOpened = [...drawer.querySelectorAll('.db-step')].map(step =>
     (step.querySelector('i')?.textContent || '?') +
     (getComputedStyle(step).display === 'none' ? ':hidden' : ':shown'));
+
+  // Which source it opens on, and which one the list offers first. The flow
+  // used to open on nothing, so every reading began by answering a question
+  // that, on a plant with one database, has one answer.
+  const database = drawer.querySelector('#dbDb');
+  out.chosenSource = database?.value || '';
+  out.firstRealSource = [...(database?.options || [])].find(o =>
+    o.value && !/^__/.test(o.value) && !/simulated|demo/i.test(o.textContent))?.value || '';
+
+  // And the reading's own card: what the name field is called, whether it can
+  // still be typed in, and whether the card says where the number comes from.
+  const card = connection?.querySelector('.ix-card[data-tid]');
+  const name = card?.querySelector('[data-ix="desc"]');
+  out.nameLabel = (name?.closest('.ix-f')?.textContent || '').trim();
+  out.nameEditable = !!name && !name.disabled && !name.readOnly;
+  out.readsFrom = (card?.querySelector('.dl-reads-from')?.textContent || '').trim();
   return out;
 })()`)
 
@@ -609,15 +730,167 @@ check('the flow is out of the way until Add reading is pressed',
   panel.flowHiddenUntilAsked && panel.flowInsideDrawer, panel)
 check('pressing it shows the database dropdown',
   panel.opensOnClick && panel.databaseDropdown, panel)
-check('which offers the foundry database and nothing invented',
-  (panel.offered || []).some(o => /Customer default/.test(o)) &&
-  !(panel.offered || []).some(o => /SandMan Production DB|Sand Lab LIMS|SandMan Gateway/.test(o)),
+/*
+ * And it offers the registered data sources, those alone.
+ *
+ * Not the demo servers, which connect to nothing, and not the studio's fixed
+ * "★ Customer default" entry either: that one is written into the menu from
+ * the launch rather than coming from the data sources, so it made this list
+ * disagree with the Data sources page about where a reading may come from.
+ * A reading already linked to the foundry's database keeps reading it — the
+ * stored link is untouched — and its own Source box still names it.
+ */
+check('which offers the registered data sources and nothing else',
+  (panel.offered || []).length > 0 &&
+  !(panel.offered || []).some(o =>
+    /Customer default|SandMan Production DB|Sand Lab LIMS|SandMan Gateway/.test(o)),
   panel.offered)
 check('the dropdown opens directly under the heading, not below the readings',
   panel.childOrder?.[1] === 'dlAddDrawer', panel.childOrder)
 check('and the steps come one at a time — only the database to begin with',
   panel.stepsWhenOpened?.join(' ') === '1:shown 2:hidden 3:hidden 4:hidden',
   panel.stepsWhenOpened)
+/*
+ * Whichever source the list offers first, not one named in the code.
+ *
+ * Asserted against the dropdown rather than against a name, so a plant whose
+ * first source is something else still passes — which is the point: the
+ * default is read from what is on offer, and there is no source written into
+ * the module to go stale.
+ */
+check('the flow opens on a source rather than on nothing',
+  !!panel.chosenSource, panel.chosenSource)
+check('and it is the first one the list offers, not a named one',
+  panel.chosenSource === panel.firstRealSource,
+  { chose: panel.chosenSource, first: panel.firstRealSource })
+
+check('a reading\'s name field is called Display name',
+  /display name/i.test(panel.nameLabel || ''), panel.nameLabel)
+check('and can still be typed in', panel.nameEditable === true, panel.nameEditable)
+check('with the column it reads said underneath it',
+  /preparedsand\.moisture/.test(panel.readsFrom || ''), panel.readsFrom)
+
+/*
+ * Renaming a reading changes what it is called. Nothing else.
+ *
+ * The three names a reading has are not the same thing: the tag id is what the
+ * document, the server index and every stored version are keyed on; the link
+ * is where the number comes from; the display name is what the plant calls it.
+ * Typing in the name field writes `desc` — so this types a new name into the
+ * studio's own input, the way somebody would, and checks that the tag id, the
+ * link and the value all come through it untouched.
+ */
+const renamed = await evaluate(`(() => {
+  const REG = ${peek}('REG'), VAL = ${peek}('VAL');
+  const card = [...document.querySelectorAll('#props .ix-card[data-tid]')]
+    .find(c => c.dataset.tid === 'T_MOIST');
+  const field = card?.querySelector('[data-ix="desc"]');
+  if (!field) return { noField: true };
+
+  const before = {
+    link: JSON.stringify(REG.T_MOIST.link),
+    value: VAL.T_MOIST?.v ?? null,
+    points: VAL.T_MOIST?.h?.length ?? 0,
+  };
+  field.value = 'Muller moisture, renamed';
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  field.dispatchEvent(new Event('change', { bubbles: true }));
+
+  return {
+    before,
+    name: REG.T_MOIST.desc,
+    idStillThere: !!REG.T_MOIST,
+    link: JSON.stringify(REG.T_MOIST.link),
+    value: VAL.T_MOIST?.v ?? null,
+    points: VAL.T_MOIST?.h?.length ?? 0,
+  };
+})()`)
+check('renaming a reading changes its name', renamed.name === 'Muller moisture, renamed', renamed.name)
+check('and leaves the tag id alone', renamed.idStillThere === true, renamed)
+check('and the link it reads from, exactly',
+  renamed.link === renamed.before?.link, { was: renamed.before?.link, now: renamed.link })
+check('and the value it is already showing',
+  renamed.value === renamed.before?.value && renamed.points === renamed.before?.points, renamed)
+
+// And the name reaches the canvas, which is the whole point of naming.mjs.
+await evaluate('renderCanvas?.()')
+const onCanvas = await evaluate(`(() => {
+  const badge = [...document.querySelectorAll('#Ltags .tagb')].find(n => n.dataset.tag === 'T_MOIST');
+  return { badge: badge?.textContent?.trim() || '(not drawn)' };
+})()`)
+check('and the new name is what the drawing says',
+  /Muller moisture, renamed/.test(onCanvas.badge), onCanvas.badge)
+
+/*
+ * A search over the table list, where the list is long enough to need one.
+ *
+ * Sixteen tables in the fixture, against a couple of hundred in a real plant.
+ * The box appears above a dozen and not below — under that it is furniture on
+ * a list that is already one glance — so this is also what proves it is the
+ * length that brings it out rather than it being there always.
+ */
+const search = await evaluate(`(async () => {
+  const drawer = document.getElementById('dlAddDrawer');
+  /*
+   * On the foundry's own database, whichever one the flow opened on.
+   *
+   * A registered database's tables are fetched when it is chosen, so reading
+   * the list straight away finds "Loading tables…"; the foundry's came with
+   * the launch and are there at once.
+   */
+  const at = id => document.getElementById('dlAddDrawer')?.querySelector('#' + id);
+  const wanted = 'conn_' + ${JSON.stringify(addedDb.body.id)} + '|' + ${JSON.stringify(ADDED_DB.database)};
+  const database = drawer?.querySelector('#dbDb');
+  if (database && database.value !== wanted) {
+    database.value = wanted;
+    database.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  /*
+   * The tables of a registered database are fetched when it is chosen, and the
+   * flow redraws when they land — which replaces these nodes, and can clear
+   * the choice on the way. So this re-chooses until the list stops saying it
+   * is loading rather than holding on to the first one it saw.
+   */
+  for (let i = 0; i < 200; i++) {
+    const list = at('dbTbl');
+    if (list && list.options.length > 1 && !/loading/i.test(list.options[0].textContent)) break;
+    const pick = at('dbDb');
+    if (pick && pick.value !== wanted) {
+      pick.value = wanted;
+      pick.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  const tables = at('dbTbl');
+  const box = document.getElementById('dlAddDrawer')?.querySelector('.dl-table-search');
+  const field = box?.querySelector('.dl-table-search-text');
+  if (!field || !tables) return {
+    box: false,
+    options: [...(tables?.options || [])].map(o => o.textContent).slice(0, 8),
+  };
+
+  const before = [...tables.options].map(o => o.value).filter(Boolean);
+  field.value = 'asset';
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  const narrowed = [...tables.options].map(o => o.value).filter(Boolean);
+  const count = box.querySelector('.dl-table-search-count')?.textContent || '';
+
+  field.value = '';
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  const after = [...tables.options].map(o => o.value).filter(Boolean);
+  return { box: true, before, narrowed, after, count };
+})()`)
+check('a long table list gets a search box above it', search.box === true, search)
+check('typing narrows it to the tables that match',
+  search.narrowed?.length > 0 && search.narrowed.every(name => /asset/i.test(name)),
+  search.narrowed)
+check('and leaves out the ones that do not',
+  search.before?.length > (search.narrowed?.length ?? 0),
+  { of: search.before?.length, shown: search.narrowed?.length })
+check('and clearing it puts every table back',
+  search.after?.length === search.before?.length, search)
+check('with the box saying how many it is showing',
+  /\d+ of \d+/.test(search.count || ''), search.count)
 
 console.log('\nCONTROL CHART — real records, and SandMan\'s own')
 
@@ -650,10 +923,31 @@ const mr = await evaluate(`(() => {
   return { canvasHidden: gone(document.getElementById('trM')), titleHidden: gone(title) };
 })()`)
 check('the moving range chart is not shown', mr.canvasHidden && mr.titleHidden, mr)
+/*
+ * Every chart opens on two hours, whatever the reading records.
+ *
+ * These twelve records are a day apart — a lab result rather than a batch
+ * reading — so two hours holds the newest one and the navigator underneath
+ * reaches the rest.
+ */
 check('the individuals chart is drawn from the plant records',
-  chart.points === RECORDS.length, chart.points)
+  chart.points >= 1 && chart.points <= RECORDS.length, chart.points)
 check('and those are the records themselves',
-  Math.abs(chart.firstValue - RECORDS[0].value) < 1e-9, chart.firstValue)
+  Math.abs(chart.firstValue - RECORDS[RECORDS.length - chart.points].value) < 1e-9,
+  { shown: chart.firstValue, points: chart.points })
+
+const span = await evaluate(`(() => {
+  const seg = document.getElementById('trWin')
+  const nav = document.getElementById('dlNav')
+  return {
+    windows: [...(seg?.querySelectorAll('button') || [])].map(b => b.textContent.trim()),
+    on: seg?.querySelector('button.on')?.textContent.trim(),
+    navigator: !!nav && getComputedStyle(nav).display !== 'none',
+  }
+})()`)
+check('on the same four windows as every other chart',
+  span.windows.join(' ') === '2 h 4 h 8 h 1 day' && span.on === '2 h', span)
+check('with the rest of the records a drag away', span.navigator === true, span)
 
 const pc = await evaluate(`(() => {
   const button = [...document.querySelectorAll('#dlChartSeg button')].find(b => b.dataset.cv === 'pc');

@@ -445,25 +445,49 @@ function pollWhenVisibleAgain() {
  */
 
 /**
- * Take "Add or manage data sources…" out of the source menu.
+ * The source menu offers the data sources, and nothing else.
  *
- * The studio's own panel adds a server by typing a host into the browser,
- * which is not how a database gets registered here: Digital Loop holds the
- * password and dials out itself, so one is added through the API, by an
- * administrator, and the credential never reaches the page. Leaving the option
- * would offer a second way that quietly does something else.
+ * Two of the studio's own entries are taken out of the rendered markup:
  *
- * The option is removed from the rendered markup rather than by rewriting
- * `srcOptions`, because reimplementing that function would mean reimplementing
- * it again after every drop.
+ *   Add or manage data sources…   its panel adds a server by typing a host
+ *                                 into the browser, which is not how a
+ *                                 database gets registered here: Digital Loop
+ *                                 holds the password and dials out itself, so
+ *                                 one is added through the API, by an
+ *                                 administrator, and the credential never
+ *                                 reaches the page. Leaving the option would
+ *                                 offer a second way that quietly does
+ *                                 something else.
+ *   ★ Customer default · <db>     a fixed entry for the database named in
+ *                                 SandMan's launch, written into the menu
+ *                                 whether or not it is one of the plant's data
+ *                                 sources. The Data sources page lists the
+ *                                 databases somebody registered; this menu now
+ *                                 lists the same ones, so what a reading may be
+ *                                 linked to is one list in both places rather
+ *                                 than a list plus a hardcoded extra.
+ *
+ * **Unless a reading is already linked to it.** Then the option stays, marked
+ * selected, because taking it away would show that reading as reading from
+ * something else — and the first change to any other field on the card would
+ * save that lie. The entry disappears from every reading that is not already
+ * using it, which is what "don't offer it" means.
+ *
+ * Done to the markup rather than by rewriting `srcOptions`, because
+ * reimplementing that function means reimplementing it again after every drop.
  */
+const MANAGE = /<option value="__manage">[^<]*<\/option>/
+const CUSTOMER_OPTION = /<option value="customer"\s*([^>]*)>[^<]*<\/option>/
+
 function hideSourceManagement() {
   const original = window.srcOptions
   if (typeof original !== 'function' || original.__dlOnlyCustomer) return
 
   const replaced = function srcOptionsWithoutManage(...args) {
     return String(original.apply(this, args))
-      .replace(/<option value="__manage">[^<]*<\/option>/, '')
+      .replace(MANAGE, '')
+      .replace(CUSTOMER_OPTION, (whole, attributes) =>
+        /selected/.test(attributes) ? whole : '')
   }
 
   replaced.__dlOnlyCustomer = true
@@ -623,6 +647,7 @@ function markBadges() {
 
 /** Put the record time on the badges, and correct the inspector's wording. */
 function decorate() {
+  hideTrendOnText()
   for (const el of document.querySelectorAll('[data-live]')) {
     const id = el.dataset.live
     if (!isLinked(id)) continue
@@ -698,6 +723,16 @@ const replaying = () => !!peek('RP')
 function refreshChrome() {
   try {
     window.liveText?.()
+    /*
+     * And the badges on the drawing.
+     *
+     * `liveText` refreshes the panels; the canvas redraws itself on the
+     * studio's own timer, but only while it is simulating. In Design nothing
+     * asked it to, so a reading that had just started answering kept showing
+     * its unit until the mode changed — see `nameOnTheCanvas` in naming.mjs,
+     * which is what puts the value there in the first place.
+     */
+    window.liveCanvas?.(true)
   } catch {
     // The studio redraws on its own timer too; a failed decoration is not
     // worth taking the page down for.
@@ -834,50 +869,17 @@ function hideMovingRange() {
  * people want to see, but not what a chart opens on. It opens on two hours,
  * and reaching the rest of the records is the navigator's job.
  */
-const LADDER = [
-  [60, '1 min'],
-  [120, '2 min'],
-  [300, '5 min'],
-  [600, '10 min'],
-  [900, '15 min'],
-  [1_800, '30 min'],
-  [3_600, '1 h'],
-  [7_200, '2 h'],
-  [10_800, '3 h'],
-  [21_600, '6 h'],
-  [43_200, '12 h'],
-  [86_400, '1 day'],
-  [172_800, '2 days'],
-  [604_800, '1 week'],
-  [1_209_600, '2 weeks'],
-  [2_592_000, '1 month'],
-  [7_776_000, '3 months'],
-  [31_536_000, '1 year'],
-]
 
-/** The three windows a plant reads in: a run, half a shift, a shift. */
+/** The four windows every chart offers: a run, half a shift, a shift, a day. */
 const HOURS = [
   [7_200, '2 h'],
   [14_400, '4 h'],
   [28_800, '8 h'],
+  [86_400, '1 day'],
 ]
 
-/**
- * Three windows for a reading the hours do not fit.
- *
- * A lab result recorded once a day has one point in eight hours, and three
- * buttons that all say "Collecting data…" are three ways of showing nothing.
- * For those the buttons are built from the spacing of the records themselves
- * — about thirty markers, about sixty, about ninety — and named in whatever
- * unit that lands on.
- */
-const MARKERS = [30, 60, 90]
-
-/** Two hours: the one a chart opens on. */
+/** Two hours: the one every chart opens on. */
 const DEFAULT_WINDOW = 7_200
-
-/** Below this gap between records, the hours hold enough to be worth drawing. */
-const DENSE_ENOUGH = 20 * 60
 
 /** The usual gap between two records, in seconds. */
 function spacingOf(points) {
@@ -892,38 +894,20 @@ function spacingOf(points) {
   return gaps[Math.floor(gaps.length / 2)] / 1000
 }
 
-/** Where on the ladder a span of seconds lands. */
-const rungFor = seconds => {
-  const found = LADDER.findIndex(([step]) => step >= seconds)
-  return found === -1 ? LADDER.length - 1 : found
-}
-
 /**
- * The buttons for a reading, and which of them a chart opens on.
+ * The same four windows on every chart, opening on two hours.
  *
- * 2 h, 4 h and 8 h wherever the records come often enough to fill them, which
- * on a sand line is nearly everywhere — a run, half a shift, a shift, and two
- * hours to open on. Anything sparser falls back to three rungs of the ladder,
- * always distinct: a reading whose records are seconds apart has thirty, sixty
- * and ninety markers landing on the same rung, and collapsing them would leave
- * one button that cannot be changed, so a repeat takes the next rung up.
+ * A run, half a shift, a shift, a day. They were built from how often each
+ * column recorded, so one reading offered 2/4/8 h and the next offered weeks
+ * — accurate, and four different charts to learn. One set everywhere is worth
+ * more than a set fitted to each: a sparse reading now shows a flat stretch
+ * and a point or two, which is the truth about that reading.
+ *
+ * The navigator underneath still moves the window across everything there is,
+ * so a record from last month is two drags away rather than unreachable.
  */
-function windowsFor(points) {
-  const spacing = spacingOf(points)
-  if (!spacing || spacing <= DENSE_ENOUGH) {
-    return { offered: HOURS, opens: DEFAULT_WINDOW }
-  }
-
-  const offered = []
-  let opens = DEFAULT_WINDOW
-  let last = -1
-  for (const markers of MARKERS) {
-    const rung = Math.min(LADDER.length - 1, Math.max(rungFor(spacing * markers), last + 1))
-    last = rung
-    offered.push(LADDER[rung])
-    if (markers === 60) opens = LADDER[rung][0]
-  }
-  return { offered, opens }
+function windowsFor() {
+  return { offered: HOURS, opens: DEFAULT_WINDOW }
 }
 
 /** The narrowest a grip may drag the window: still a few records wide. */
@@ -938,10 +922,6 @@ function defaultWindow() {
   if (!Number.isFinite(TR.win) || TR.win < 60) TR.win = DEFAULT_WINDOW
 }
 
-/** How long the records cover, in seconds. */
-function spanOf(points) {
-  return points.length < 2 ? 0 : (points[points.length - 1].t - points[0].t) / 1000
-}
 
 function useDayWindows() {
   const segment = document.getElementById('trWin')
@@ -951,22 +931,17 @@ function useDayWindows() {
   const was = TR.win
   defaultWindow()
 
-  const points = seriesPoints(peek('trendTag'))
-  const { offered, opens } = windowsFor(points)
-  const span = spanOf(points)
+  const { offered, opens } = windowsFor()
 
   /*
-   * Two hours, unless there are not two hours of records.
+   * Two hours, every time a trend is opened.
    *
-   * A reading with twenty minutes of history would be drawn in the last
-   * corner of a two-hour plot, so that one opens on the narrowest button that
-   * holds it. Everything else opens on 2 h however long the run is — eight
-   * hours of it is what the navigator is for.
+   * Not the narrowest window that holds the records, which is what it used to
+   * be: that made the chart open differently for every reading, so nobody
+   * could tell a quiet line from a short history. Two hours is what a chart
+   * means now, and the buttons and the navigator move from there.
    */
-  if (points.length) {
-    const tooShort = span > 0 && span < opens
-    TR.win = tooShort ? (offered.find(([seconds]) => seconds >= span) || [opens])[0] : opens
-  }
+  TR.win = opens
 
   segment.innerHTML = offered.map(([seconds, label]) =>
     `<button data-w="${seconds}" class="${TR.win === seconds ? 'on' : ''}">${label}</button>`
@@ -1464,11 +1439,61 @@ function hideViolations() {
  * the background and redraws when the answer arrives rather than holding the
  * window shut.
  */
+/** Column types the studio's catalogue uses for anything that is not a number. */
+const NOT_A_NUMBER = new Set(['varchar', 'datetime', 'tag'])
+
+/**
+ * Is this reading text rather than a measurement?
+ *
+ * **The value decides, once there is one.** A number stored in a text column —
+ * `"12.5"` in a VARCHAR — arrives as a number (the server converts whole-number
+ * text) and is charted like any other. Only before the first record arrives
+ * does anything else answer: the studio's own text marking (a pattern name, a
+ * state), then the column's type in the database's catalogue.
+ */
+export function isTextReading(id) {
+  const tag = (REG() || {})[id]
+  if (!tag) return false
+
+  const record = records.get(id)
+  if (record && record.value != null) return typeof record.value !== 'number'
+
+  const textTag = peek('tagIsText')
+  if (typeof textTag === 'function' && textTag(tag)) return true
+
+  const link = tag.link
+  if (!link?.table || !link?.col || link.sql) return false
+  try {
+    const resolve = peek('SRC')
+    const source = typeof resolve === 'function' ? resolve(link.src) : null
+    const groups = source ? window.catalog?.(source) : null
+    const group = Array.isArray(groups) ? groups.find(g => g.name === link.db) || groups[0] : null
+    const table = group?.tables?.find(entry => entry.name === link.table)
+    const column = table?.cols?.find(entry => entry.n === link.col)
+    return !!column && NOT_A_NUMBER.has(column.t)
+  } catch {
+    return false
+  }
+}
+
+/** Take the Trend button off a text reading's card in the inspector. */
+function hideTrendOnText() {
+  for (const card of document.querySelectorAll('.ix-card[data-tid]')) {
+    const button = card.querySelector('[data-ixa="trend"]')
+    if (button) button.hidden = isTextReading(card.dataset.tid)
+  }
+}
+
 function loadChartsOnOpen() {
   const original = window.openTrend
   if (typeof original !== 'function' || original.__dlLive) return
 
   const replaced = function openTrendWithPlantRecords(id) {
+    // A pattern name or a batch code has no trend, no mean and no σ.
+    if (isTextReading(id)) {
+      window.toast?.('This reading is text, so it has no chart.')
+      return
+    }
     chartView = 'imr'
     // A chart opens on the newest records, wherever the last one was dragged.
     viewport.id = id
