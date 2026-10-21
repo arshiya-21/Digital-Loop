@@ -436,38 +436,36 @@ async function saveToServer() {
   const document_ = studio.read()
 
   /*
-   * A canvas started with New, on a line that already holds a loop.
+   * A canvas started with New is a new loop; anything else is a version.
    *
-   * Both answers are reasonable — redrawing the line, or drawing a rebuild
-   * beside what is running — and nothing on the screen says which, so this is
-   * the one save that has to ask. Everything else goes straight through.
+   * That is the whole rule. Saving a loop that was opened stores the next
+   * version of it, which is what every save but this one does; saving a
+   * canvas that was started from nothing stores a loop of its own and leaves
+   * the one that was open where it is. Only the name is asked for, because
+   * that is the part nobody can work out from the drawing.
    */
   if (startedFresh && designs.current && standingLine) {
     const open = designs.current
-    const answer = await studio.askSaveTarget({
-      lineName: designs.lineNameFor(standingLine) || open.lineName,
-      loopName: open.name,
-      version: open.latestVersion,
-      items: openedWith,
-      drawn: studio.size(document_),
+    const lineName = designs.lineNameFor(standingLine) || open.lineName
+
+    const name = await studio.askName({
+      title: 'Name this loop',
+      label: 'Loop name',
+      value: freeLoopName(standingLine, nameOnCanvas(document_) || `${lineName} loop`),
+      hint: `A new loop on ${lineName}, started from an empty canvas. ` +
+        `${open.name} stays where it is, at version ${open.latestVersion}.`,
+      action: 'Create',
     })
-    if (!answer) {
+    if (!name) {
       studio.toast('Not saved — nothing on the server has changed.')
       return
     }
 
-    if (answer.as === 'new') {
-      const made = await designs.create(answer.name, standingLine, document_)
-      startedFresh = false
-      await openDesign(made.id)
-      studio.toast(
-        `Created ${answer.name} on ${designs.lineNameFor(standingLine)} as version 1. ` +
-        `${open.name} is untouched.`
-      )
-      return
-    }
-    // A version of the loop that is open: the ordinary path below.
+    const made = await designs.create(name, standingLine, titled(document_, name))
     startedFresh = false
+    await openDesign(made.id)
+    studio.toast(`Created ${name} on ${lineName} as version 1. ${open.name} is untouched.`)
+    return
   }
 
   /*
@@ -497,31 +495,27 @@ async function saveToServer() {
       return
     }
     /*
-     * The one save that asks.
-     *
-     * This is the save that names the line's loop, and the name is what
-     * everyone sees from then on — in the Open list, in the publish banner, in
-     * every toast. Afterwards Save stores a new version and says so, because
-     * asking for the same name on every save is a dialog to dismiss, not a
-     * decision to make.
+     * The saves that ask are the ones that make a loop, and they ask one
+     * thing: its name. That is what everyone sees from then on — in the
+     * publish banner and in every toast — and it is the part nobody can work
+     * out from the drawing. Afterwards Save stores a version and says so.
      */
-    const drawn = document_.DOC?.name?.trim()
-    const suggested = drawn && !/^(new flowsheet|untitled)/i.test(drawn)
-      ? drawn
-      : `${designs.lineNameFor(standingLine)} loop`
-
     const name = await studio.askName({
       title: 'Name this loop',
       label: 'Loop name',
-      value: suggested,
+      value: freeLoopName(
+        standingLine,
+        nameOnCanvas(document_) || `${designs.lineNameFor(standingLine)} loop`
+      ),
       hint: `It is the loop for ${designs.lineNameFor(standingLine)}, and this is its first version.`,
+      action: 'Create',
     })
     if (!name) {
       studio.toast('Not saved — nothing has been stored for this line yet.')
       return
     }
 
-    const made = await designs.create(name, standingLine, document_)
+    const made = await designs.create(name, standingLine, titled(document_, name))
     startedFresh = false
     await openDesign(made.id)
     studio.toast(`Created ${name} on ${designs.lineNameFor(standingLine)} as version 1.`)
@@ -541,12 +535,52 @@ async function saveToServer() {
   refreshLineStrip()
 }
 
+/** The name on the canvas, unless it is the studio's own placeholder. */
+function nameOnCanvas(document_) {
+  const drawn = document_?.DOC?.name?.trim()
+  return drawn && !/^(new flowsheet|untitled)/i.test(drawn) ? drawn : ''
+}
+
 /**
- * Open — which loop on this line.
+ * The drawing, under the name the loop was given.
  *
- * It used to have nothing to offer: a line held one loop, so choosing the line
- * in the strip above was choosing it. Now it lists them, says which one the
- * plant is seeing, and opens whichever is picked.
+ * A loop made from a blank canvas carries the studio's placeholder title, so
+ * the strip at the top said "New flowsheet" over a loop called "Bay two
+ * trial". The name is stored with the drawing as well as on the loop, and
+ * written into the box where the title is shown.
+ */
+function titled(document_, name) {
+  const doc = studio.peek('DOC')
+  if (doc) doc.name = name
+  const box = document.getElementById('docName')
+  if (box) box.value = name
+
+  return { ...document_, DOC: { ...(document_.DOC || {}), name } }
+}
+
+/**
+ * A name no loop on this line is using.
+ *
+ * Two loops on a line may not share one — that is how they are told apart —
+ * and the server refuses the second. Suggesting "Disa 230C loop 2" is kinder
+ * than letting Save fail on a name the person did not choose.
+ */
+function freeLoopName(lineId, wanted) {
+  const taken = new Set(designs.designsOnLine(lineId).map(loop => loop.name))
+  if (!taken.has(wanted)) return wanted
+  for (let n = 2; n < 100; n++) {
+    if (!taken.has(`${wanted} ${n}`)) return `${wanted} ${n}`
+  }
+  return `${wanted} ${Date.now()}`
+}
+
+/**
+ * Open — the latest loop on this line.
+ *
+ * A line may hold more than one, because pressing New and saving starts
+ * another, but only the newest is ever shown: the older ones are history on
+ * the server rather than a list to pick through. So this reloads and opens
+ * whatever is latest, which is also what choosing the line does.
  */
 async function openAnotherLoop() {
   const lineId = standingLine || designs.current?.lineId
@@ -555,8 +589,8 @@ async function openAnotherLoop() {
     return
   }
 
-  // The list is the server's, not a copy from when the studio opened: somebody
-  // else may have drawn one since.
+  // From the server, not from the copy taken when the studio opened: somebody
+  // else may have saved since.
   try {
     await designs.reload()
   } catch (error) {
@@ -564,21 +598,19 @@ async function openAnotherLoop() {
   }
 
   const lineName = designs.lineNameFor(lineId) || 'this line'
-  const onLine = designs.designsOnLine(lineId)
-  if (!onLine.length) {
+  const latest = designs.designOnLine(lineId)
+  if (!latest) {
     studio.toast(`Nothing has been drawn for ${lineName} yet — draw it and press Save.`)
     return
   }
 
-  const chosen = await studio.askWhichLoop({
-    lineName,
-    loops: onLine,
-    openId: designs.current?.id || null,
-  })
-  if (!chosen || chosen === designs.current?.id) return
+  if (latest.id === designs.current?.id) {
+    studio.toast(`${latest.name} is the latest loop on ${lineName}, and it is already open.`)
+    return
+  }
 
-  await openDesign(chosen)
-  studio.toast(`Opened ${designs.current.name}.`)
+  await openDesign(latest.id)
+  studio.toast(`Opened ${designs.current.name}, the latest loop on ${lineName}.`)
 }
 
 async function togglePublish() {

@@ -4,10 +4,10 @@ import { session, isAdmin } from './session.mjs'
 /**
  * The designs in this plant.
  *
- * A line may hold several loops — the one the plant is running, a rebuild
- * being drawn beside it, a trial — and one of them is published at a time.
- * Choosing a line opens that published one, or the most recent where nothing
- * is published; Open lists the rest.
+ * A line may hold several loops — pressing New and saving starts another — but
+ * only the latest is shown. The older ones stay on the server as history
+ * rather than as a list to choose from, and one loop is published at a time:
+ * that is the one the plant sees.
  *
  * Nothing here caches for longer than a single interaction — the server is the
  * record, and the browser holding its own copy is how two people editing the
@@ -48,15 +48,19 @@ export const designsOnLine = lineId =>
     .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
 
 /**
- * The loop a line opens on: the published one, else the most recent.
+ * The loop a line shows: the latest one.
  *
- * A line may hold several now, but it shows one at a time, and the one worth
- * opening is the one the plant is looking at. Where nothing is published that
- * is whichever was touched last, which is the one somebody was working on.
+ * A line may hold several — pressing New and saving starts another — but only
+ * the newest is ever shown. The older ones stay on the server, out of the way,
+ * rather than becoming a list to pick through every time a line is opened.
+ *
+ * For anyone who cannot design, that is the latest **published** one instead:
+ * a draft is not theirs to see, and the server refuses it anyway.
  */
 export const designOnLine = lineId => {
   const onLine = designsOnLine(lineId)
-  return onLine.find(design => design.status === 'published') || onLine[0] || null
+  if (!isAdmin()) return onLine.find(design => design.status === 'published') || null
+  return onLine[0] || null
 }
 
 /**
@@ -146,7 +150,7 @@ export async function rename(name) {
  */
 export function caption() {
   if (!current) return 'No design on this line yet'
-  // The loop's name, because a line may hold more than one of them now.
+  // The loop's name, because a line may have held an earlier one.
   const which = designsOnLine(current.lineId).length > 1 ? `${current.name} · ` : ''
   if (!isAdmin()) return `${which}v${current.version} · published`
 
