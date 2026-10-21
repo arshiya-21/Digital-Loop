@@ -311,12 +311,37 @@ function readable(value) {
   return text
 }
 
-/** When a record was taken, in a form every reader agrees on. */
+/**
+ * When a record was taken, in a form every reader agrees on — or nothing.
+ *
+ * The column this reads is the one the reading is ordered by, and ordering a
+ * table newest-first is very often done on its primary key. `ORDER BY id DESC`
+ * is a correct way to find the newest row and `id` is not a time, so the value
+ * that comes back is an integer.
+ *
+ * `new Date("19052")` is not an error. JavaScript reads a bare number as a
+ * **year**, so the row came back stamped 31 December 19052 — seventeen thousand
+ * years from now. The value on the badge was right; the chart was empty,
+ * because every point sat outside any window anybody could choose, and the
+ * panel said the reading was last recorded in the year 19052.
+ *
+ * So a moment is only a moment when it lands in a range a plant record can be
+ * in: this side of 1970, and no further ahead than a year — enough slack for a
+ * clock that is wrong, not enough for a primary key. Anything else is not a
+ * time and is reported as not having one, and `momentOf` in the studio then
+ * charts the record at the moment it was read, which is the truth about it.
+ */
+const EARLIEST = Date.UTC(1970, 0, 1)
+const LATEST_AHEAD = 366 * 24 * 60 * 60 * 1000
+
 function moment(value) {
   if (!value) return null
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString()
-  const parsed = new Date(String(value))
-  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString()
+
+  const when = value instanceof Date ? value.getTime() : Date.parse(String(value))
+  if (!Number.isFinite(when)) return null
+  if (when < EARLIEST || when > Date.now() + LATEST_AHEAD) return null
+
+  return new Date(when).toISOString()
 }
 
 /**
@@ -571,7 +596,7 @@ export async function recentValues(row, tag, points = 200) {
   if (!columns) throw new Error(`There is no table "${tag.table}" in this database.`)
   if (!columns.has(tag.column)) throw new Error(`There is no column "${tag.column}" in "${tag.table}".`)
 
-  const time = tag.timeColumn && columns.has(tag.timeColumn) ? tag.timeColumn : null
+  const time = await timeColumnFor(row, tag, columns)
   if (!time) {
     throw new Error(
       `"${tag.table}" has no date or time column, so its records cannot be put in order.`
@@ -599,10 +624,30 @@ export async function recentValues(row, tag, points = 200) {
   const rows = await ask(row, async ({ query }) => query(limited, filtered ? [tag.keyValue] : []))
 
   // Newest first out of the database, oldest first onto a chart.
-  return (Array.isArray(rows) ? rows : [])
+  const charted = (Array.isArray(rows) ? rows : [])
     .map(record => ({ value: readable(record.value), recordedAt: moment(record.at) }))
     .filter(record => typeof record.value === 'number')
     .reverse()
+
+  /*
+   * Ordered by that column, but not placed in time by it.
+   *
+   * `ORDER BY id DESC` finds the newest row perfectly well, and plenty of
+   * readings are set up that way — so `id` is a fine answer to "newest by" and
+   * no answer at all to "when". Every point would land at the moment it was
+   * read, which draws a chart of one instant pretending to be a history.
+   *
+   * Said plainly instead, naming the column, because the fix is to point the
+   * reading's "Newest by" at a date column and there is no way to guess which.
+   */
+  if (charted.length && !charted.some(record => record.recordedAt)) {
+    throw new Error(
+      `"${time}" is not a date or time, so these records cannot be placed on a chart. ` +
+      'Set this reading\'s "Newest by" to a date or time column.'
+    )
+  }
+
+  return charted
 }
 
 /**
@@ -684,6 +729,52 @@ async function schemaFor(row, { fresh = false } = {}) {
 /** Every table name → its column names. */
 const columnsByTable = schema =>
   new Map((schema.tables || []).map(table => [table.name, new Set((table.columns || []).map(c => c.name))]))
+
+/** Every table name → its columns' names and types, for choosing a time column. */
+const typesByTable = schema =>
+  new Map((schema.tables || []).map(table =>
+    [table.name, (table.columns || []).map(c => ({ name: c.name, type: String(c.type || '') }))]))
+
+/* -------------------------------------- which column puts a chart in time ---*/
+
+/** Column types that hold a moment. A bare `time` has no day and is no use. */
+const TEMPORAL = /^(datetime2|datetimeoffset|smalldatetime|datetime|timestamp|date)\b/i
+/** Columns a copying tool writes: real, but about the copy, not about the plant. */
+const BOOKKEEPING = /^_|_(ts|at)$|watermark|synced|etl|ingest/i
+
+/**
+ * The column a reading's records are placed in time by.
+ *
+ * Not the same question as "newest first". Ordering a table by its primary key
+ * is a perfectly good way to find the latest row, and plenty of readings are
+ * set up exactly that way — so `ORDER BY id DESC` is a right answer to one
+ * question and no answer at all to the other. The reading's own `timeColumn`
+ * is the first choice and is taken whenever it holds a date or a time.
+ *
+ * When it does not — an `id`, a counter, a shift number — the table is asked
+ * for a column that does, preferring one the plant writes over one a copying
+ * tool writes: `_watermark_ts` is when the row reached this database, which
+ * on a backfill is every row at once, and `Det` is when the measurement was
+ * taken. The reading goes on reading from whatever it was ordered by; only the
+ * chart's x-axis comes from here.
+ *
+ * Null when the table has no such column at all, which the caller reports.
+ */
+async function timeColumnFor(row, tag, columns) {
+  const asked = tag.timeColumn && columns.has(tag.timeColumn) ? tag.timeColumn : null
+
+  const schema = (await schemaFor(row)).schema
+  const known = typesByTable(schema).get(tag.table) || []
+  const typeOf = name => known.find(column => column.name === name)?.type || ''
+
+  // The reading's own choice, when it is a time. Also when the schema has no
+  // opinion: an unknown type is not a reason to overrule what was chosen.
+  if (asked && (!known.length || TEMPORAL.test(typeOf(asked)))) return asked
+
+  const temporal = known.filter(column => TEMPORAL.test(column.type))
+  const plants = temporal.filter(column => !BOOKKEEPING.test(column.name))
+  return (plants[0] || temporal[0])?.name || null
+}
 
 /** Does the schema have every name this reading needs? */
 const knows = (tables, tag) => {
