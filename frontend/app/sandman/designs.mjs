@@ -48,19 +48,27 @@ export const designsOnLine = lineId =>
     .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
 
 /**
- * The loop a line shows: the latest one.
+ * The loop a line shows: the published one, else the latest.
  *
  * A line may hold several — pressing New and saving starts another — but only
- * the newest is ever shown. The older ones stay on the server, out of the way,
- * rather than becoming a list to pick through every time a line is opened.
+ * one is shown when the line opens. The others stay on the server and are
+ * reached with Open.
  *
- * For anyone who cannot design, that is the latest **published** one instead:
- * a draft is not theirs to see, and the server refuses it anyway.
+ * **The published loop wins, for everyone.** It used to be the most recently
+ * saved one for an administrator, so saving any other loop on the line — a
+ * draft, an old demo — meant the next time the studio opened it landed on that
+ * one instead: no linked readings, no values, on a line whose published loop
+ * was reading perfectly well. A line with nothing published opens on its
+ * newest loop, as before.
+ *
+ * For anyone who cannot design, it is the published one or nothing: a draft is
+ * not theirs to see, and the server refuses it anyway.
  */
 export const designOnLine = lineId => {
   const onLine = designsOnLine(lineId)
-  if (!isAdmin()) return onLine.find(design => design.status === 'published') || null
-  return onLine[0] || null
+  const published = onLine.find(design => design.status === 'published') || null
+  if (!isAdmin()) return published
+  return published || onLine[0] || null
 }
 
 /**
