@@ -250,6 +250,73 @@ export function askName({ title, label = 'Name', value = '', hint = '', action =
   )
 }
 
+/* --------------------------------- the empty canvas card, over the page ---*/
+
+/**
+ * Keep "Build your sand loop" on the page it is talking about.
+ *
+ * The card is `position: absolute; inset: 0` inside the canvas wrapper, so it
+ * centres itself on the **window** — and the drawing area is a 1920-wide page
+ * that is usually scrolled or zoomed somewhere else entirely. The invitation
+ * to drag equipment onto the canvas ended up floating beside the canvas it
+ * meant, and stayed put while the page moved under it.
+ *
+ * So it is placed on the middle of the page outline instead, and follows it:
+ * panning, zooming and resizing all move it. It is still clamped into the
+ * visible area, because a card that follows the page off the screen is an
+ * invitation nobody can read.
+ */
+export function anchorEmptyCardToThePage() {
+  const wrap = document.getElementById('cwrap')
+  const card = document.getElementById('fsEmpty')
+  if (!wrap || !card || card.dataset.dlAnchored) return
+  card.dataset.dlAnchored = '1'
+
+  let frame = null
+  const place = () => {
+    frame = null
+    if (card.hidden) return
+
+    const page = document.querySelector('#pgframe .pg-edge')
+    if (!page) {
+      // No page outline — the studio's own centring is the right answer.
+      card.classList.remove('dl-empty-anchored')
+      return
+    }
+
+    const area = page.getBoundingClientRect()
+    const box = wrap.getBoundingClientRect()
+    if (!area.width || !box.width) return
+
+    card.classList.add('dl-empty-anchored')
+    const size = card.getBoundingClientRect()
+    const half = { x: size.width / 2 + 16, y: size.height / 2 + 16 }
+
+    const centre = {
+      x: area.left + area.width / 2 - box.left,
+      y: area.top + area.height / 2 - box.top,
+    }
+    card.style.left = `${Math.max(half.x, Math.min(box.width - half.x, centre.x))}px`
+    card.style.top = `${Math.max(half.y, Math.min(box.height - half.y, centre.y))}px`
+  }
+
+  const soon = () => {
+    if (frame) return
+    frame = requestAnimationFrame(place)
+  }
+
+  // Panning and zooming both end up as a transform on the canvas group or a
+  // redraw of the page outline; scrolling moves the wrapper under it.
+  const canvas = document.getElementById('cv')
+  if (canvas) new MutationObserver(soon).observe(canvas, {
+    attributes: true, subtree: true, childList: true, attributeFilter: ['transform', 'd', 'x', 'y', 'width', 'height'],
+  })
+  new MutationObserver(soon).observe(card, { attributes: true, attributeFilter: ['hidden'] })
+  wrap.addEventListener('scroll', soon, { passive: true })
+  window.addEventListener('resize', soon)
+  soon()
+}
+
 /**
  * Put the whole loop on the screen.
  *

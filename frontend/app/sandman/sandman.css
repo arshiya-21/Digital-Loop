@@ -482,6 +482,18 @@ body.present .dl-empty {
    studio sets `display` on several of these itself. */
 .dl-hidden { display: none !important; }
 
+/* "Build your sand loop", placed on the drawing area rather than centred on
+   the window — see `anchorEmptyCardToThePage`. The studio's own rule is
+   `inset: 0` with flex centring, so this takes the box out of that and lets
+   `left`/`top` put it where the page is. */
+.fsempty.dl-empty-anchored {
+  inset: auto;
+  width: max-content;
+  max-width: min(420px, 90%);
+  height: auto;
+  transform: translate(-50%, -50%);
+}
+
 /* ------------------------------------------------------- range navigator ---
  *
  * The strip under the individuals chart: the whole run of records, small,

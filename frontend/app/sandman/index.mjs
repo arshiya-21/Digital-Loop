@@ -722,6 +722,9 @@ async function boot() {
     }
 
     studio.defaultToLightTheme()
+    // "Build your sand loop" belongs on the page it is talking about, not in
+    // the middle of the window while the page is scrolled somewhere else.
+    studio.anchorEmptyCardToThePage()
     applyRole()
     buildLineStrip()
 
