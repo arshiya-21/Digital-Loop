@@ -216,6 +216,11 @@ function clearTheLastLoopsNumbers() {
   const badges = document.getElementById('Lpbadge')
   if (badges) badges.innerHTML = ''
 
+  // And the invitation back into the middle: the card never went away, so
+  // nothing it watches changed, and it kept the place it was given against
+  // the loop that has just been cleared.
+  studio.recentreEmptyCard()
+
   for (const redraw of ['cpDrawBadges', 'cpStatus', 'cpAlerts', 'liveCanvas']) {
     try {
       window[redraw]?.()

@@ -317,6 +317,18 @@ export function pickLoop({ loops, lineName, openId }) {
  * nothing it could be covering — the middle of the window is simply where it
  * belongs.
  */
+/**
+ * Put the card back in the middle, now.
+ *
+ * Set once the card is being placed, so a caller that has just changed the
+ * document can ask for it without knowing how the placing works. Pressing New
+ * is the case it exists for: the card stays on screen throughout, so nothing
+ * it watches changes, and it kept the coordinates it was given against the
+ * loop before — which is how an invitation to start drawing ended up off to
+ * one side of a canvas that had just been emptied.
+ */
+export let recentreEmptyCard = () => {}
+
 export function centreEmptyCardOnTheCanvas() {
   const wrap = document.getElementById('cwrap')
   const card = document.getElementById('fsEmpty')
@@ -361,6 +373,17 @@ export function centreEmptyCardOnTheCanvas() {
   new MutationObserver(soon).observe(card, { attributes: true, attributeFilter: ['hidden'] })
   wrap.addEventListener('scroll', soon, { passive: true })
   window.addEventListener('resize', soon)
+
+  /*
+   * And whenever the canvas itself changes size.
+   *
+   * `resize` fires for the window; the canvas also changes width when the
+   * library or the properties panel is opened or closed, which moves the
+   * middle without the window moving at all.
+   */
+  if (typeof ResizeObserver === 'function') new ResizeObserver(soon).observe(wrap)
+
+  recentreEmptyCard = soon
   soon()
 }
 

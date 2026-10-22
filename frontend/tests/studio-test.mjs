@@ -433,9 +433,8 @@ const invitation = await evaluate(`(() => {
 })()`)
 if (!invitation.notShowing) {
   check('the empty-canvas card is on screen', invitation.inside === true, invitation)
-  check('and in the middle of it',
-    Math.abs(invitation.offBy.x) < invitation.window.w * 0.1 &&
-    Math.abs(invitation.offBy.y) < invitation.window.h * 0.1, invitation)
+  check('and in the middle of it, to the pixel',
+    Math.abs(invitation.offBy.x) <= 2 && Math.abs(invitation.offBy.y) <= 2, invitation)
 }
 
 
