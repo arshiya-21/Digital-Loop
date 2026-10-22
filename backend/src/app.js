@@ -21,6 +21,7 @@ import { loopVersions } from './routes/loopVersions.js'
 import { assets } from './routes/assets.js'
 import { live } from './routes/live.js'
 import { sopFiles } from './routes/sopFiles.js'
+import { sops } from './routes/sops.js'
 import { alarms } from './routes/alarms.js'
 import { overview } from './routes/overview.js'
 import { auditLog } from './routes/audit.js'
@@ -161,9 +162,12 @@ export function createApp() {
    *
    * Both belong to a loop and borrow its access rules: anybody who may open
    * the loop may read them, and only somebody who may design it may add an
-   * SOP document. See routes/sopFiles.js and routes/alarms.js.
+   * SOP document. The procedure itself — its number, revision and steps — is
+   * `sops`; the uploaded PDF beside it is `sopFiles`. See routes/sops.js,
+   * routes/sopFiles.js and routes/alarms.js.
    */
   site.use('/api/v1/sop-files', authenticate, sopFiles.router)
+  site.use('/api/v1/sops', authenticate, sops.router)
   site.use('/api/v1/alarms', authenticate, alarms.router)
   /*
    * Plant databases somebody registered — the only credentials this service

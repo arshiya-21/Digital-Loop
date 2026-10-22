@@ -1167,6 +1167,100 @@ check('it can be deleted', removed.status === 204, removed.status)
 check('and is then gone',
   (await call(LIVE_ADMIN, 'GET', `/sop-files?loopId=${liveId}`)).body?.count === 0)
 
+// --- the procedure itself --------------------------------------------------
+log.push('THE WRITTEN PROCEDURE — in tables, not inside the drawing')
+
+/*
+ * The words of an SOP used to live in `DOC.cps[].sop` and reach the database
+ * only as part of `design_version.layout` — a 78 KB blob per version that can
+ * draw a loop and answer nothing else about it. They have tables now, and
+ * these are the questions those tables exist to make answerable.
+ */
+const procedure = {
+  processName: 'A · Sand preparation',
+  no: 'SOP-SP-03',
+  title: 'A · Sand preparation — standard operating procedure',
+  version: '1.0',
+  status: 'Approved',
+  owner: 'Sand engineer',
+  approver: 'Plant head',
+  scope: 'Batch sand mixer, water dosing and discharge to the molding sand belt.',
+  ppe: ['Safety shoes', 'Helmet', 'Ear protection'],
+  prestart: ['Component group and prescription loaded'],
+  refs: ['Sandmix prescription (SandMan)'],
+  steps: [
+    { t: 'Confirm the component group and its sandmix prescription.', key: 'Prescription loaded', crit: 1 },
+    { t: 'Charge return sand, then additives as per prescription.', key: 'Bentonite as prescribed', crit: 1, param: 'role:bent' },
+    { t: 'Mix for at least the set batch time.', key: 'Batch time ≤ 110 s', crit: 0 },
+  ],
+  reaction: [
+    { cond: 'Compactability outside 36 – 44 %', action: 'Adjust water set point', esc: 'Mixer operator' },
+  ],
+}
+
+const wrote = await call(LIVE_ADMIN, 'PUT', `/sops/${liveId}/cp_sp`, procedure)
+check('an administrator writes a procedure', wrote.status === 201, wrote.body)
+check('and it comes back with its steps in order',
+  wrote.body?.steps?.map(s => s.t).join(' | ') === procedure.steps.map(s => s.t).join(' | '),
+  wrote.body?.steps)
+check('each step keeping its key point and whether it is critical',
+  wrote.body?.steps?.[1]?.key === 'Bentonite as prescribed' &&
+  wrote.body?.steps?.[1]?.crit === 1 && wrote.body?.steps?.[1]?.param === 'role:bent',
+  wrote.body?.steps?.[1])
+check('with the reaction plan beside them',
+  wrote.body?.reaction?.[0]?.esc === 'Mixer operator', wrote.body?.reaction)
+check('and the lists that are read whole',
+  wrote.body?.ppe?.length === 3 && wrote.body?.prestart?.length === 1, wrote.body?.ppe)
+
+const sopBack = await call(LIVE_ADMIN, 'GET', `/sops/${liveId}/cp_sp`)
+check('it reads back from its own table', sopBack.status === 200 &&
+  sopBack.body?.no === 'SOP-SP-03' && sopBack.body?.steps?.length === 3, sopBack.body)
+
+/*
+ * Writing again is the same procedure at a new version, not a second one.
+ * A controlled document has one current version per process.
+ */
+const revised = await call(LIVE_ADMIN, 'PUT', `/sops/${liveId}/cp_sp`,
+  { ...procedure, version: '1.1', status: 'Draft' })
+check('writing it again revises it rather than making a second one',
+  revised.status === 200 && revised.body?.id === wrote.body?.id,
+  { first: wrote.body?.id, then: revised.body?.id })
+check('and the listing has one procedure for that process',
+  (await call(LIVE_ADMIN, 'GET', `/sops?loopId=${liveId}`)).body?.count === 1)
+check('at the version just written',
+  (await call(LIVE_ADMIN, 'GET', `/sops/${liveId}/cp_sp`)).body?.version === '1.1')
+
+/*
+ * Leaving a list out means "leave it alone" — a caller changing the version
+ * must not have to send every step back and risk dropping one on the way.
+ */
+const partial = await call(LIVE_ADMIN, 'PUT', `/sops/${liveId}/cp_sp`,
+  { no: 'SOP-SP-03', version: '2.0' })
+check('a request that omits the steps leaves the stored ones alone',
+  partial.body?.steps?.length === 3, partial.body?.steps?.length)
+
+/*
+ * A procedure is reached through its loop, so it inherits the loop's rule: an
+ * operator is shown the published version and nothing else. On a loop that has
+ * not been published they are refused the procedure for the same reason they
+ * are refused the drawing — not because procedures are secret, but because a
+ * draft is not what the plant is running.
+ */
+const operatorReading = await call(LIVE_OP, 'GET', `/sops/${liveId}/cp_sp`)
+check('an operator is refused the procedure of an unpublished loop',
+  operatorReading.status === 404, operatorReading.status)
+check('but may not write one',
+  (await call(LIVE_OP, 'PUT', `/sops/${liveId}/cp_sp`, procedure)).status === 403)
+check('and another plant cannot read it at all',
+  [403, 404].includes((await call(ADMIN, 'GET', `/sops/${liveId}/cp_sp`)).status))
+check('a process that has none says so rather than inventing one',
+  (await call(LIVE_ADMIN, 'GET', `/sops/${liveId}/cp_nothing`)).status === 404)
+
+const goneSop = await call(LIVE_ADMIN, 'DELETE', `/sops/${liveId}/cp_sp`)
+check('it can be deleted', goneSop.status === 204, goneSop.status)
+check('and its steps go with it',
+  (await call(LIVE_ADMIN, 'GET', `/sops?loopId=${liveId}`)).body?.count === 0)
+
 // --- alarm history ---------------------------------------------------------
 log.push('ALARM HISTORY — what went out of limit, and who knew')
 

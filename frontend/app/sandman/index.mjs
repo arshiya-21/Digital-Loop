@@ -10,6 +10,7 @@ import * as sourcesPage from './sources-page.mjs'
 import * as dbForm from './db-form.mjs'
 import * as tableVisibility from './table-visibility.mjs'
 import * as processChecks from './process-checks.mjs'
+import * as sops from './sops.mjs'
 import { ApiError } from './api.mjs'
 
 /**
@@ -464,6 +465,13 @@ async function openDesign(designId) {
    * or so; unlinked ones carry on being simulated, marked Demo.
    */
   live.start(designs.current.id)
+
+  /*
+   * And the written procedures, from their own tables rather than from inside
+   * the drawing — see sops.mjs. Not awaited: the Process & SOP panel is not
+   * on screen yet, and it redraws when they land.
+   */
+  sops.adopt(designs.current.id)
 }
 
 /* ------------------------------------------------------------- saving ------ */
@@ -608,6 +616,16 @@ async function saveToServer() {
   // What is on the canvas now is the thing to compare against next time.
   openedWith = studio.size(document_)
   startedFresh = false
+
+  /*
+   * And the written procedures into their own tables, after the drawing.
+   *
+   * After, because a procedure is written against a loop and the loop has to
+   * exist first. Not awaited and not allowed to fail the save: the drawing is
+   * stored by this point, and a procedure that did not reach its table is
+   * worth a line in the console rather than a message saying the save failed.
+   */
+  sops.store(designs.current.id)
   studio.toast(
     `Saved ${designs.current.name} as version ${version}. ` +
     (renamed ? `Renamed from ${renamed}. ` : '') +

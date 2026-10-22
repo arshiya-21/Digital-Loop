@@ -195,6 +195,118 @@ CREATE TABLE IF NOT EXISTS sop_file (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /*
+ * The written procedure itself — the words, not the uploaded file.
+ *
+ * `sop_file` above holds a PDF somebody attached. This holds the procedure the
+ * Process & SOP panel actually shows: its number, who owns it, what revision
+ * it is at, the numbered steps, the reaction plan and the PPE line.
+ *
+ * It used to live inside `design_version.layout`, the 78 KB JSON blob of the
+ * whole drawing. That did store it — but it made the procedure a detail of a
+ * picture: unqueryable without parsing every version of every loop, rewritten
+ * wholesale on every save of the canvas, and impossible to answer "which
+ * processes are still on revision 1.0" about. A procedure that tells somebody
+ * how to run a sand line has a longer life than the drawing it was first
+ * written against.
+ *
+ * One row per process per loop, which is what `UNIQUE (design_id, process_id)`
+ * says. `process_id` is the studio's own id for the process — `cp_sp`,
+ * `cp_mld` — because that is what the panel has in hand when it asks.
+ *
+ * The steps are their own table rather than a JSON column: they are a numbered
+ * list that gets reordered, inserted into and quoted one line at a time, and
+ * `ordinal` makes that the database's job instead of the caller's.
+ */
+CREATE TABLE IF NOT EXISTS sop (
+  id            VARCHAR(40)   NOT NULL,
+  design_id     VARCHAR(40)   NOT NULL,
+  process_id    VARCHAR(80)   NOT NULL,
+  -- What the panel shows across the top of the procedure card.
+  process_name  VARCHAR(255)  NOT NULL DEFAULT '',
+  no            VARCHAR(80)   NOT NULL DEFAULT '',
+  title         VARCHAR(255)  NOT NULL DEFAULT '',
+  version       VARCHAR(40)   NOT NULL DEFAULT '1.0',
+  -- Draft | Approved | whatever a plant calls its middle state. Not an ENUM:
+  -- adding "Under review" should not need a schema change.
+  status        VARCHAR(40)   NOT NULL DEFAULT 'Draft',
+  owner         VARCHAR(160)  NOT NULL DEFAULT '',
+  approver      VARCHAR(160)  NOT NULL DEFAULT '',
+  effective_on  VARCHAR(40)   NULL,
+  review_months INT           NULL,
+  purpose       TEXT          NULL,
+  scope         TEXT          NULL,
+  /*
+   * The parts that are read whole and never queried across.
+   *
+   * `roles` is who does what, `ppe` the protective equipment line, `prestart`
+   * the before-you-begin checklist, `refs` the documents it points at, and
+   * `revisions` its own change history. Each is an ordered list whose only
+   * reader wants all of it — nobody asks "which procedures mention helmets" —
+   * so a table apiece would be five joins to rebuild one card. JSON, with the
+   * shape the panel already uses.
+   *
+   * The steps and the reaction plan are different and have tables below: they
+   * are what gets quoted line by line, and what quality asks about.
+   */
+  roles         JSON          NULL,
+  ppe           JSON          NULL,
+  prestart      JSON          NULL,
+  refs          JSON          NULL,
+  revisions     JSON          NULL,
+  updated_by    VARCHAR(160)  NULL,
+  updated_at    VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY sop_one_per_process (design_id, process_id),
+  KEY sop_doc_by_design (design_id),
+  CONSTRAINT sop_doc_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * The numbered steps of one procedure, in order.
+ *
+ * A step is more than a line of text: `key_point` is the chip under it on the
+ * card ("Moisture 3.0 – 3.8 %"), `critical` marks the ones a guided run will
+ * not let you skip, and `param` links it to a reading so the step can show
+ * what that reading says right now.
+ *
+ * Deleted and rewritten as a set whenever a procedure is saved: a step has no
+ * identity of its own worth preserving — "step 3" means whatever is third —
+ * and `revisions` on the parent is where the history of changes lives.
+ */
+CREATE TABLE IF NOT EXISTS sop_step (
+  sop_id    VARCHAR(40)  NOT NULL,
+  ordinal   INT          NOT NULL,
+  text      TEXT         NOT NULL,
+  key_point VARCHAR(255) NOT NULL DEFAULT '',
+  critical  TINYINT(1)   NOT NULL DEFAULT 0,
+  -- `role:moist`, `tag:MX-1.MOIST` — the studio's own way of naming a reading.
+  param     VARCHAR(160) NULL,
+  PRIMARY KEY (sop_id, ordinal),
+  CONSTRAINT sop_step_of_sop FOREIGN KEY (sop_id)
+    REFERENCES sop(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * The reaction plan: what to do when a check fails, and who to tell.
+ *
+ * Its own table rather than JSON because this is the part an auditor reads and
+ * the part a plant is asked to prove it has — "show me the reaction plan for
+ * compactability out of limit" is a query, not a document to open.
+ */
+CREATE TABLE IF NOT EXISTS sop_reaction (
+  sop_id    VARCHAR(40) NOT NULL,
+  ordinal   INT         NOT NULL,
+  -- What went wrong, what to do about it, and who to escalate to.
+  cond      TEXT        NOT NULL,
+  action    TEXT        NOT NULL,
+  escalate  VARCHAR(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (sop_id, ordinal),
+  CONSTRAINT sop_reaction_of_sop FOREIGN KEY (sop_id)
+    REFERENCES sop(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
  * What went out of limit, and when.
  *
  * The studio keeps a live alarm list in memory, rebuilt from the readings on

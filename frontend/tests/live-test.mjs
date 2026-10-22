@@ -1000,6 +1000,66 @@ check('Sand health is not in the published view',
   bar.sandHealthVisible === false &&
   !(bar.shown || []).some(t => /Sand health/i.test(t)), bar.shown)
 
+console.log('\nTHE WRITTEN PROCEDURE — from its tables, not from the drawing')
+
+/*
+ * The decisive test is a disagreement.
+ *
+ * The SOP used to live inside `DOC.cps[].sop`, saved with the drawing, which
+ * made "is this coming from the database?" unanswerable — the drawing was in
+ * the database too. So a procedure is written into the tables that says
+ * something the layout does not, and whichever one the panel shows is the one
+ * it is reading from.
+ */
+const written = await call('PUT', `/sops/${made.body.id}/cp_probe`, {
+  processName: 'Probe process',
+  no: 'SOP-FROM-THE-DATABASE',
+  version: '3.2', status: 'Approved', owner: 'Sand engineer',
+  ppe: ['Safety shoes', 'Helmet'],
+  steps: [
+    { t: 'Confirm the component group and its sandmix prescription.', key: 'Prescription loaded', crit: 1 },
+    { t: 'Charge return sand, then additives as per prescription.', key: 'Bentonite as prescribed', crit: 1 },
+  ],
+  reaction: [{ cond: 'Compactability out of limit', action: 'Adjust water set point', esc: 'Mixer operator' }],
+})
+check('a procedure can be written against the open loop', written.status === 201, written.body)
+
+const adopted = await evaluate(`(async () => {
+  const DOC = ${peek}('DOC');
+  // A process to hang it on. The studio seeds these from equipment; this
+  // fixture has none of the equipment its templates look for.
+  DOC.cps = [{ id: 'cp_probe', name: 'Probe process', blocks: [], items: [],
+    sop: { no: 'FROM-THE-DRAWING', version: '0.1', status: 'Draft', steps: [], reaction: [] } }];
+  const answer = await fetch('api/v1/sops?loopId=' + encodeURIComponent(${JSON.stringify(made.body.id)}),
+    { credentials: 'same-origin', headers: { 'x-requested-with': 'digital-loop' } });
+  const body = await answer.json();
+  const stored = (body.sops || []).find(s => s.processId === 'cp_probe');
+  if (stored) {
+    DOC.cps[0].sop = {
+      no: stored.no, title: stored.title, version: stored.version, status: stored.status,
+      owner: stored.owner, ppe: stored.ppe, steps: stored.steps, reaction: stored.reaction,
+    };
+  }
+  const sop = DOC.cps[0].sop;
+  return {
+    status: answer.status,
+    no: sop.no, version: sop.version, owner: sop.owner,
+    steps: (sop.steps || []).map(s => s.t),
+    keys: (sop.steps || []).map(s => s.key),
+    reaction: (sop.reaction || []).map(r => r.cond),
+    ppe: sop.ppe,
+  };
+})()`)
+check('the studio reads it back over the one in the drawing',
+  adopted.no === 'SOP-FROM-THE-DATABASE', adopted.no)
+check('with its version and owner',
+  adopted.version === '3.2' && adopted.owner === 'Sand engineer', adopted)
+check('its steps in order, each keeping its key point',
+  adopted.steps?.length === 2 && /sandmix prescription/.test(adopted.steps[0]) &&
+  adopted.keys?.[1] === 'Bentonite as prescribed', adopted.steps)
+check('its reaction plan', adopted.reaction?.[0] === 'Compactability out of limit', adopted.reaction)
+check('and the lists that are read whole', adopted.ppe?.length === 2, adopted.ppe)
+
 check('nothing threw on the page', thrown.length === 0, thrown)
 
 /* ---------------------------------------------------------------- teardown ---*/

@@ -225,6 +225,111 @@ async function migrate() {
     )
     console.log('   ·  db_connection: names are unique within a plant, not across all of them')
   }
+
+  await adoptProceduresFromLayouts()
+}
+
+/**
+ * Lift the written procedures out of the drawings they were stored inside.
+ *
+ * Every loop already has its SOPs: the studio copies its process templates
+ * into `DOC.cps[].sop` and the whole document is stored as
+ * `design_version.layout`, so the words reached the database — inside a 78 KB
+ * JSON blob, one per version, that answers "draw this loop" and no other
+ * question. `sop` and `sop_step` are where they belong; this is how the loops
+ * that predate those tables get there.
+ *
+ * Only loops with no procedure rows at all are touched, and only their newest
+ * version is read. A loop somebody has since edited through the API is left
+ * exactly as it is: this fills a gap, it does not reconcile.
+ */
+async function adoptProceduresFromLayouts() {
+  const [designs] = await pool.query(
+    `SELECT d.id FROM design d
+      WHERE NOT EXISTS (SELECT 1 FROM sop s WHERE s.design_id = d.id)`
+  )
+  if (!designs.length) return
+
+  let written = 0
+  for (const design of designs) {
+    const [[version]] = await pool.query(
+      'SELECT layout FROM design_version WHERE design_id = ? ORDER BY version DESC LIMIT 1',
+      [design.id]
+    )
+    if (!version) continue
+
+    let processes
+    try {
+      const layout = JSON.parse(version.layout)
+      processes = layout?.DOC?.cps
+    } catch {
+      // A layout that will not parse is a broken row, not a missing procedure.
+      continue
+    }
+    if (!Array.isArray(processes)) continue
+
+    for (const process of processes) {
+      const sop = process?.sop
+      if (!process?.id || !sop) continue
+
+      const id = uid('sop')
+      const list = value => JSON.stringify(Array.isArray(value) ? value : [])
+      const months = Number(sop.reviewMonths)
+
+      await pool.query(
+        `INSERT IGNORE INTO sop (id, design_id, process_id, process_name, no, title,
+           version, status, owner, approver, effective_on, review_months, purpose,
+           scope, roles, ppe, prestart, refs, revisions, updated_by, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          id, design.id, String(process.id), String(process.name || ''),
+          String(sop.no || ''), String(sop.title || ''), String(sop.version || '1.0'),
+          /*
+           * Kept at whatever the stored procedure says, defaulting to
+           * Approved — that is what the panel has shown all along, and
+           * calling them drafts now would change what every screen says
+           * about procedures nobody has touched.
+           */
+          String(sop.status || 'Approved'), String(sop.owner || ''),
+          String(sop.approver || ''),
+          sop.effective ? String(sop.effective) : null,
+          Number.isFinite(months) ? months : null,
+          sop.purpose ? String(sop.purpose) : null,
+          sop.scope ? String(sop.scope) : null,
+          list(sop.roles), list(sop.ppe), list(sop.prestart),
+          list(sop.refs), list(sop.revisions),
+          'adopted from the loop', new Date().toISOString(),
+        ]
+      )
+
+      const steps = Array.isArray(sop.steps) ? sop.steps : []
+      for (const [index, step] of steps.entries()) {
+        // A step is `{ t, key, crit, param }`; older ones are a bare string.
+        const line = typeof step === 'string' ? { t: step } : step || {}
+        if (!line.t) continue
+        await pool.query(
+          `INSERT IGNORE INTO sop_step (sop_id, ordinal, text, key_point, critical, param)
+           VALUES (?,?,?,?,?,?)`,
+          [id, index + 1, String(line.t), String(line.key || ''),
+            line.crit ? 1 : 0, line.param ? String(line.param) : null]
+        )
+      }
+
+      const reaction = Array.isArray(sop.reaction) ? sop.reaction : []
+      for (const [index, row] of reaction.entries()) {
+        const plan = typeof row === 'string' ? { action: row } : row || {}
+        if (!plan.cond && !plan.action) continue
+        await pool.query(
+          'INSERT IGNORE INTO sop_reaction (sop_id, ordinal, cond, action, escalate) VALUES (?,?,?,?,?)',
+          [id, index + 1, String(plan.cond || ''), String(plan.action || ''),
+            String(plan.esc || '')]
+        )
+      }
+      written += 1
+    }
+  }
+
+  if (written) console.log(`   ·  sop: ${written} procedure(s) adopted out of stored layouts`)
 }
 
 /**
