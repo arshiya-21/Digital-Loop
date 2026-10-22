@@ -1,5 +1,6 @@
 import { api, ApiError } from './api.mjs'
 import { peek } from './studio.mjs'
+import { isAdmin } from './session.mjs'
 
 /**
  * Real readings, in place of the studio's simulated ones.
@@ -780,6 +781,17 @@ let chartView = 'imr'
  * are real, far apart in time, and not a window of seconds — so the window
  * control does not apply to them and every returned point is used.
  */
+/**
+ * How many records stand in for an hour, where the records carry no time.
+ *
+ * A number had to be picked, and this one says: a sand line produces roughly a
+ * reading a minute. It only decides how much of the run each window button
+ * shows — 2 h is 120 records, a day is the lot — and the navigator reaches the
+ * rest either way.
+ */
+const ONE_HOUR_MS = 3_600_000
+const RECORDS_PER_HOUR = 60
+
 function useRealChartData() {
   const original = window.ccData
   if (typeof original !== 'function' || original.__dlLive) return
@@ -815,6 +827,33 @@ function useRealChartData() {
     const newest = points[points.length - 1].t
     const end = viewport.id === id && Number.isFinite(viewport.end) ? viewport.end : newest
     const inside = points.filter(point => point.t > end - window_ && point.t <= end)
+
+    /*
+     * A window is only a window if the records are spread through time.
+     *
+     * Plenty of plant columns are ordered by a date with no time of day —
+     * `Det` on the RTC table is one — so every record taken on a given day
+     * carries the same instant. Two hundred readings then sit on two or three
+     * points, and asking for "the last two hours" of them returns whatever
+     * landed on the single newest instant, or nothing. The chart came up with
+     * one point and the panel said "Collecting data…" over two hundred
+     * records that had already arrived.
+     *
+     * So when the window cannot separate them, the records themselves are the
+     * series — the last `window_` seconds' worth by count rather than by
+     * clock, which is what an I-MR chart is really about: the last N
+     * observations in the order they were taken. The window control still
+     * means something (a longer window shows more of them) and the navigator
+     * underneath still scrolls the whole run.
+     */
+    if (inside.length >= 2) return inside
+
+    const distinct = new Set(points.map(point => point.t)).size
+    if (distinct < points.length / 2) {
+      const upTo = points.filter(point => point.t <= end)
+      const take = Math.max(2, Math.round(window_ / ONE_HOUR_MS * RECORDS_PER_HOUR))
+      return (upTo.length ? upTo : points).slice(-take)
+    }
 
     // Never an empty chart when there are records: a window narrower than the
     // gap between two readings would otherwise hide every one of them.
@@ -880,6 +919,21 @@ const HOURS = [
 
 /** Two hours: the one every chart opens on. */
 const DEFAULT_WINDOW = 7_200
+
+/**
+ * The window is the read: the chart asks for the span on the buttons.
+ *
+ * Reading a day at a time and cutting the window out of it here was tried,
+ * because it gives the navigator a run to slide across and turns four window
+ * buttons into one read. It was rejected: the statement in Preview data then
+ * says `>= '21 Oct 17:03' … LIMIT 2000` under a chart labelled two hours, and
+ * a statement that does not describe the chart above it is the thing this
+ * whole path was fixed to stop.
+ *
+ * So the window decides, and nothing else: 2 h opens, pressing 4 h / 8 h /
+ * 1 day reads that span, and no row limit is sent — the window is what bounds
+ * the read, which is exactly what the statement says.
+ */
 
 /** The usual gap between two records, in seconds. */
 function spacingOf(points) {
@@ -953,7 +1007,11 @@ function useDayWindows() {
     button.onclick = () => {
       TR.win = Number(button.dataset.w)
       markWindowButtons()
+      // A wider window is a wider read, not more of the records already here.
+      viewport.end = null
+      navSignature = ''
       window.drawTrend?.()
+      readTheWindow(peek('trendTag'))
     }
   }
 
@@ -1372,6 +1430,98 @@ function useARealSpread() {
   window.ccStats = replaced
 }
 
+/* ------------------------------------------------- a reading that blinks ---*/
+
+/**
+ * A reading can be set to blink on the drawing, at a rate of its own.
+ *
+ * A sand line's screen is ninety labels of small text, and an operator walking
+ * past needs the two or three that matter today to catch the eye from across
+ * the shop floor — the bentonite that is drifting, the moisture nobody has
+ * looked at since the shift change. That is not an alarm: it is somebody
+ * saying "watch this one", and it belongs to the reading rather than to a
+ * limit being crossed.
+ *
+ * Kept as `blink` on the tag — seconds for a whole on-off cycle — so it
+ * travels with the loop and arrives on the operator's screen with everything
+ * else that was saved.
+ *
+ * ## Why a stylesheet rather than a style on the element
+ *
+ * The labels are rebuilt from a template string on every tick — see
+ * `tagsSVG` — so an inline style set on one survives until the next poll and
+ * no longer. A rule keyed on `[data-tag]` is matched again each time the
+ * element is recreated, so the blink is unbroken and the canvas code needs to
+ * know nothing about it.
+ */
+const BLINK_MIN = 0.4
+const BLINK_MAX = 60
+
+/** The blink set on a reading, in seconds, or null for none. */
+export function blinkOf(tag) {
+  const seconds = Number(tag?.blink)
+  return Number.isFinite(seconds) && seconds > 0
+    ? Math.min(BLINK_MAX, Math.max(BLINK_MIN, seconds))
+    : null
+}
+
+/** What the stylesheet was last written for, so a tick costs one comparison. */
+let blinkSignature = ''
+
+export function paintBlinks() {
+  const reg = REG() || {}
+  const blinking = Object.entries(reg)
+    .map(([id, tag]) => [id, blinkOf(tag)])
+    .filter(([, seconds]) => seconds)
+
+  const signature = blinking.map(([id, seconds]) => `${id}@${seconds}`).join('|')
+  if (signature === blinkSignature) return
+  blinkSignature = signature
+
+  let sheet = document.getElementById('dlBlink')
+  if (!sheet) {
+    sheet = document.createElement('style')
+    sheet.id = 'dlBlink'
+    document.head.append(sheet)
+  }
+
+  sheet.textContent = blinking.length
+    ? '@keyframes dl-blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: .2 } }\n' +
+      blinking.map(([id, seconds]) =>
+        `.tagb[data-tag="${cssString(id)}"], .ix-card[data-tid="${cssString(id)}"] > summary ` +
+        `{ animation: dl-blink ${seconds}s steps(1, end) infinite }`).join('\n')
+    : ''
+}
+
+/**
+ * A tag id inside a CSS attribute selector.
+ *
+ * Ids here are `BEN-BIN.BENTONITE_LEVEL_PCT` and the like — dots, dashes and
+ * whatever somebody typed — so the quotes and backslashes are escaped rather
+ * than trusted. `CSS.escape` escapes an identifier, which is not what a quoted
+ * string needs.
+ */
+const cssString = id => String(id).replace(/[\\"]/g, match => '\\' + match)
+
+function keepBlinksPainted() {
+  const original = window.liveCanvas
+  if (typeof original !== 'function' || original.__dlBlink) return
+
+  const replaced = function liveCanvasThenBlinks() {
+    const answer = original.apply(this, arguments)
+    try {
+      paintBlinks()
+    } catch {
+      /* The canvas is drawn either way. */
+    }
+    return answer
+  }
+
+  replaced.__dlBlink = true
+  replaced.original = original
+  window.liveCanvas = replaced
+}
+
 /* -------------------------------------------------------- one colour ---*/
 
 /**
@@ -1440,16 +1590,32 @@ function hideViolations() {
  * window shut.
  */
 /** Column types the studio's catalogue uses for anything that is not a number. */
-const NOT_A_NUMBER = new Set(['varchar', 'datetime', 'tag'])
+/* The column's declared type is no longer consulted — see `isTextReading`. */
 
 /**
  * Is this reading text rather than a measurement?
  *
- * **The value decides, once there is one.** A number stored in a text column —
- * `"12.5"` in a VARCHAR — arrives as a number (the server converts whole-number
- * text) and is charted like any other. Only before the first record arrives
- * does anything else answer: the studio's own text marking (a pattern name, a
- * state), then the column's type in the database's catalogue.
+ * Two answers, in this order, and nothing else:
+ *
+ *   the value   once there is one, what it actually is decides. A number kept
+ *               in a VARCHAR — `"12.5"` — arrives as a number, because the
+ *               server converts text that is wholly numeric, and charts like
+ *               any other.
+ *   the tag     before that, what the tag was declared to be. "Number
+ *               (measured value)" in Edit tag means a number; a pattern name
+ *               or a status list means text.
+ *
+ * **The column's own type used to get the last word, and it was wrong.** A
+ * reading declared a measured number, pointed at a column the schema calls
+ * `varchar`, was called text — so the trend answered "This reading is text, so
+ * it has no chart" about a tag whose Value type says Number, with limits, a
+ * σ and a unit set on it. Plant columns are `varchar` all the time; a SCADA
+ * dump writes every column as text and means none of it. A guess about the
+ * schema has no business overruling something somebody stated.
+ *
+ * What a genuinely textual column costs now is one empty chart, which says
+ * what it found — see `recentValues`. That is a far better failure than
+ * refusing to chart a column of numbers.
  */
 export function isTextReading(id) {
   const tag = (REG() || {})[id]
@@ -1459,21 +1625,7 @@ export function isTextReading(id) {
   if (record && record.value != null) return typeof record.value !== 'number'
 
   const textTag = peek('tagIsText')
-  if (typeof textTag === 'function' && textTag(tag)) return true
-
-  const link = tag.link
-  if (!link?.table || !link?.col || link.sql) return false
-  try {
-    const resolve = peek('SRC')
-    const source = typeof resolve === 'function' ? resolve(link.src) : null
-    const groups = source ? window.catalog?.(source) : null
-    const group = Array.isArray(groups) ? groups.find(g => g.name === link.db) || groups[0] : null
-    const table = group?.tables?.find(entry => entry.name === link.table)
-    const column = table?.cols?.find(entry => entry.n === link.col)
-    return !!column && NOT_A_NUMBER.has(column.t)
-  } catch {
-    return false
-  }
+  return typeof textTag === 'function' ? !!textTag(tag) : false
 }
 
 /** Take the Trend button off a text reading's card in the inspector. */
@@ -1482,6 +1634,52 @@ function hideTrendOnText() {
     const button = card.querySelector('[data-ixa="trend"]')
     if (button) button.hidden = isTextReading(card.dataset.tid)
   }
+}
+
+/**
+ * Read the window the chart is showing, and redraw on what comes back.
+ *
+ * Called when a trend opens and again whenever the window changes, because
+ * the window *is* the query: 8 h is not 2 h with more of the same records
+ * drawn, it is a different `WHERE`. Cutting a wider window out of records
+ * already in hand would show whatever the first read happened to bring back
+ * and label it eight hours.
+ *
+ * `settle` is for the first read only: the window buttons and the control
+ * limits are drawn before any record arrives, so they are set again once the
+ * data is in hand. On a later read they are already right, and redoing them
+ * would snap the window back to two hours — which is the button that was just
+ * pressed being undone.
+ */
+function readTheWindow(id, { settle = false } = {}) {
+  if (!loopId || !isLinked(id)) return
+
+  const seconds = Number(peek('TR')?.win) || DEFAULT_WINDOW
+  api.get(`/live/chart?loopId=${encodeURIComponent(loopId)}&tag=${encodeURIComponent(id)}` +
+    `&windowSeconds=${seconds}`)
+    .then(answer => {
+      charts.set(id, answer)
+      if (peek('trendTag') !== id) return
+      addChartSwitch(id)
+      if (settle) {
+        useDayWindows()
+        measureAgainstTheData(id)
+      }
+      window.drawTrend?.()
+    })
+    .catch(error => {
+      charts.set(id, {
+        series: [], processControl: null, failed: error.message,
+        /*
+         * The statement the refusal came with — see `chart_unreadable` in
+         * routes/live.js. A chart that refused itself is the one somebody
+         * most wants to open Preview data on, and an empty box there would
+         * make them retype a query the server already knows.
+         */
+        failedQuery: error?.detail?.query || null,
+      })
+      if (peek('trendTag') === id) addChartSwitch(id)
+    })
 }
 
 function loadChartsOnOpen() {
@@ -1505,22 +1703,7 @@ function loadChartsOnOpen() {
     if (!loopId || !isLinked(id)) return
 
     addChartSwitch(id)
-
-    api.get(`/live/chart?loopId=${encodeURIComponent(loopId)}&tag=${encodeURIComponent(id)}`)
-      .then(answer => {
-        charts.set(id, answer)
-        if (peek('trendTag') !== id) return
-        addChartSwitch(id)
-        // Both of these are drawn before the records arrive, so they are
-        // settled now that the data is in hand.
-        useDayWindows()
-        measureAgainstTheData(id)
-        window.drawTrend?.()
-      })
-      .catch(error => {
-        charts.set(id, { series: [], processControl: null, failed: error.message })
-        if (peek('trendTag') === id) addChartSwitch(id)
-      })
+    readTheWindow(id, { settle: true })
   }
 
   replaced.__dlLive = true
@@ -1570,15 +1753,42 @@ function addChartSwitch(id) {
    * something went wrong when nothing did.
    */
   const from = loaded?.source || null
-  const noProcessControl = !!from
+
+  /*
+   * The second chart is offered only where there is a second chart.
+   *
+   * Process Control is SandMan's own calculation, with its own subgroups and
+   * limits. A reading on a database registered here has no such thing, so the
+   * tab sat there permanently empty, explaining itself in a tooltip nobody
+   * opens — a control that cannot do anything, beside a chart that can.
+   *
+   * In its place, for an administrator, the statement these records came
+   * from: the one thing that answers "why does this chart look wrong", and
+   * the one thing they can change to fix it.
+   */
+  /*
+   * Decided from the link, not from the answer.
+   *
+   * This used to be `!loaded?.source`, which is only known once the records
+   * are back — and a *failed* fetch carries no source at all. So the reading
+   * whose chart had just refused itself ("that column holds no values") was
+   * the one reading with no Preview button on it, which is precisely the one
+   * somebody needs to open the statement for. It is also missing for the
+   * second or two before any fetch returns, which reads as a button that
+   * comes and goes.
+   *
+   * `conn_…` on the link means this service does the reading, which is true
+   * the moment the trend opens.
+   */
+  const sandmansOwn = !/^conn_/.test(String((REG() || {})[id]?.link?.src || ''))
 
   bar.innerHTML = `
     <span class="note">Chart</span>
     <div class="seg" id="dlChartSeg">
       <button data-cv="imr" class="${chartView === 'imr' ? 'on' : ''}">Individuals (I-MR)</button>
-      <button data-cv="pc" class="${chartView === 'pc' ? 'on' : ''}"${
-        noProcessControl ? ' title="SandMan computes this chart. It does not cover a database registered here."' : ''
-      }>Process Control (SandMan)</button>
+      ${sandmansOwn
+        ? `<button data-cv="pc" class="${chartView === 'pc' ? 'on' : ''}">Process Control (SandMan)</button>`
+        : ''}
     </div>
     <span class="note">${loaded
       ? loaded.failed
@@ -1598,7 +1808,293 @@ function addChartSwitch(id) {
       showView(id)
     }
   }
+  // The tab may have gone while it was the one showing.
+  if (chartView === 'pc' && !sandmansOwn) chartView = 'imr'
+  offerThePreview(id, sandmansOwn)
   showView(id)
+}
+
+/**
+ * Preview data, where Copy data (CSV) was.
+ *
+ * That button is at the foot of the trend window, which is where somebody
+ * looking at a chart that is wrong puts their hand — and what it did there was
+ * fail: the studio copies through `navigator.clipboard`, which a page inside
+ * SandMan's iframe is not permitted to use, so it answered "Copy is blocked
+ * here" and nothing else happened.
+ *
+ * So the foot of the window now opens the records instead: the statement they
+ * came from, the rows themselves, and a copy that works — see `previewData`.
+ * Copying is not taken away, it is moved to where the data it copies is.
+ *
+ * Only for an administrator, and only where this service runs the read. Where
+ * SandMan does, there is no statement of ours to show and the studio's own
+ * button is left exactly as it was.
+ */
+function offerThePreview(id, sandmansOwn) {
+  const csv = document.getElementById('trCsv')
+  if (!csv || !isAdmin() || sandmansOwn) return
+  if (csv.dataset.dlPreview) return
+  csv.dataset.dlPreview = '1'
+
+  // A clone, to drop the studio's own click handler — see `captureButtons`.
+  const button = csv.cloneNode(true)
+  button.textContent = 'Preview data'
+  button.title = 'The statement these records came from, and the rows it returns'
+  csv.replaceWith(button)
+  button.onclick = () => previewData(id)
+}
+
+/**
+ * The statement behind this chart, and a way to try another one.
+ *
+ * "Why does this chart look wrong" is nearly always a question about the
+ * query: the wrong column, ordered by something that is not a time, a row
+ * filter matching nothing. Showing the statement answers it, and letting an
+ * administrator edit and run it turns a support conversation into a thing
+ * they fix themselves.
+ *
+ * It runs through `/live/preview`, which is the same fence every other typed
+ * statement goes through — administrators only, one SELECT, read-only, capped
+ * and timed out, and only against a database their own foundry registered.
+ * Running one here changes nothing about the reading; adopting it is still
+ * done on the reading's own card.
+ */
+async function previewData(id) {
+  const open = window.openModal
+  const close = window.closeModal
+  if (!open || !close) return
+
+  const tag = (REG() || {})[id]
+  const link = tag?.link || {}
+  const loop = watching()
+  const loaded = charts.get(id)
+
+  open(
+    /*
+     * Scrollable, because the modal is taller than the window on a laptop.
+     * The statement, the buttons and two hundred rows do not fit in 600px,
+     * and what fell off the bottom was the rows — the thing being previewed.
+     */
+    `<div id="dlQueryBox" style="max-height:72vh;overflow:auto">
+ <h3>Preview data — ${escapeHtml(id)}</h3>
+ <div class="note">The statement these records came from. Edit it and press Run to try another — the reading itself is not changed.</div>
+ <textarea id="dlQuerySql" class="mono" rows="4" spellcheck="false"
+   style="width:100%;margin-top:10px" placeholder="Loading the statement…"></textarea>
+ <div class="mact" style="justify-content:flex-start;margin-top:8px;gap:8px">
+   <button type="button" class="ib pri" id="dlQueryRun">Run</button>
+   <button type="button" class="ib" id="dlQueryCopy">Download as CSV</button>
+   <label class="note" style="margin-left:12px">Decimals
+     <select id="dlQueryDp" style="margin-left:4px">
+       ${[0, 1, 2, 3, 4].map(n => `<option>${n}</option>`).join('')}
+     </select></label>
+   <button type="button" class="ib" id="dlQueryClose" style="margin-left:auto">Back</button>
+ </div>
+ <p class="note" id="dlQuerySays" style="margin-top:10px"></p>
+ <div id="dlQueryRows" class="dl-query-rows"></div></div>`,
+    'lg'
+  )
+
+  const sql = document.getElementById('dlQuerySql')
+  const says = document.getElementById('dlQuerySays')
+  const rows = document.getElementById('dlQueryRows')
+  /*
+   * Back goes back to the chart, not out of everything.
+   *
+   * This modal opened from the trend window and took its place, so closing it
+   * left the canvas — two steps from where somebody was, when they asked for
+   * one. Reopening the trend on the same reading is what "back" means here.
+   */
+  document.getElementById('dlQueryClose').onclick = () => {
+    close()
+    window.openTrend?.(id)
+  }
+
+  const tell = (text, tone = '') => {
+    says.textContent = text
+    says.className = `note ${tone}`
+  }
+
+  /*
+   * The records as CSV, headed by the columns the database knows.
+   *
+   * It used to say `recordedAt,value` — two names that appear nowhere in the
+   * plant's schema, invented on the way through this service. Pasted beside a
+   * Workbench result they matched nothing. The server now reports what it
+   * selected, and these are those names.
+   */
+  const named = loaded?.columns || []
+  /*
+   * How many decimals the rows show, and how a moment is written.
+   *
+   * `34.79999923706055` is a float's exact value and nobody's measurement —
+   * the reading is two decimals at most and the rest is the binary. The
+   * reading's own Decimals setting says how many it is shown to everywhere
+   * else; this follows it, defaulting to two, and the box above the table
+   * changes it for a look without changing the reading.
+   *
+   * `2026-10-22T00:00:00` is ISO, which is for machines. `2026-10-22
+   * 00:00:00` is the same moment written the way the plant's own tools write
+   * it, which is what somebody is comparing it against.
+   */
+  let decimals = Number((REG() || {})[id]?.d)
+  if (!Number.isFinite(decimals)) decimals = 2
+
+  const figure = value =>
+    (typeof value === 'number' && Number.isFinite(value) ? value.toFixed(decimals) : value)
+  const written = at => String(at ?? '').replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '')
+
+  const asCsv = () =>
+    [named.filter(Boolean).join(',') || 'value,at']
+      .concat((loaded?.series || []).map(point =>
+        `${figure(point.value) ?? ''},${written(point.recordedAt)}`))
+      .join('\n')
+
+  /*
+   * The rows as a table, which is what rows are.
+   *
+   * They were a read-only textarea of CSV — a format for a machine, shown to
+   * a person, with the columns lining up only by luck of character width. A
+   * table has headings that stay put and cells that align, which is the whole
+   * reason anybody opens this.
+   */
+  const asTable = (heads, body) => {
+    const cell = value => `<td>${escapeHtml(value ?? '')}</td>`
+    return `<table class="dl-rows">
+ <thead><tr>${heads.map(head => `<th>${escapeHtml(head)}</th>`).join('')}</tr></thead>
+ <tbody>${body.map(line => `<tr>${line.map(cell).join('')}</tr>`).join('')}</tbody>
+ </table>`
+  }
+
+  const showChartRows = () => {
+    const heads = named.filter(Boolean).length ? named.filter(Boolean) : ['value', 'at']
+    const body = (loaded?.series || []).map(point => [figure(point.value), written(point.recordedAt)])
+    rows.innerHTML = body.length
+      ? asTable(heads, body)
+      : '<p class="note">No rows.</p>'
+  }
+
+  showChartRows()
+
+  /*
+   * Changing the decimals redraws the rows and nothing else.
+   *
+   * It is a way of looking at the numbers, not a change to the reading — the
+   * reading's own Decimals setting is in its card and this does not touch it.
+   */
+  const places = document.getElementById('dlQueryDp')
+  places.value = String(decimals)
+  places.onchange = () => {
+    decimals = Number(places.value) || 0
+    showChartRows()
+  }
+
+  const chartPoints = loaded?.series?.length || 0
+
+  /*
+   * A file, not the clipboard.
+   *
+   * Copying was the wrong shape twice over. `navigator.clipboard` is not
+   * permitted inside SandMan's iframe, so the studio's own button answered
+   * "Copy is blocked here" — and the fallback, selecting the text and asking
+   * for Ctrl+C, is an instruction rather than a thing the button did. Two
+   * hundred rows are going into a spreadsheet anyway, and a file is what a
+   * spreadsheet opens.
+   *
+   * The blob is revoked after the click: an object URL held open keeps the
+   * whole CSV in memory for as long as the page lives.
+   */
+  document.getElementById('dlQueryCopy').onclick = () => {
+    const text = asCsv()
+    if (!text.trim()) { tell('There is nothing to download yet.'); return }
+
+    // `BENTONITE_WEIGHT_KG_22-10-2026.csv` — the tag, then the day, the way
+    // the plant writes a date.
+    const today = new Date()
+    const two = number => String(number).padStart(2, '0')
+    const when = `${two(today.getDate())}-${two(today.getMonth() + 1)}-${today.getFullYear()}`
+    const file = `${String(id).replace(/[^A-Za-z0-9_.-]+/g, '_')}_${when}.csv`
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }))
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = file
+    document.body.append(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+
+    tell(`${text.split('\n').length - 1} row(s) downloaded as ${file}.`)
+  }
+
+  /*
+   * It opens on the statement the **chart** ran, not the one the badge ran.
+   *
+   * These are different queries and only one of them is the subject: the badge
+   * asks for a single newest row (`… LIMIT 1`), the chart asks for the last
+   * two hundred in order. Showing the first while somebody is looking at an
+   * empty chart left them editing a statement that was never the one failing.
+   *
+   * It is carried on the chart's own answer, and on its refusal — which is
+   * exactly when it is wanted. Falling back to asking for it only happens
+   * where the chart has not been fetched at all.
+   */
+  const chartQuery = loaded?.query || loaded?.failedQuery || null
+  if (chartQuery) sql.value = chartQuery
+
+  const ask = async statement => {
+    tell('Running…')
+    try {
+      const answer = await api.post('/live/preview', {
+        loopId: loop,
+        source: link.src,
+        ...(statement ? { sql: statement } : { table: link.table, column: link.col }),
+      })
+      if (!statement && !chartQuery && answer.query) sql.value = answer.query
+
+      if (answer.error) {
+        tell(`${answer.via || 'The database'} refused it: ${answer.error}`, 'dl-stale')
+        return
+      }
+
+      /*
+       * The value, read as a value — not as the JSON it arrived in.
+       *
+       * This printed the record itself: `answered {"value":34.70000076293945,
+       * "recordedAt":null} in 919 ms`. Three things wrong with that in one
+       * line — a field name nobody asked about, fifteen decimal places of
+       * float noise on a reading set to two, and `recordedAt: null` reading as
+       * a fault when it only means that query selected no timestamp.
+       *
+       * So: the number at the reading's own precision, with its unit, and the
+       * moment beside it when there is one.
+       */
+      const record = answer.value && typeof answer.value === 'object' ? answer.value : null
+      const value = record ? record.value : answer.value
+      const when = record?.recordedAt || [record?.date, record?.time].filter(Boolean).join(' ')
+      const empty = value === null || value === undefined
+      tell(
+        `${answer.via || 'The database'} answered ` +
+        (empty ? 'an empty cell' : `${figure(value)}${tag?.unit ? ` ${tag.unit}` : ''}`) +
+        `${when ? ` · recorded ${when}` : ''} in ${answer.tookMs} ms. ` +
+        (empty
+          ? 'Which is why this chart has no points.'
+          : `The chart below holds ${chartPoints} record(s).`)
+      )
+      /*
+       * A written statement answers with one value — put it above the chart's
+       * rows rather than replacing them, so what was asked and what the chart
+       * is drawing can be read against each other.
+       */
+      if (statement) rows.innerHTML = asTable(['answer'], [[figure(value)]]) + rows.innerHTML
+    } catch (error) {
+      tell(error.message, 'dl-stale')
+    }
+  }
+
+  document.getElementById('dlQueryRun').onclick = () => ask(sql.value.trim())
+  // Opens by showing what the chart itself ran.
+  ask(null)
 }
 
 /** Swap between the studio's canvases and ours. */
@@ -1756,7 +2252,186 @@ function plot(canvas, chart, labels) {
  * first loop opens — `simTick` runs from the moment the studio does — and
  * because wrapping twice would stack the guards.
  */
-export function install() {
+/**
+ * A standard deviation is not something to be stopped for.
+ *
+ * The studio's Edit tag dialog marks σ required and refuses to save without
+ * one: "Enter a standard deviation greater than 0". On a reading that has just
+ * been pointed at a plant column, nobody knows it yet — it is a property of
+ * the data, not a decision — so naming a reading meant inventing a number to
+ * get past a dialog, and an invented σ draws control bands that look
+ * considered and are not.
+ *
+ * It is only used to place the ±1σ / ±2σ / ±3σ bands, and the trend window
+ * already offers "From data — std. deviation" as the alternative. So when the
+ * field is left empty this fills it the way the studio fills it elsewhere:
+ * from the records if there are any, otherwise from the spec width, where
+ * Min to Max is the classic six σ. Both are derived, and the hint under the
+ * field says which was used rather than leaving a number nobody recognises.
+ */
+function sigmaIsNotRequired() {
+  const original = window.tagForm
+  if (typeof original !== 'function' || original.__dlSoftSigma) return
+
+  const replaced = function tagFormWithOptionalSigma(id, block) {
+    const answer = original.call(this, id, block)
+    try {
+      relaxTheSigmaField(id)
+    } catch (error) {
+      // The dialog is the studio's and works either way.
+      console.error('Relaxing the standard deviation failed:', error)
+    }
+    return answer
+  }
+
+  replaced.__dlSoftSigma = true
+  replaced.original = original
+  window.tagForm = replaced
+}
+
+function relaxTheSigmaField(id) {
+  const box = document.getElementById('mbox')
+  const sigma = document.getElementById('fSd')
+  if (!box || !sigma) return
+
+  // The asterisks say "you cannot save without this", which is no longer true.
+  for (const label of box.querySelectorAll('label, .fld > label, h4, .note')) {
+    if (/^(Std dev \(σ\)|Optimal|Process specification)\s*\*$/.test(label.textContent.trim())) {
+      label.textContent = label.textContent.replace(/\s*\*$/, '')
+    }
+  }
+
+  let hint = sigma.parentElement?.querySelector('.dl-sigma-note')
+  if (!hint) {
+    hint = document.createElement('div')
+    hint.className = 'note dl-sigma-note'
+    sigma.parentElement?.append(hint)
+  }
+  hint.textContent = 'Optional — worked out from the records if left empty.'
+
+  /*
+   * Filled in the capture phase, before the studio's own handler reads it.
+   *
+   * The dialog's Save is wired with `onclick`; this listens on the way down,
+   * so by the time that handler asks for the field there is a number in it.
+   */
+  const save = [...box.querySelectorAll('button')].find(b => /^Save (tag|reading)$/.test(b.textContent.trim()))
+  if (!save || save.dataset.dlSoftSigma) return
+  save.dataset.dlSoftSigma = '1'
+
+  save.addEventListener('click', () => {
+    if (Number(sigma.value) > 0) return
+    const derived = sigmaFor(id)
+    if (derived > 0) {
+      sigma.value = String(derived)
+      hint.textContent = `Worked out as ${derived} — change it if you know better.`
+    }
+  }, true)
+}
+
+/** σ from the reading's own records, or from the spec width, or nothing. */
+function sigmaFor(id) {
+  const points = (peek('VAL')?.[id]?.h || []).map(point => point.v).filter(Number.isFinite)
+  if (points.length >= 2) {
+    const mean = points.reduce((sum, v) => sum + v, 0) / points.length
+    const variance = points.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (points.length - 1)
+    const spread = Math.sqrt(variance)
+    if (spread > 0) return Number(spread.toPrecision(3))
+  }
+
+  // Min to Max is six σ, which is what a specification means.
+  const min = Number(document.getElementById('fMin')?.value)
+  const max = Number(document.getElementById('fMax')?.value)
+  if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+    return Number(((max - min) / 6).toPrecision(3))
+  }
+
+  /*
+   * Nothing to work from: a tenth of the optimal, which is a placeholder and
+   * is admitted to be one in the hint. Better than a dialog that cannot be
+   * left, and the bands it draws are visibly nominal rather than wrong.
+   */
+  const optimal = Math.abs(Number(document.getElementById('fTyp')?.value))
+  return Number.isFinite(optimal) && optimal > 0 ? Number((optimal / 10).toPrecision(3)) : 1
+}
+
+/**
+ * Decimals for every reading, and the arithmetic, in the Data tab.
+ *
+ * Decimals is a per-reading setting in its own card, which is right for one
+ * reading and wrong for a hundred: a plant wanting two decimals everywhere had
+ * to open a hundred cards. This sets them all at once, where the other things
+ * that apply to the whole loop already live.
+ *
+ * The formulas stand beside it rather than behind a button, and rather than
+ * under the chart where they were first put: they are reference, read once and
+ * then known, and a panel that repeats them under every chart is in the way of
+ * the figures it is explaining.
+ */
+function figuresInTheDataTab() {
+  const panel = document.querySelector('[data-rp="data"]')
+  if (!panel || panel.querySelector('#dlFigures')) return
+
+  const group = document.createElement('div')
+  group.className = 'grp'
+  group.id = 'dlFigures'
+  group.setAttribute('role', 'group')
+  group.setAttribute('aria-label', 'Figures')
+  group.innerHTML =
+    '<div class="gi">' +
+    '<div class="rcol"><label class="mlbl">Decimals' +
+    '<select id="dlAllDecimals" title="How many decimals every reading shows">' +
+    '<option value="">—</option>' +
+    [0, 1, 2, 3, 4].map(n => `<option value="${n}">${n}</option>`).join('') +
+    '</select></label></div>' +
+    '<div class="dl-formulas">' +
+    '<div><code>mean = Σx / n</code></div>' +
+    '<div><code>σ = √( Σ(x − mean)² / (n − 1) )</code></div>' +
+    '<div><code>CL = mean   ·   bands = CL ± kσ</code></div>' +
+    '<div><code>Cp = (Max − Min) / 6σ</code></div>' +
+    '<div><code>Cpk = min(Max − mean, mean − Min) / 3σ</code></div>' +
+    '<div class="note">σ <b>used</b> is the reading\'s configured σ; σ <b>of data</b> is what the ' +
+    'window holds. σ of 0 means every reading is identical — Cp and Cpk then divide by nothing.</div>' +
+    '</div></div><span class="gl">Figures</span>'
+
+  panel.append(group)
+
+  const places = group.querySelector('#dlAllDecimals')
+
+  // Blank unless every reading already agrees, because "2" on a loop that is
+  // a mixture would be a claim rather than a setting.
+  const readings = Object.values(REG() || {})
+  const agreed = new Set(readings.map(tag => tag.d ?? 1))
+  places.value = agreed.size === 1 ? String([...agreed][0]) : ''
+
+  places.onchange = () => {
+    if (places.value === '') return
+    const decimals = Number(places.value)
+    for (const tag of Object.values(REG() || {})) tag.d = decimals
+    window.renderAll?.()
+    window.liveCanvas?.(true)
+    window.toast?.(`Every reading now shows ${decimals} decimal${decimals === 1 ? '' : 's'}.`)
+    onDecimalsChanged?.()
+  }
+}
+
+/** Told when the loop-wide decimals change, so the document can be stored. */
+let onDecimalsChanged = null
+
+export function install({ onDecimals } = {}) {
+  if (typeof onDecimals === 'function') onDecimalsChanged = onDecimals
+  figuresInTheDataTab()
+  sigmaIsNotRequired()
+  /*
+   * One handle on the console, for the question this module exists to answer.
+   *
+   * "The chart says Collecting data… over records that are plainly there" is
+   * not answerable from the screen: what matters is whether the fetch ran,
+   * what it returned and why it failed, all of which live in this module's
+   * own variables. `window.dlLive()` prints them.
+   */
+  window.dlLive = status
+
   showNothingWithoutData()
   hideSourceManagement()
   guardSimulation()
@@ -1766,6 +2441,7 @@ export function install() {
   useARealSpread()
   readInBlue()
   keepNavigatorInStep()
+  keepBlinksPainted()
   loadChartsOnOpen()
   // Before any chart opens, so the first one drawn is already a window wide.
   defaultWindow()
@@ -1788,6 +2464,15 @@ export const status = () => ({
   loopId,
   live: [...records.keys()],
   linked: linkedIds(),
+  /**
+   * What each trend window fetched, which is the first thing to ask when a
+   * chart says "Collecting data…" over records that are plainly there.
+   */
+  charts: [...charts.entries()].map(([id, loaded]) => ({
+    id,
+    points: loaded?.series?.length ?? 0,
+    failed: loaded?.failed || null,
+  })),
   stale,
   reason,
   problems: Object.fromEntries(problems),

@@ -34,7 +34,7 @@
  */
 import { peek } from './studio.mjs'
 import { api } from './api.mjs'
-import { watching } from './live.mjs'
+import { watching, blinkOf, paintBlinks } from './live.mjs'
 import { searchable } from './table-search.mjs'
 import { connectionIdFrom } from './databases.mjs'
 
@@ -98,7 +98,212 @@ export function persist() {
  * was opened on, because leaving it open while clicking through a flowsheet
  * would put a half-finished flow on every item in turn.
  */
-const drawerState = { open: false, item: null }
+const drawerState = { open: false, item: null, how: 'dropdowns' }
+
+/**
+ * Two ways to say where a reading comes from, chosen after the database.
+ *
+ * The dropdowns answer it for a plain column: a table, a column in it, which
+ * column means "newest" so a chart can be drawn, and which rows if the table
+ * holds more than this line's. A statement answers it for everything else — a
+ * join, an aggregate, a WHERE nobody can express as one row filter.
+ *
+ * They are offered as a choice rather than one after the other because they
+ * are alternatives, not steps: picking a table is not the first half of
+ * writing a query, and somebody who knows SQL should not have to walk through
+ * four dropdowns to reach a box they were always going to use.
+ *
+ * The database comes first either way — a statement has to run somewhere.
+ */
+/**
+ * Running a written statement, and making it a reading.
+ *
+ * Run goes through `/live/preview`, the same fence every typed statement here
+ * uses — administrators only, one SELECT, read-only, capped and timed out,
+ * against a database their own foundry registered. Nothing is created by
+ * running it; a query that answers with nothing is a query to fix, not a
+ * reading to delete afterwards.
+ *
+ * Adding creates the reading through the studio's own `dbAddTag` so the tag
+ * id, the document and the undo stack are all the studio's, then replaces the
+ * table-and-column link with the statement. Writing the tag by hand here
+ * would be a second way of creating one, and the two would drift.
+ */
+function wireTheWrittenQuery(drawer, box) {
+  const sql = box.querySelector('#dlWrittenSql')
+  const says = box.querySelector('#dlWrittenSays')
+  const tell = (text, tone = '') => {
+    says.textContent = text
+    says.className = `note ${tone}`
+  }
+
+  const source = () => String(drawer.querySelector('#dbDb')?.value || '').split('|')[0]
+
+  box.querySelector('#dlWrittenRun').onclick = async () => {
+    const statement = sql.value.trim()
+    if (!statement) { tell('Write a statement first.', 'tx3'); return }
+    if (!source()) { tell('Choose a database first.', 'tx3'); return }
+
+    tell('Running…')
+    try {
+      const answer = await api.post('/live/preview', {
+        loopId: watching(), source: source(), sql: statement,
+      })
+      tell(
+        answer.error
+          ? `${answer.via || 'The database'} refused it: ${answer.error}`
+          : `${answer.via || 'The database'} answered ${JSON.stringify(answer.value)} in ${answer.tookMs} ms.`,
+        answer.error ? 'tx3' : ''
+      )
+    } catch (error) {
+      tell(error.message, 'tx3')
+    }
+  }
+
+  box.querySelector('#dlWrittenAdd').onclick = () => {
+    const statement = sql.value.trim()
+    if (!statement) { tell('Write a statement first.', 'tx3'); return }
+    const chosenSource = source()
+    if (!chosenSource) { tell('Choose a database first.', 'tx3'); return }
+
+    /*
+     * The studio makes the tag; this says what it reads.
+     *
+     * `dbAddTag` wants a table and a column, and there are none — so it is
+     * given the statement's own name for itself and the link is rewritten
+     * immediately afterwards. The reading that results is an ordinary one in
+     * every other way: it polls, it charts, it can be renamed.
+     */
+    const made = window.dbAddTag?.()
+    const reg = peek('REG')
+    const tag = made && reg ? reg[made] : null
+    if (!tag) {
+      tell('The studio would not add a reading here — pick a table first, then switch back.', 'tx3')
+      return
+    }
+
+    tag.link = { src: chosenSource, sql: statement }
+    delete tag.link.table
+    delete tag.link.col
+    persist()
+    window.renderProps?.()
+    tell('Added. It reads that statement from now on.')
+  }
+}
+
+function howToPickIt(drawer) {
+  const flow = drawer.querySelector('#dbFlow')
+  if (!flow) return
+
+  let choice = drawer.querySelector('#dlHow')
+  if (!choice) {
+    choice = document.createElement('div')
+    choice.id = 'dlHow'
+    choice.className = 'dl-how'
+    choice.innerHTML =
+      '<div class="seg" role="group" aria-label="How to find this reading">' +
+      '<button type="button" data-how="dropdowns">From the dropdowns</button>' +
+      '<button type="button" data-how="query">Write a query</button>' +
+      '</div>'
+    // After the database, before the table: it is what decides whether a
+    // table is asked for at all.
+    flow.querySelector('.db-step')?.after(choice)
+  }
+
+  let written = drawer.querySelector('#dlWritten')
+  if (!written) {
+    written = document.createElement('div')
+    written.id = 'dlWritten'
+    written.className = 'dl-written'
+    written.innerHTML =
+      '<label class="ix-f">Statement' +
+      '<textarea id="dlWrittenSql" class="mono" rows="4" spellcheck="false" ' +
+      'placeholder="SELECT value_column, time_column FROM table ORDER BY time_column DESC LIMIT 1">' +
+      '</textarea></label>' +
+      '<div class="note">The first column is the measurement, the second its time. ' +
+      'Run it to see what it answers before it becomes a reading.</div>' +
+      '<div class="dl-written-acts">' +
+      '<button type="button" class="sb" id="dlWrittenRun">Read now</button>' +
+      '<button type="button" class="ib pri" id="dlWrittenAdd">Add this reading</button>' +
+      '</div><p class="note" id="dlWrittenSays"></p>'
+    choice.after(written)
+    wireTheWrittenQuery(drawer, written)
+  }
+
+  const show = () => {
+    for (const button of choice.querySelectorAll('[data-how]')) {
+      button.classList.toggle('on', button.dataset.how === drawerState.how)
+    }
+    const writing = drawerState.how === 'query'
+    /*
+     * Hidden by the class, not only by the attribute.
+     *
+     * `.dl-written` carries `display: flex`, and a display rule beats the
+     * `hidden` attribute — the mistake that has now caught three elements in
+     * this project. `.dl-hidden` is `display: none !important`, so it wins
+     * whatever else is declared, and the attribute stays for anything reading
+     * the markup.
+     */
+    written.hidden = !writing
+    written.classList.toggle('dl-hidden', !writing)
+    // Everything after the database belongs to the dropdowns.
+    for (const step of flow.querySelectorAll('.db-step')) {
+      if (step.querySelector('#dbDb')) continue
+      step.classList.toggle('dl-hidden', writing)
+    }
+    /*
+     * Step 4 is for the dropdowns, and only once a column has been chosen.
+     *
+     * Two conditions in one place: a written statement has no step 4 at all,
+     * and the dropdowns' step 4 waits for the column it describes — see
+     * `follow` in `addNameAndTest`, which applies the second on its own as
+     * the table and column change.
+     */
+    const step4 = drawer.querySelector('#dlStep4')
+    if (step4) {
+      const waiting = writing || !valueOf(drawer.querySelector('#dbCol'))
+      step4.classList.toggle('dl-hidden', waiting)
+      step4.classList.toggle('off', waiting)
+    }
+  }
+
+  show()
+}
+
+/*
+ * The two buttons are wired once, on the document, not on the buttons.
+ *
+ * They were bound per button, which is only correct while those buttons are
+ * the ones on screen. The panel redraws itself for a dozen reasons — a reading
+ * saved, a poll landing, a field losing focus — and each redraw builds a new
+ * drawer with new buttons. Anything still holding the old ones (including a
+ * click arriving a moment later) then ran `show()` over detached nodes: the
+ * mode changed, nothing on screen did, and "From the dropdowns" left the
+ * statement box up with no table under it.
+ *
+ * Delegated from the document there is nothing to go stale. The handler reads
+ * the live drawer out of the document each time and re-runs the whole of
+ * `howToPickIt` against it, which is idempotent — it creates what is missing
+ * and settles what is there.
+ */
+function wireTheModeButtons() {
+  if (wireTheModeButtons.done) return
+  wireTheModeButtons.done = true
+
+  document.addEventListener('click', event => {
+    const button = event.target?.closest?.('#dlHow [data-how]')
+    if (!button) return
+
+    drawerState.how = button.dataset.how
+    const drawer = document.getElementById('dlAddDrawer')
+    if (!drawer) return
+
+    howToPickIt(drawer)
+    if (drawerState.how === 'query') {
+      drawer.querySelector('#dlWrittenSql')?.focus()
+    }
+  })
+}
 
 /** The section whose heading starts with this text. */
 function sectionTitled(root, text) {
@@ -199,13 +404,19 @@ function restructure() {
   const flow = root.querySelector('#dbFlow')
   if (flow && flow.parentElement !== drawer) drawer.append(flow)
 
-  const search = root.querySelector('#ixAdd')
-  if (search && search.parentElement !== drawer) {
-    // The studio hides this until its own button is pressed. The drawer is
-    // what hides things now, so inside it this is always shown.
-    search.hidden = false
-    drawer.append(search)
-  }
+  /*
+   * The studio's tag search is not part of this flow.
+   *
+   * It offers a list of tag names to attach — `NEW_SAND_LEVEL_PCT`,
+   * `MIXER_STATUS` — which is a different question from the one being asked
+   * here. Adding a reading means saying where a number comes from: a database,
+   * then a table and a column, or a statement. A search over invented tag
+   * names at the top of that is a second route to a different place.
+   */
+  root.querySelector('#ixAdd')?.remove()
+
+  wireTheModeButtons()
+  howToPickIt(drawer)
 
   /*
    * The button moves to the one section, and opens the drawer rather than the
@@ -247,13 +458,30 @@ function restructure() {
   const block = item && typeof blockById === 'function' ? blockById(item) : null
   const picked = block?.props?.dbsel
 
+  /*
+   * Nothing chosen, and the steps arrive as the answers do.
+   *
+   * The studio fills the Database box in with the foundry's own database
+   * before anybody has picked one — `dbsel` defaults to it, marked `auto` —
+   * so the flow opened with a database named and its tables listed under it,
+   * for a database nobody had chosen.
+   *
+   * Two other arrangements were tried and are worth recording. Showing that
+   * default as selected while forcing the table step shut was the worst of
+   * the three: the panel named `aiw_data` and then refused to list its
+   * tables, which reads as broken. Recording the default as a real choice
+   * fixed the tables and left the first question answered by the panel rather
+   * than by the person. So: `Choose a database…`, and the table step opens
+   * the moment one is picked.
+   */
   if (block && (!picked || picked.auto)) {
     const database = drawer.querySelector('#dbDb')
-    if (database) database.value = firstSource(database)
+    if (database) database.value = ''
     for (const step of drawer.querySelectorAll('.db-step')) {
       const number = step.querySelector('i')?.textContent?.trim()
       if (number === '2' || number === '3') step.classList.add('off')
     }
+    drawer.querySelector('#dlStep4')?.classList.add('off', 'dl-hidden')
   }
 
   // And the same search over the flow's own table list — see table-search.mjs.
@@ -287,28 +515,74 @@ function restructure() {
   addSaveToReadings(connection)
   linkByDropdown(connection)
   showTheQuery(connection)
+  offerToBlink(connection)
+}
+
+/**
+ * "Watch this one" — a reading that blinks on the drawing, at its own rate.
+ *
+ * Under the checkbox that puts a value on the canvas, because it is the same
+ * subject: whether this reading is on the drawing, and how hard it is trying
+ * to be noticed. See `paintBlinks` in live.mjs for what it does to the label.
+ *
+ * The interval is in seconds for the whole on-off cycle, and it only appears
+ * once blinking is asked for — an input for a number nobody is using is a
+ * question with no reason to be on screen.
+ */
+function offerToBlink(section) {
+  const reg = peek('REG')
+  if (!reg) return
+
+  for (const card of section.querySelectorAll('.ix-card[data-tid]')) {
+    const tag = reg[card.dataset.tid]
+    if (!tag) continue
+
+    // The studio's own "On the canvas" group, found by the checkbox in it.
+    const canvas = card.querySelector('[data-ix="show"]')?.closest('.ix-grp')
+    if (!canvas || canvas.querySelector('.dl-blink-row')) continue
+
+    const seconds = blinkOf(tag)
+    const row = document.createElement('div')
+    row.className = 'dl-blink-row'
+    row.innerHTML =
+      '<label class="ix-c"><input type="checkbox" class="dl-blink-on"> Blink this value on the drawing</label>' +
+      '<label class="ix-f dl-blink-every">Blink every' +
+      '<span class="dl-blink-secs"><input type="number" class="dl-blink-sec" min="0.4" max="60" ' +
+      'step="0.1" inputmode="decimal"><small>seconds</small></span></label>'
+
+    const on = row.querySelector('.dl-blink-on')
+    const every = row.querySelector('.dl-blink-every')
+    const sec = row.querySelector('.dl-blink-sec')
+
+    on.checked = !!seconds
+    // Two seconds is a blink somebody notices without the screen flickering.
+    sec.value = seconds ?? 2
+    every.hidden = !seconds
+
+    const apply = () => {
+      if (!on.checked) delete tag.blink
+      else {
+        const typed = Number(sec.value)
+        tag.blink = Number.isFinite(typed) && typed > 0 ? typed : 2
+      }
+      every.hidden = !on.checked
+      persist()
+      paintBlinks()
+    }
+
+    on.onchange = apply
+    sec.onchange = apply
+    // While it is being typed, so the rate can be judged against the drawing.
+    sec.oninput = apply
+
+    // Under the checkbox, above the Trend / All tag settings / Remove row.
+    const actions = canvas.querySelector('.ix-acts')
+    if (actions) actions.before(row)
+    else canvas.append(row)
+  }
 }
 
 /* ------------------------------------------- naming it, and checking it first ---*/
-
-/**
- * Which source the flow opens on: the first real one in the list.
- *
- * It opened on nothing, so every reading began by choosing a source again —
- * and on a plant with one database that is a question with one answer. Read
- * from the list as it stands rather than named here, so whatever the studio
- * offers first is what is chosen: no source name is written into this code,
- * and a plant with none still opens on nothing.
- *
- * The simulated entries are skipped. They demonstrate the editor with no
- * plant behind it, and a reading that opens on one shows an invented number
- * by default.
- */
-function firstSource(select) {
-  const real = [...(select?.options || [])].find(option =>
-    option.value && !/^__/.test(option.value) && !/simulated|demo/i.test(option.textContent))
-  return real?.value || ''
-}
 
 /** The three dropdowns' current answer, as the preview endpoint wants it. */
 function chosen(drawer) {
@@ -317,9 +591,28 @@ function chosen(drawer) {
   return {
     source,
     database,
-    table: drawer.querySelector('#dbTbl')?.value || '',
-    column: drawer.querySelector('#dbCol')?.value || '',
+    table: valueOf(drawer.querySelector('#dbTbl')),
+    column: valueOf(drawer.querySelector('#dbCol')),
   }
+}
+
+/**
+ * A disabled dropdown has no answer in it, whatever it reads.
+ *
+ * While the tables are loading the studio renders
+ * `<select id="dbTbl" disabled><option>Loading tables…</option></select>`, and
+ * an `<option>` with no `value` attribute takes its text as its value — so
+ * this returned the string "Loading tables…" and everything downstream
+ * believed a table had been chosen. Step 4 opened on it, the statement preview
+ * drew `FROM \`Loading tables…\``, and Read now offered to go and read it.
+ *
+ * The same is true of "Choose a database first" and "Tables could not be
+ * loaded": each is a sentence in the position where a name belongs, and each
+ * arrives on a select the studio has disabled. That is the thing to test —
+ * disabled means there is nothing to answer with yet.
+ */
+function valueOf(select) {
+  return select && !select.disabled ? select.value || '' : ''
 }
 
 /**
@@ -335,6 +628,81 @@ function chosen(drawer) {
  * answered while the question is still being asked rather than by adding a
  * reading and watching it say "No record".
  */
+/**
+ * What the new reading will be ordered by, filtered to, and will run.
+ *
+ * Refilled whenever the table changes, because every one of these is a list of
+ * that table's columns. The answers are kept on `drawerState` rather than on a
+ * tag, because there is no tag yet — `dbAddTag` applies them the moment it
+ * makes one.
+ */
+function fillTheNewReadingsChoices(drawer, step) {
+  const newest = step.querySelector('#dlNewNewest')
+  const key = step.querySelector('#dlNewKey')
+  const op = step.querySelector('#dlNewOp')
+  const value = step.querySelector('#dlNewKeyVal')
+  const shown = step.querySelector('.dl-new-sql')
+
+  const option = (v, label, selected) =>
+    `<option value="${String(v).replaceAll('"', '&quot;')}"${selected ? ' selected' : ''}>${label}</option>`
+
+  const refill = () => {
+    const pick = chosen(drawer)
+    const table = tableInTheFlow(drawer, pick.table)
+    const columns = table?.cols || []
+
+    const choices = orderingChoices(table)
+    newest.innerHTML = choices.map((column, at) =>
+      option(column.n, column.n, at === 0)).join('') ||
+      option('', 'Whatever the database returns first', true)
+
+    key.innerHTML = option('', 'every row', true) +
+      columns.map(column => option(column.n, column.n)).join('')
+
+    say()
+  }
+
+  const say = () => {
+    const pick = chosen(drawer)
+    if (!pick.table || !pick.column) { shown.textContent = ''; return }
+
+    const filtered = !!(key.value && value.value.trim())
+    shown.textContent =
+      `SELECT \`${pick.column}\`` +
+      (newest.value ? `, \`${newest.value}\`` : '') +
+      ` FROM \`${pick.table}\`` +
+      (filtered ? ` WHERE \`${key.value}\` ${op.value} '${value.value.trim()}'` : '') +
+      (newest.value ? ` ORDER BY \`${newest.value}\` DESC` : '') +
+      ' LIMIT 1'
+
+    drawerState.newest = newest.value || null
+    drawerState.filter = filtered
+      ? { col: key.value, op: op.value, val: value.value.trim() }
+      : null
+  }
+
+  for (const control of [newest, key, op]) control.onchange = say
+  value.oninput = say
+  drawer.querySelector('#dbTbl')?.addEventListener('change', refill)
+  drawer.querySelector('#dbCol')?.addEventListener('change', say)
+  refill()
+}
+
+/** The chosen table's catalogue entry, for its columns. */
+function tableInTheFlow(drawer, name) {
+  if (!name) return null
+  const resolve = peek('SRC')
+  const sourceId = String(drawer.querySelector('#dbDb')?.value || '').split('|')[0]
+  try {
+    const source = typeof resolve === 'function' ? resolve(sourceId) : null
+    const groups = source ? window.catalog?.(source) : null
+    const group = Array.isArray(groups) ? groups[0] : null
+    return group?.tables?.find(entry => entry.name === name) || null
+  } catch {
+    return null
+  }
+}
+
 function addNameAndTest(drawer) {
   if (drawer.querySelector('#dlStep4')) return
 
@@ -347,8 +715,29 @@ function addNameAndTest(drawer) {
       '<label class="ix-f">Name this reading' +
         '<input id="dlReadingName" placeholder="Bentonite bin level" autocomplete="off">' +
       '</label>' +
+      /*
+       * The two things a chart needs, asked for before the reading exists.
+       *
+       * They used to be on the reading's own card, which meant adding a
+       * reading, finding it in the list, opening it and setting them — for
+       * every reading, when the answer is the same for all of them on one
+       * table. Asked here they are part of saying what the reading is.
+       */
+      '<label class="ix-f">Newest by, for the chart' +
+        '<select id="dlNewNewest"></select>' +
+      '</label>' +
+      '<label class="ix-f">Only rows where' +
+        '<span class="dl-link-where">' +
+          '<select id="dlNewKey"></select>' +
+          '<select id="dlNewOp">' +
+          ['=', '!=', '>', '<', '>=', '<='].map(op => `<option>${op}</option>`).join('') +
+          '</select>' +
+          '<input id="dlNewKeyVal" class="mono" placeholder="value" spellcheck="false">' +
+        '</span>' +
+      '</label>' +
+      '<code class="dl-new-sql"></code>' +
       '<div class="dl-step4-acts">' +
-        '<button type="button" class="sb" id="dlTestRead">Test</button>' +
+        '<button type="button" class="sb" id="dlTestRead">Read now</button>' +
         '<span class="note" id="dlTestSays"></span>' +
       '</div>' +
     '</div>'
@@ -357,13 +746,28 @@ function addNameAndTest(drawer) {
   if (flow) flow.append(step)
   else drawer.prepend(step)
 
+  fillTheNewReadingsChoices(drawer, step)
+
   const says = step.querySelector('#dlTestSays')
   const tell = (text, tone = '') => { says.innerHTML = `<span class="${tone}">${escapeText(text)}</span>` }
 
-  // Step 4 belongs with step 3: there is nothing to name or test until a
-  // column has been picked.
-  const follow = () => step.classList.toggle('off', !chosen(drawer).column)
+  /*
+   * Step 4 waits for the column.
+   *
+   * Naming a reading, ordering it and filtering it are all questions about one
+   * column, and the statement preview cannot be written without it — a preview
+   * of `SELECT ? FROM RTC Data` is three dropdowns and a blank. So it stays
+   * out of the way until there is something to describe.
+   */
+  const follow = () => {
+    const waiting = !chosen(drawer).column
+    // `.off` hides a step inside the drawer and greys its number elsewhere;
+    // `.dl-hidden` is the one that cannot be overruled by a display rule.
+    step.classList.toggle('off', waiting)
+    step.classList.toggle('dl-hidden', waiting)
+  }
   follow()
+  drawer.querySelector('#dbTbl')?.addEventListener('change', follow)
   drawer.querySelector('#dbCol')?.addEventListener('change', follow)
 
   step.querySelector('#dlTestRead').onclick = async () => {
@@ -442,6 +846,8 @@ const BOOKKEEPING = /^_|watermark|sync|etl|ingest|inserted|created_?at$|load_?ts
  * bookkeeping ones.
  */
 function newestBy(link, table) {
+  // A combined date and time shows as the one entry it was chosen from.
+  if (link.tcol && link.tcol2) return `${link.tcol} + ${link.tcol2}`
   if (link.tcol) return link.tcol
   return orderingChoices(table)[0]?.n || null
 }
@@ -476,6 +882,51 @@ function tableOf(link) {
   }
 }
 
+/** Text columns a plant keeps its date and its time of day in. */
+const DATEISH = /(^|_)date($|_)|^d$/i
+const TIMEISH = /(^|_)time($|_)|^t$/i
+
+/**
+ * A date column and a time column, where the table has them as text.
+ *
+ * Not every plant table has a `datetime`. `pouring_data` keeps `10-22-2026`
+ * in `Date` and `13:35:35` in `Time`, both text, and its only real timestamps
+ * are a copying tool's. Those two together are the moment a pour happened,
+ * and offering them as one choice is how somebody says so.
+ */
+function datePair(table) {
+  const columns = table?.cols || []
+  /*
+   * The date half may be a `datetime`, not only text.
+   *
+   * `RTC Data` keeps `Det` as a `datetime` that is always midnight, with the
+   * real time of day in a `Time` text column beside it. Requiring both halves
+   * to be text left that table — the one that most needs the combination —
+   * unable to have it.
+   */
+  /*
+   * A `datetime` column needs no name test; a text one does.
+   *
+   * The date half was matched on its name containing "date", which ruled out
+   * `Det` — the `datetime` column on `RTC Data` that holds the day — so the
+   * one table that most needed the combination never offered it. A column the
+   * database already calls a date does not have to be called one as well;
+   * only a text column has to prove itself by its name.
+   */
+  const date = columns.find(column => column.t === 'datetime' && !BOOKKEEPING.test(column.n)) ||
+    columns.find(column => column.t === 'varchar' && DATEISH.test(column.n))
+  const time = columns.find(column => column.t === 'varchar' && TIMEISH.test(column.n))
+  return date && time ? { date: date.n, time: time.n } : null
+}
+
+/** `Date + Time`, as one value for the dropdown. */
+const PAIR_JOIN = ' + '
+export const pairValue = pair => `${pair.date}${PAIR_JOIN}${pair.time}`
+const pairFrom = value =>
+  (String(value).includes(PAIR_JOIN)
+    ? { date: value.split(PAIR_JOIN)[0], time: value.split(PAIR_JOIN)[1] }
+    : null)
+
 function orderingChoices(table) {
   const columns = (table?.cols || []).filter(column =>
     column.t === 'datetime' || /(^|_)id$/i.test(column.n) || column.t === 'int')
@@ -483,9 +934,31 @@ function orderingChoices(table) {
   const rank = column =>
     (BOOKKEEPING.test(column.n) ? 2 : 0) + (column.t === 'datetime' ? 0 : 1)
 
-  return columns
+  const listed = columns
     .map((column, order) => ({ ...column, order }))
     .sort((a, b) => rank(a) - rank(b) || a.order - b.order)
+
+  /*
+   * The combined pair first, where there is one.
+   *
+   * It is the plant's own moment, and the alternative on a table like that is
+   * a replication watermark — so it leads, and the rest follow in the order
+   * they always did.
+   */
+  /*
+   * The merged pair is offered, not forced.
+   *
+   * Whether a `datetime` column actually carries a time of day is a question
+   * about the data, not the schema — `Det` is a `datetime` whose every value
+   * is midnight — and the panel has only the schema. So the entry is listed
+   * and somebody chooses it; the server, which can see the rows, uses the
+   * merge automatically only where the `datetime` has no clock in it. See
+   * `stampFromParts`.
+   */
+  const pair = datePair(table)
+  return pair
+    ? [{ n: pairValue(pair), t: 'datetime', pair }, ...listed]
+    : listed
 }
 
 /**
@@ -502,20 +975,54 @@ function orderingChoices(table) {
  * that read amounts to: the same database, table, column and ordering, said
  * in SQL rather than in prose. It is labelled as such by the caller.
  */
-function statementFor(source, link, table) {
+function statementFor(source, link, table, tagId) {
   const engine = source?.engine || ENGINE_OF[source?.type]
   const quote = QUOTE[engine]
   if (!quote || !link?.table || !link?.col) return null
 
-  const where = source?.db ? `${quote(source.db)}.${quote(link.table)}` : quote(link.table)
-  const order = newestBy(link, table)
+  /*
+   * The table on its own, not `database`.`table`.
+   *
+   * This used to write the database in front, and the server's statement does
+   * not — the connection is already open on that database, so there is nothing
+   * to qualify. The result was two statements for one reading in one box:
+   * `FROM \`aiw_data\`.\`RTC Data\`` before Read now and `FROM \`RTC Data\``
+   * after it, which reads as the button having changed the query.
+   *
+   * Qualifying the server's side instead would not travel: `db.table` means
+   * schema.table on SQL Server and is not addressable at all on Postgres. The
+   * database is named on the card above either way.
+   */
+  const where = quote(link.table)
   const filtered = !!(link.keyCol && link.keyVal)
 
-  const whole = `SELECT ${quote(link.col)}` +
-    (order ? `, ${quote(order)}` : '') +
+  /*
+   * The same two columns, under the same two names, as the chart's statement.
+   *
+   * This said `SELECT \`C10\` AS value, \`Det\` AS at` while the chart said
+   * `AS \`BENTONITE_LEVEL_PCT\`, … AS \`datetime\`` — two statements for one
+   * reading, disagreeing about what they select. A merged date and time shows
+   * as the pair it is, since that is what "Newest by" was set to.
+   */
+  const named = quote(String(tagId || link.col))
+  /*
+   * The date column alone, even where "Newest by" names a merged pair.
+   *
+   * This statement finds one row — the latest value — and the date is
+   * enough to order by for that. Merging the time in is what the chart
+   * needs, to place points through a window. Showing the merge here while
+   * Read now reported the plain column was the same reading described two
+   * ways, which is the thing to avoid.
+   */
+  const moment = link.tcol ? quote(link.tcol) : null
+
+  const whole = `SELECT ${quote(link.col)} AS ${named}` +
+    (moment ? `, ${moment} AS ${quote('datetime')}` : '') +
     ` FROM ${where}` +
-    (filtered ? ` WHERE ${quote(link.keyCol)} = ?` : '') +
-    (order ? ` ORDER BY ${quote(order)} DESC` : '')
+    // With the comparison that was chosen, and the value written in rather
+    // than left as `?` — this is read, not run, and `?` tells nobody anything.
+    (filtered ? ` WHERE ${quote(link.keyCol)} ${link.keyOp || '='} '${String(link.keyVal).replaceAll("'", "''")}'` : '') +
+    (moment ? ` ORDER BY ${quote('datetime')} DESC` : '')
 
   return /^(sqlserver|azuresql)$/.test(engine)
     ? whole.replace(/^SELECT /, 'SELECT TOP 1 ')
@@ -567,7 +1074,8 @@ function showTheQuery(section) {
       table = group?.tables?.find(entry => entry.name === link.table) || null
     } catch { /* no catalogue — the statement simply has no ORDER BY */ }
 
-    const statement = statementFor(source, link, table)
+    // The tag id is the alias the chart uses, so it is passed in too.
+    const statement = statementFor(source, link, table, card.dataset.tid)
 
     let box = card.querySelector('.dl-query')
     if (!box) {
@@ -579,6 +1087,21 @@ function showTheQuery(section) {
         '<button type="button" data-q="auto" class="on">From the dropdowns</button>' +
         '<button type="button" data-q="own">Write your own</button>' +
         '</div>' +
+        /*
+         * One box, and a choice of which statement is in it.
+         *
+         * A reading runs two: one row for the value beside it on the canvas,
+         * and a window of rows for the chart. Both were appearing in this box
+         * — the latest-value one drawn here, then whatever the last read
+         * reported — so the statement changed under somebody who had not
+         * touched anything, and neither text said which of the two it was.
+         *
+         * Now the dropdown says, and Read now reads that one.
+         */
+        '<select class="dl-query-what">' +
+        '<option value="latest">Latest value</option>' +
+        '<option value="chart">For the chart</option>' +
+        '</select>' +
         '<button type="button" class="sb dl-query-go"></button>' +
         '</div>' +
         '<code class="dl-query-sql"></code>' +
@@ -606,6 +1129,7 @@ function showTheQuery(section) {
     const says = box.querySelector('.dl-query-says')
     const rows = box.querySelector('.dl-sql-rows')
     const go = box.querySelector('.dl-query-go')
+    const what = box.querySelector('.dl-query-what')
     const acts = box.querySelector('.dl-query-acts')
     const adopt = box.querySelector('.dl-query-adopt')
     const drop = box.querySelector('.dl-query-drop')
@@ -625,7 +1149,7 @@ function showTheQuery(section) {
       ? link.sql + '\n-- this reading runs your query, every poll.'
       : statement
         ? statement +
-          (link.keyCol && link.keyVal ? `    — with ? = ${link.keyVal}` : '') +
+
           (connection ? '' : '\n-- SandMan runs the read; this is what it comes to.')
         : `SandMan reads the newest ${link.table}.${link.col} for this line.`
 
@@ -634,14 +1158,32 @@ function showTheQuery(section) {
       says.className = `note dl-query-says ${tone}`
     }
 
+    /*
+     * The chart's statement is the server's, never one drawn here.
+     *
+     * It is built in `recentValues` out of things only that end knows — which
+     * column the table's clock really is, whether a date and a time have to be
+     * read as one, where the window starts in the data's own frame. Drawing an
+     * approximation of it here is how this box came to show two statements in
+     * the first place, so it shows nothing until the chart has been read and
+     * then shows exactly what ran.
+     */
+    const kept = { latest: null, chart: null }
+
     const show = mode => {
       box.dataset.mode = mode
       for (const tab of box.querySelectorAll('[data-q]')) {
         tab.classList.toggle('on', tab.dataset.q === mode)
       }
       shown.hidden = mode !== 'auto'
+      what.hidden = mode !== 'auto'
       editor.hidden = mode !== 'own'
       go.textContent = mode === 'auto' ? 'Read now' : 'Run'
+      if (mode === 'auto') {
+        shown.textContent = what.value === 'chart'
+          ? kept.chart || 'Press Read now for the statement the chart runs over its window.'
+          : kept.latest || fromDropdowns
+      }
       rows.innerHTML = ''
       says.textContent = ''
 
@@ -670,11 +1212,46 @@ function showTheQuery(section) {
       }
     }
 
-    shown.textContent = fromDropdowns
     show(box.dataset.mode || 'auto')
 
     for (const tab of box.querySelectorAll('[data-q]')) {
       tab.onclick = () => show(tab.dataset.q)
+    }
+    what.onchange = () => show(box.dataset.mode || 'auto')
+
+    /**
+     * The window the chart reads, so the statement shown is the chart's own.
+     *
+     * Two hours, which is what a trend opens on — see DEFAULT_WINDOW in
+     * live.mjs. Asking for a different span here would report a statement with
+     * a different WHERE from the one the chart runs, which is the whole thing
+     * this box exists to stop.
+     */
+    const readTheChart = async () => {
+      const loop = watching()
+      if (!loop) { tell('Open a loop first.'); return }
+
+      tell('Reading…')
+      try {
+        const answer = await api.get(
+          `/live/chart?loopId=${encodeURIComponent(loop)}` +
+          `&tag=${encodeURIComponent(card.dataset.tid)}&windowSeconds=7200`)
+
+        kept.chart = answer?.query || null
+        if (kept.chart) shown.textContent = kept.chart
+
+        const count = answer?.series?.length || 0
+        tell(count
+          ? `${count} record${count === 1 ? '' : 's'}` +
+            `${answer.dateFrom ? ` · ${answer.dateFrom} → ${answer.dateTo}` : ''}`
+          : 'That window held no records', count ? 'tx0' : 'tx2')
+      } catch (error) {
+        // A refusal carries the statement it refused on, which is the one
+        // somebody opened this box to see.
+        kept.chart = error?.detail?.query || kept.chart
+        if (kept.chart) shown.textContent = kept.chart
+        tell(error?.message || 'That chart could not be read', 'tx3')
+      }
     }
 
     /** One row, through the reading's own path. */
@@ -687,20 +1264,25 @@ function showTheQuery(section) {
         const answer = await api.post('/live/preview', {
           loopId: loop,
           source: link.src,
+          // So the statement it reports is aliased like the one shown above it.
+          tagId: card.dataset.tid,
           ...(driven
             ? { sql: link.sql }
             : {
                 table: link.table,
                 column: link.col,
-                ...(link.keyCol && link.keyVal ? { keyColumn: link.keyCol, keyValue: link.keyVal } : {}),
+                ...(link.keyCol && link.keyVal
+                  ? { keyColumn: link.keyCol, keyValue: link.keyVal, keyOp: link.keyOp || '=' }
+                  : {}),
                 ...(link.tcol ? { timeColumn: link.tcol } : {}),
               }),
         })
 
         // The statement the server actually ran, in place of ours.
         if (answer?.query) {
-          shown.textContent = answer.query +
+          kept.latest = answer.query +
             (answer.params?.length ? `    — with ? = ${answer.params.join(', ')}` : '')
+          shown.textContent = kept.latest
         }
 
         const took = Number.isFinite(answer?.tookMs) ? ` · ${answer.tookMs} ms` : ''
@@ -792,7 +1374,8 @@ function showTheQuery(section) {
       window.renderProps?.()
     }
 
-    go.onclick = () => (box.dataset.mode === 'own' ? runOwn() : readNow())
+    go.onclick = () =>
+      box.dataset.mode === 'own' ? runOwn() : what.value === 'chart' ? readTheChart() : readNow()
     editor.onkeydown = event => {
       // Enter runs it; Shift+Enter is a new line, as in every query box.
       if (event.key === 'Enter' && !event.shiftKey) {
@@ -876,13 +1459,38 @@ function linkByDropdown(section) {
        * order from the events, and nothing on screen said which column was
        * being trusted. Now it says, and it can be changed.
        */
-      '<label class="ix-f dl-link-orderf">Newest by<select class="dl-link-order"></select></label>'
+      '<label class="ix-f dl-link-orderf">Newest by<select class="dl-link-order"></select></label>' +
+      /*
+       * Which rows, where a table holds more than this line's.
+       *
+       * One table commonly carries every line in the plant — `foundry_line_id`,
+       * `line_no`, `machine` — so a reading on it charts three lines' readings
+       * interleaved and calls the result a trend. The column and the value are
+       * both chosen, never guessed: a filter invented from a table's first
+       * text column is how `created_by = 'BEN-BIN'` got written into a loop
+       * and matched nothing at all.
+       *
+       * Left empty, there is no WHERE and the reading sees the whole table,
+       * which is right for a table that only holds one line.
+       */
+      '<label class="ix-f dl-link-wheref">Only rows where' +
+      '<span class="dl-link-where"><select class="dl-link-key"></select>' +
+      // Equality answers "this line"; the rest answer "above this batch",
+      // "anything but the trial line", and the other half of the questions.
+      '<select class="dl-link-op">' +
+      ['=', '!=', '>', '<', '>=', '<='].map(op => `<option>${op}</option>`).join('') +
+      '</select>' +
+      '<input class="dl-link-keyval mono" placeholder="value" spellcheck="false"></span></label>'
 
     const tableSelect = row.querySelector('.dl-link-table')
     const columnSelect = row.querySelector('.dl-link-col')
     const columnField = row.querySelector('.dl-link-colf')
     const orderSelect = row.querySelector('.dl-link-order')
     const orderField = row.querySelector('.dl-link-orderf')
+    const keySelect = row.querySelector('.dl-link-key')
+    const keyOp = row.querySelector('.dl-link-op')
+    const keyValue = row.querySelector('.dl-link-keyval')
+    const keyField = row.querySelector('.dl-link-wheref')
 
     /*
      * A reading driven by its own statement has no use for these: the query
@@ -923,14 +1531,117 @@ function linkByDropdown(section) {
       orderSelect.innerHTML = choices
         .map(column => option(column.n, column.n, column.n === using)).join('') +
         option('', 'Whatever the database returns first', !using)
+
+      /*
+       * And which rows, if the table holds more than this line's.
+       *
+       * Every column is offered rather than a guessed shortlist — a plant
+       * calls it `foundry_line_id`, `line_no`, `machine` or something only it
+       * knows — with "every row" first, because that is the right answer for
+       * a table that holds one line and is the answer nobody should have to
+       * go looking for.
+       */
+      const chosen = tag.link?.keyCol || ''
+      keyField.hidden = !tableSelect.value
+      keySelect.innerHTML = option('', 'every row', !chosen) +
+        columns.map(column => option(column.n, column.n, column.n === chosen)).join('')
+      keyOp.hidden = !chosen
+      keyOp.value = tag.link?.keyOp || '='
+      keyValue.hidden = !chosen
+      keyValue.value = tag.link?.keyVal || ''
     }
     fillColumns()
+
+    const applyFilter = () => {
+      const link = tag.link
+      if (!link) return
+      const column = keySelect.value
+      const value = keyValue.value.trim()
+      keyOp.hidden = !column
+      keyValue.hidden = !column
+
+      // Both halves or neither: a column with no value matches nothing, which
+      // is the failure this control exists to stop somebody walking into.
+      if (column && value) {
+        link.keyCol = column
+        link.keyVal = value
+        link.keyOp = keyOp.value || '='
+      } else {
+        delete link.keyCol
+        delete link.keyVal
+        delete link.keyOp
+      }
+      persist()
+    }
+
+    /*
+     * Choosing the column shows the box to type the value in — and nothing
+     * more until both are there.
+     *
+     * Redrawing the panel here was wrong twice over: `applyFilter` only
+     * stores a filter when it has both halves, so a column chosen with no
+     * value yet was never stored, and the redraw then read it back as "every
+     * row" and hid the box again. Choosing a column looked like it did
+     * nothing at all.
+     */
+    keySelect.onchange = () => {
+      keyOp.hidden = !keySelect.value
+      keyValue.hidden = !keySelect.value
+      applyFilter()
+      if (keySelect.value) keyValue.focus()
+    }
+    keyOp.onchange = applyFilter
+
+    /*
+     * Stored as it is typed, not when the box loses focus.
+     *
+     * `onchange` on a text input fires on blur — so a filter typed and then
+     * read straight off the statement below showed no WHERE at all, because
+     * nothing had been stored yet. It looked exactly like the filter being
+     * ignored, which is the one thing it must not look like.
+     */
+    /*
+     * Stored a moment after the typing stops, not on every keystroke.
+     *
+     * `onchange` alone was too late — it fires on blur, so a filter typed and
+     * then read off the statement below showed no WHERE and looked ignored.
+     * Storing on every keystroke was too eager the other way: each one saved,
+     * which redrew the panel, which took the caret and the scroll position
+     * with it. Half a second of quiet is the difference.
+     */
+    let settling = null
+    keyValue.oninput = () => {
+      keyField.classList.toggle('dl-needs-value', !!keySelect.value && !keyValue.value.trim())
+      clearTimeout(settling)
+      settling = setTimeout(applyFilter, 500)
+    }
+    keyValue.onblur = () => {
+      clearTimeout(settling)
+      applyFilter()
+    }
 
     orderSelect.onchange = () => {
       const link = tag.link
       if (!link) return
-      if (orderSelect.value) link.tcol = orderSelect.value
-      else delete link.tcol
+
+      /*
+       * One column, or a date and a time read as one moment.
+       *
+       * The pair is stored as both halves rather than as the joined label,
+       * so the server never has to take a string apart to find out what was
+       * meant — see `timeColumn2` in live-tags.js.
+       */
+      const pair = pairFrom(orderSelect.value)
+      if (pair) {
+        link.tcol = pair.date
+        link.tcol2 = pair.time
+      } else if (orderSelect.value) {
+        link.tcol = orderSelect.value
+        delete link.tcol2
+      } else {
+        delete link.tcol
+        delete link.tcol2
+      }
       persist()
       window.renderProps?.()
     }
@@ -966,20 +1677,28 @@ function linkByDropdown(section) {
       if (!link || !table) return
 
       /*
-       * No row filter is invented here, for any database.
+       * No row filter is invented here, and one that was chosen survives.
        *
        * The studio fills one in from the table's first text column and the
        * equipment's name: `created_by = 'BEN-BIN'` on a table whose
        * `created_by` holds user names. It matches nothing, so the reading
-       * says "no record" while the column it points at is full — proved
-       * against the plant's own SandMan, where the same reading answers with
-       * a value once the filter is gone.
+       * says "no record" while the column it points at is full.
        *
-       * A filter is worth having only when somebody chooses it, and nothing
-       * offers that choice yet.
+       * What somebody chose in "Only rows where" is a different thing and is
+       * kept — unless the table itself changed, because a filter naming a
+       * column that table does not have would quietly match nothing.
        */
-      delete link.keyCol
-      delete link.keyVal
+      const sameTable = had.table === tableSelect.value
+      const chosenFilter = sameTable && had.keyCol && had.keyVal &&
+        table.cols?.some(column => column.n === had.keyCol)
+
+      if (chosenFilter) {
+        link.keyCol = had.keyCol
+        link.keyVal = had.keyVal
+      } else {
+        delete link.keyCol
+        delete link.keyVal
+      }
 
       /*
        * A timestamp the plant writes, in preference to one a copying tool
@@ -988,7 +1707,11 @@ function linkByDropdown(section) {
        * column is in use and changes it.
        */
       const stamp = orderingChoices(table)[0]?.n
-      if (stamp) link.tcol = stamp
+      if (stamp) {
+        const picked = orderingChoices(table)[0]
+        if (picked?.pair) { link.tcol = picked.pair.date; link.tcol2 = picked.pair.time }
+        else { link.tcol = stamp; delete link.tcol2 }
+      }
 
       persist()
     }
@@ -1099,8 +1822,32 @@ function scrubInventedValues() {
          * plant column above a copying tool's, which is the same answer the
          * Table and Column dropdowns give when a reading is relinked there.
          */
-        const stamp = orderingChoices(tableOf(tag.link))[0]?.n
-        if (stamp) tag.link.tcol = stamp
+        const choices = orderingChoices(tableOf(tag.link))
+
+        /*
+         * What was chosen in the flow, or the best guess if nothing was.
+         *
+         * "Newest by, for the chart" and "Only rows where" are answered while
+         * the reading is being added, so they are applied here — the one
+         * moment the tag exists and nothing has read it yet.
+         */
+        const asked = drawerState.newest
+          ? choices.find(column => column.n === drawerState.newest) || null
+          : choices[0] || null
+
+        if (asked?.pair) {
+          tag.link.tcol = asked.pair.date
+          tag.link.tcol2 = asked.pair.time
+        } else if (asked) {
+          tag.link.tcol = asked.n
+          delete tag.link.tcol2
+        }
+
+        if (drawerState.filter) {
+          tag.link.keyCol = drawerState.filter.col
+          tag.link.keyVal = drawerState.filter.val
+          tag.link.keyOp = drawerState.filter.op || '='
+        }
       }
 
       /*
@@ -1112,6 +1859,10 @@ function scrubInventedValues() {
        * stays as the studio made it, because the document and the server index
        * are keyed on it.
        */
+      // Used once: the next reading answers these for itself.
+      drawerState.newest = null
+      drawerState.filter = null
+
       const typed = document.querySelector('#dlReadingName')?.value.trim()
       if (typed) tag.desc = typed
     }

@@ -206,11 +206,23 @@ live.post('/preview', async ({ user, body }) => {
     throw badRequest('invalid_field', 'A table and a column, or a query, are required.')
   }
 
-  const tag = written ? { id: 'preview', sql: written } : { id: 'preview', table, column }
+  /*
+   *  is how the answer is keyed, not what the statement calls it.
+   *
+   * The reported SQL aliases the column by the tag id, and using the
+   * internal key gave the card  before Read now and the real
+   * name after — the same statement disagreeing with itself.
+   */
+  const callItWhat = String(body?.tagId || 'preview').slice(0, 120)
+  const tag = written
+    ? { id: 'preview', named: callItWhat, sql: written }
+    : { id: 'preview', named: callItWhat, table, column }
   if (!written) {
     if (body?.keyColumn && body?.keyValue) {
       tag.keyColumn = String(body.keyColumn)
       tag.keyValue = String(body.keyValue)
+      // Checked against a list in db-connect.js, never interpolated.
+      if (body.keyOp) tag.keyOp = String(body.keyOp)
     }
     if (body?.timeColumn) tag.timeColumn = String(body.timeColumn)
   }
@@ -316,9 +328,13 @@ live.get('/chart', async ({ user, query }) => {
     const points = Number(query.points)
     let series
     try {
+      /* The window the chart is showing, so the database is asked for that
+         rather than for two hundred rows the studio then throws away. */
+      const seconds = Number(query.windowSeconds)
       series = await recentValues(
         connection, mine,
-        Number.isFinite(points) && points >= 1 ? Math.round(points) : 200
+        Number.isFinite(points) && points >= 1 ? Math.round(points) : 200,
+        Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 31 * 24 * 3600) : null
       )
     } catch (error) {
       /*
@@ -330,7 +346,9 @@ live.get('/chart', async ({ user, query }) => {
        */
       throw unprocessable(
         'chart_unreadable',
-        String(error?.message || 'Those records could not be read.').slice(0, 300)
+        String(error?.message || 'Those records could not be read.').slice(0, 300),
+        // What was run, so Preview data can open on it and be edited.
+        error?.statement ? { query: String(error.statement) } : undefined
       )
     }
 
@@ -342,6 +360,10 @@ live.get('/chart', async ({ user, query }) => {
       series: series.map(record => ({ value: record.value, recordedAt: record.recordedAt })),
       processControl: null,
       source: connection.label,
+      /** The statement these records came from — see `withStatement`. */
+      query: series.statement || null,
+      /** Its two columns, named by the statement that was actually run. */
+      columns: series.columns || null,
     }
   }
 
@@ -363,6 +385,7 @@ live.get('/chart', async ({ user, query }) => {
     column: tag.column,
     ...(tag.keyColumn ? { keyColumn: tag.keyColumn } : {}),
     ...(tag.keyValue ? { keyValue: tag.keyValue } : {}),
+    ...(tag.keyOp ? { keyOp: tag.keyOp } : {}),
     ...(DATE.test(query.dateFrom || '') ? { dateFrom: query.dateFrom } : {}),
     ...(DATE.test(query.dateTo || '') ? { dateTo: query.dateTo } : {}),
     ...(Number.isFinite(points) && points >= 1 && points <= 2000

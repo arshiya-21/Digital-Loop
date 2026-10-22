@@ -660,6 +660,8 @@ L1.DISA1.CYC,Molding cycle time,s,OPC UA,ns=2;s=L1.DISA1.Cycle,9.5,8.5,10.5,0.3,
 TR.sig = 'cfg';
 TR.basis = 'typ';
 TR.alm = false;
+/* The σ bands — zones, lines and labels — are on until somebody turns them off. */
+TR.bands = true;
 function ccStats(pts, t) {
   const vs = pts.map(p => p.v),
     n = vs.length,
@@ -669,11 +671,22 @@ function ccStats(pts, t) {
   const mrb = mr.length ? mr.reduce((a, b) => a + b, 0) / mr.length : 0,
     sdw = n > 1 ? Math.sqrt(vs.reduce((a, v) => a + (v - mean) ** 2, 0) / (n - 1)) : 0,
     sp = spec(t);
-  const sigma = Math.max(
-      TR.sig === 'cfg' ? sp.sd : TR.sig === 'sd' ? sdw : mrb / 1.128,
-      Math.abs(t.typ) * 1e-6,
-      1e-9,
-    ),
+  /*
+   * σ from the data, and the configured σ when the data has none.
+   *
+   * A run of identical readings — a column parked on one value, a line that
+   * has not moved — has a standard deviation of nought, and a nought σ is not
+   * a control chart: all six band lines land on the centre line and the chart
+   * loses the one thing it is for. The configured σ (or the one suggested from
+   * the alarm limits) stands in, so the bands are drawn where the limits say
+   * they should be and the flat run is visible against them.
+   *
+   * Nothing is hidden by this: the stats row below reports "σ used" and "σ of
+   * data" separately, so a nought spread still says so.
+   */
+  const asked = TR.sig === 'cfg' ? sp.sd : TR.sig === 'sd' ? sdw : mrb / 1.128;
+  const spread = asked > 0 ? asked : sp.sd > 0 ? sp.sd : Math.abs(t.typ) * 0.02;
+  const sigma = Math.max(spread, Math.abs(t.typ) * 1e-6, 1e-9),
     cl = TR.basis === 'typ' ? t.typ : mean;
   return {
     vs,
@@ -720,7 +733,7 @@ function openTrend(id) {
    .join('')}</div>
   <span class="note">Centre</span><select id="trBasis"><option value="typ" ${TR.basis === 'typ' ? 'selected' : ''}>Optimal (${f(sp.opt)})</option><option value="win" ${TR.basis === 'win' ? 'selected' : ''}>Process mean (window)</option></select>
   <span class="note">σ</span><select id="trSig"><option value="cfg" ${TR.sig === 'cfg' ? 'selected' : ''}>Configured (${fmtN(sp.sd, (t.d || 0) + 2)})</option><option value="mr" ${TR.sig === 'mr' ? 'selected' : ''}>From data — moving range</option><option value="sd" ${TR.sig === 'sd' ? 'selected' : ''}>From data — std. deviation</option></select>
-  <label class="chk"><input type="checkbox" id="trSpec" ${TR.spec ? 'checked' : ''}> Min / Max</label><label class="chk"><input type="checkbox" id="trAlm" ${TR.alm ? 'checked' : ''}> Alarm limits</label></div>
+  <label class="chk"><input type="checkbox" id="trSpec" ${TR.spec ? 'checked' : ''}> Min / Max</label><label class="chk"><input type="checkbox" id="trBands" ${TR.bands !== false ? 'checked' : ''}> σ bands</label><label class="chk"><input type="checkbox" id="trAlm" ${TR.alm ? 'checked' : ''}> Alarm limits</label></div>
  <div class="cc-leg">${sw(ZC.c, 'Within ±1σ')}${sw(ZC.b, '±1σ to ±2σ')}${sw(ZC.a, '±2σ to ±3σ')}${sw(ZC.out, 'Beyond ±3σ', '#d93636')}<span><i style="border-top:2px dashed ${ZC.spec}"></i>Min / Max</span><span><i style="border-top:2px solid #1f9d55"></i>Optimal / centre</span><span><i class="dot" style="background:#d93636"></i>Rule violation</span></div>
  <div class="cc-title">Individuals chart — ${esc(t.desc)}</div><canvas id="trC" class="cc-cv" style="height:290px"></canvas>
  <div class="cc-title">Moving range chart</div><canvas id="trM" class="cc-cv" style="height:110px"></canvas>
@@ -758,6 +771,10 @@ function openTrend(id) {
   };
   $('#trSpec').onchange = e => {
     TR.spec = e.target.checked;
+    drawTrend();
+  };
+  $('#trBands').onchange = e => {
+    TR.bands = e.target.checked;
     drawTrend();
   };
   $('#trAlm').onchange = e => {
@@ -833,8 +850,17 @@ function drawTrend() {
       c.fillStyle = mut;
       c.fillText('Collecting data…', pl, H / 2);
     } else {
-      let lo = Math.min(S.min, S.cl - 3.4 * S.sigma, ...extra.map(x => x[0])),
-        hi = Math.max(S.max, S.cl + 3.4 * S.sigma, ...extra.map(x => x[0]));
+      /*
+       * The axis reaches as far as what is being drawn, and no further.
+       *
+       * ±3.4σ is in the range only while the bands are on screen. With them
+       * turned off that reach was still stretching the axis to make room for
+       * lines nobody was drawing, which flattened the readings into a band
+       * across the middle.
+       */
+      const reach = TR.bands !== false ? [S.cl - 3.4 * S.sigma, S.cl + 3.4 * S.sigma] : [S.cl];
+      let lo = Math.min(S.min, ...reach, ...extra.map(x => x[0])),
+        hi = Math.max(S.max, ...reach, ...extra.map(x => x[0]));
       const sp = hi - lo || 1;
       lo -= sp * 0.04;
       hi += sp * 0.04;
@@ -851,6 +877,14 @@ function drawTrend() {
           c.fillRect(pl, y1, W - pl - pr, y2 - y1);
         }
       };
+      /*
+       * The zones are the chart's background and stay whatever the tick says.
+       *
+       * The σ tick above the chart takes away the six dashed lines; it used to
+       * take the coloured wash with them, which left a white rectangle with a
+       * trend in it — not a control chart at all. The wash is the scale: it is
+       * how a point is read as "inside ±1σ" without measuring anything.
+       */
       band(hi, S.cl + 3 * S.sigma, ZC.out);
       band(S.cl - 3 * S.sigma, lo, ZC.out);
       band(S.cl + 3 * S.sigma, S.cl + 2 * S.sigma, ZC.a);
@@ -899,23 +933,65 @@ function drawTrend() {
         c.lineTo(W - pr, y);
         c.stroke();
         c.setLineDash([]);
-        let ly = y + 4;
-        for (let k = 0; k < 6 && LY.some(q => Math.abs(q - ly) < 11); k++) ly += y < H / 2 ? 11 : -11;
+        /*
+         * A line without a label is a line, and that is often the right one.
+         *
+         * Callers pass no label for the σ lines. Six of them inside a spread
+         * of a quarter of a unit, on an axis eighteen units tall, put seven
+         * numbers in a stack down the right-hand gutter with leader lines
+         * fanning back to a single pixel row — and every one of those numbers
+         * is already in the stats underneath, under "σ used". The zones say
+         * where ±1σ is; the gutter is for the handful of values somebody
+         * reads off the axis: the centre line, Min, Max and the alarm limits.
+         *
+         * Those few are nudged apart when they collide, and stay level with
+         * their own line whenever they can — a label printed above a gridline
+         * it does not belong to is a chart contradicting itself.
+         */
+        if (!lab) return;
+
+        const home = y + 3.5;
+        let ly = home;
+        for (let k = 1; k < 40 && LY.some(q => Math.abs(q - ly) < 11); k++) {
+          ly = home + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 11;
+        }
+        ly = Math.max(pt + 8, Math.min(H - pb - 2, ly));
         LY.push(ly);
+
         c.fillStyle = col;
         c.font = `${bold ? 700 : 600} 10.5px IBM Plex Mono,monospace`;
         c.textAlign = 'left';
-        c.fillText(`${lab} ${fmt(v)}`, W - pr + 6, ly);
+        c.fillText(`${lab} ${fmt(v)}`, W - pr + 8, ly);
       };
       hline(S.cl, '#1f9d55', [], TR.basis === 'typ' ? 'Opt' : 'CL', 2, 1);
       extra.forEach(([v, l, col, ds, w]) => hline(v, col, ds, l, w, 1));
-      [
-        [3, ZC.l3, '+3σ'],
-        [2, ZC.l2, '+2σ'],
-        [1, ZC.l1, '+1σ'],
-      ].forEach(([k, col, l]) => {
-        hline(S.cl + k * S.sigma, col, [5, 4], l, k === 3 ? 1.6 : 1.1);
-        hline(S.cl - k * S.sigma, col, [5, 4], l.replace('+', '−'), k === 3 ? 1.6 : 1.1);
+      /*
+       * All three σ bands, unless there is no spread at all.
+       *
+       * They crowd together when σ is small against the axis — the axis is
+       * stretched by Min and Max, and σ may be a fraction of that range — but
+       * crowded is not the same as absent, and a control chart with its ±1σ
+       * and ±2σ bands missing is not the chart anybody came to read. Only a σ
+       * of nought is dropped, where all six lines would be drawn on CL.
+       *
+       * To see them apart, turn off the Min / Max tick above the chart: the
+       * axis then scales to the data and its bands rather than being
+       * stretched to reach the specification.
+       */
+      const sigmaGap = Math.abs(Y(S.cl) - Y(S.cl + S.sigma));
+      const bands =
+        TR.bands === false || sigmaGap < 1
+          ? []
+          : [
+              [3, ZC.l3, '+3σ'],
+              [2, ZC.l2, '+2σ'],
+              [1, ZC.l1, '+1σ'],
+            ];
+      // Drawn, not labelled — see `hline`. The legend names the zones and the
+      // stats row gives the σ they are measured with.
+      bands.forEach(([k, col]) => {
+        hline(S.cl + k * S.sigma, col, [5, 4], null, k === 3 ? 1.6 : 1.1);
+        hline(S.cl - k * S.sigma, col, [5, 4], null, k === 3 ? 1.6 : 1.1);
       });
       c.strokeStyle = '#1f6feb';
       c.lineWidth = 1.5;

@@ -251,6 +251,33 @@ export function askName({ title, label = 'Name', value = '', hint = '', action =
 }
 
 /**
+ * Say something that must not be missed, in a box with one way out.
+ *
+ * `toast()` is right for an outcome somebody is already watching for — saved,
+ * published, opened. It is wrong for a failure whose screen afterwards looks
+ * like success: the toast fades, the drawing is still there, and the only
+ * evidence is on somebody else's terminal.
+ *
+ * Falls back to a toast where the studio's modal is not available, because a
+ * message nobody sees is worse than one in the wrong shape.
+ */
+export function say({ title, body, hint = '' }) {
+  const open = fn('openModal')
+  if (!open) {
+    toast(`${title}: ${body}`)
+    return Promise.resolve(null)
+  }
+
+  return ask(
+    `<div id="dlAskBox"><h3>${escapeHtml(title)}</h3>
+ <p style="margin:10px 0 0;white-space:pre-line">${escapeHtml(body)}</p>
+ ${hint ? `<div class="note" style="margin-top:10px">${escapeHtml(hint)}</div>` : ''}
+ <div class="mact"><button type="button" class="ib pri" id="dlAskGo">I see</button></div></div>`,
+    finish => { document.getElementById('dlAskGo').onclick = () => finish(true) }
+  )
+}
+
+/**
  * Choose one of the loops on this line.
  *
  * Open used to say "the latest one is already open" and stop there, on the

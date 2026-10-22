@@ -666,6 +666,9 @@ const panel = await evaluate(`(() => {
   const DOC = ${peek}('DOC');
   const block = DOC?.blocks?.find(b => b.tags && b.tags.length);
   if (!block) return { noBlock: true };
+  // Out of the publish view first: it hides the properties panel.
+  setPresent(false);
+  closeModal?.();
   setMode('design');
   select({ t: 'b', id: block.id });
   renderProps();
@@ -695,8 +698,8 @@ const panel = await evaluate(`(() => {
   out.databaseDropdown = !!drawer?.querySelector('#dbDb');
   out.offered = [...(drawer?.querySelectorAll('#dbDb option') || [])].map(o => o.textContent.trim());
 
-  // One step at a time, from nothing chosen: the database is asked for first,
-  // and the table, the column and the name each wait for the one before.
+  // The database is already chosen, so its tables are on offer; the column and
+  // the name wait for a table to be picked out of them.
   out.stepsWhenOpened = [...drawer.querySelectorAll('.db-step')].map(step =>
     (step.querySelector('i')?.textContent || '?') +
     (getComputedStyle(step).display === 'none' ? ':hidden' : ':shown'));
@@ -747,6 +750,16 @@ check('which offers the registered data sources and nothing else',
   panel.offered)
 check('the dropdown opens directly under the heading, not below the readings',
   panel.childOrder?.[1] === 'dlAddDrawer', panel.childOrder)
+/*
+ * One step at a time, from nothing chosen.
+ *
+ * Two other arrangements were tried. Opening on the first source in the list
+ * answered the first question for the person, and opening on it with the
+ * table step forced shut was worse still — the panel named `aiw_data` and
+ * then refused to list its tables, which reads as broken rather than as
+ * sequenced. Choosing a database is the first thing asked, and each step
+ * after it arrives when the one before has an answer.
+ */
 check('and the steps come one at a time — only the database to begin with',
   panel.stepsWhenOpened?.join(' ') === '1:shown 2:hidden 3:hidden 4:hidden',
   panel.stepsWhenOpened)
@@ -758,11 +771,93 @@ check('and the steps come one at a time — only the database to begin with',
  * default is read from what is on offer, and there is no source written into
  * the module to go stale.
  */
-check('the flow opens on a source rather than on nothing',
-  !!panel.chosenSource, panel.chosenSource)
-check('and it is the first one the list offers, not a named one',
-  panel.chosenSource === panel.firstRealSource,
-  { chose: panel.chosenSource, first: panel.firstRealSource })
+/*
+ * Two ways to say where a reading comes from, and only one on screen.
+ *
+ * The statement box carried `display: flex`, which beats the `hidden`
+ * attribute — so it stayed up while "From the dropdowns" was the chosen mode
+ * and pushed the table and column steps below the fold, where they read as
+ * missing. The same mistake has now caught three elements in this project, so
+ * it is checked rather than looked at.
+ */
+const how = await evaluate(`(async () => {
+  // Set the panel up again: the checks above leave it torn down, and the
+  // drawer lives inside it.
+  const DOC = ${peek}('DOC');
+  const block = DOC?.blocks?.find(b => b.tags && b.tags.length);
+  if (!block) return { missing: true };
+  setMode('design');
+  select({ t: 'b', id: block.id });
+  renderProps();
+  await new Promise(r => setTimeout(r, 150));
+
+  const drawer = document.getElementById('dlAddDrawer');
+  const seg = document.getElementById('dlHow');
+  if (!drawer || !seg) return { missing: true };
+
+  // The drawer closes when the panel redraws; these two live inside it.
+  if (drawer.hidden) {
+    document.getElementById('ixAddBtn')?.click();
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  // Client rects, not computed display: a child of a hidden parent still
+  // reports its own display, so only the box it occupies tells the truth.
+  const shown = id => {
+    const el = document.getElementById(id);
+    return !!el && el.getClientRects().length > 0;
+  };
+  /*
+   * Found again on each press, the way a hand finds the button on screen.
+   *
+   * The panel rebuilds itself — a poll landing, a field losing focus — and a
+   * reference taken before that is a button nobody can see any more. Holding
+   * one here tested that the detached copy still worked, which is not a thing
+   * anybody needs.
+   */
+  const press = how =>
+    document.querySelector('#dlHow [data-how="' + how + '"]')?.click();
+
+  /*
+   * A database is chosen first, because that is the only way to a table.
+   *
+   * The flow opens with nothing picked and the table step shut behind it, so
+   * a probe that went straight to the mode buttons would be asking whether a
+   * step it had not reached was on screen.
+   */
+  const database = document.getElementById('dbDb');
+  const first = [...(database?.options || [])].find(o =>
+    o.value && !/^__/.test(o.value) && !/simulated|demo/i.test(o.textContent));
+  if (database && first) {
+    database.value = first.value;
+    database.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  press('query');
+  await new Promise(r => setTimeout(r, 200));
+  const query = { table: shown('dbTbl'), written: shown('dlWritten') };
+
+  press('dropdowns');
+  await new Promise(r => setTimeout(r, 200));
+  const dropdowns = { table: shown('dbTbl'), written: shown('dlWritten') };
+  return { dropdowns, query };
+})()`)
+check('adding a reading offers the dropdowns or a query', !how.missing, how)
+check('the dropdowns show a table and no statement box',
+  how.dropdowns?.table === true && how.dropdowns?.written === false, how.dropdowns)
+check('and the query shows a statement box and no table',
+  how.query?.written === true && how.query?.table === false, how.query)
+
+/*
+ * Nothing is pre-chosen, and the list it offers is the plant's own.
+ *
+ * The flow opened on the first source for a while, which answered the first
+ * question on the person's behalf — and the studio's own default is the
+ * customer database, which this installation does not use at all.
+ */
+check('the flow opens with no database chosen', panel.chosenSource === '', panel.chosenSource)
+check('and offers a real one to choose', !!panel.firstRealSource, panel.firstRealSource)
 
 check('a reading\'s name field is called Display name',
   /display name/i.test(panel.nameLabel || ''), panel.nameLabel)
@@ -905,11 +1000,25 @@ const chart = await evaluate(`(() => {
     buttons: seg ? [...seg.querySelectorAll('button')].map(b => b.textContent) : [],
     points: pts.length,
     firstValue: pts[0]?.v ?? null,
+    // Where Copy data (CSV) is, for a reading this service reads itself.
+    footer: document.getElementById('trCsv')?.textContent?.trim() || null,
   };
 })()`)
 
+/*
+ * Both charts here, because this reading is SandMan's.
+ *
+ * Process Control is SandMan's own calculation, with its own subgroups and
+ * limits. A reading on a database registered here has no such thing, so that
+ * tab is not offered for one — it used to sit there permanently empty,
+ * explaining itself in a tooltip nobody opens. In its place an administrator
+ * gets Preview data: the statement the records came from, editable and
+ * runnable, which is what answers "why does this chart look wrong".
+ */
 check('the trend window offers both charts',
   chart.hasSwitch && chart.buttons.length === 2, chart.buttons)
+check('and the foot of the window is left as the studio had it',
+  chart.footer === 'Copy data (CSV)', chart.footer)
 
 /*
  * The moving range chart is a statistician's check on whether the control

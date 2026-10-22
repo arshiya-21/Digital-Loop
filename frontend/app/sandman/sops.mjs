@@ -106,8 +106,15 @@ export async function adopt(id) {
     adopted += 1
   }
 
-  // The Process & SOP panel may already be open on one of them.
-  if (adopted) window.cpRender?.()
+  /*
+   * The Process & SOP panel may already be open on one of them — redraw it
+   * then, and only then. `cpRender` opens the panel when it is not showing,
+   * so calling it unconditionally put Process & SOP over the loop every time
+   * a loop with procedures was opened, the publish view included.
+   */
+  const panelOpen = !!document.getElementById('cpBody') &&
+    !!document.getElementById('modal')?.classList.contains('on')
+  if (adopted && panelOpen) window.cpRender?.()
   return { adopted, offered: byProcess.size }
 }
 

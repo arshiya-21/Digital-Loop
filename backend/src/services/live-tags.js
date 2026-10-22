@@ -84,6 +84,9 @@ export function linkedTags(layout, databaseName) {
     const tag = { id, table: String(link.table), column: String(link.col) }
     if (link.keyCol) tag.keyColumn = String(link.keyCol)
     if (link.keyVal) tag.keyValue = String(link.keyVal)
+    // How it compares: =, <>, >, <, >= or <=. Checked against a list server
+    // side, never interpolated — see `comparison` in db-connect.js.
+    if (link.keyOp) tag.keyOp = String(link.keyOp)
     out.push(tag)
   }
 
@@ -144,7 +147,18 @@ export function externalTags(layout) {
     if (!written) {
       if (link.keyCol) tag.keyColumn = String(link.keyCol)
       if (link.keyVal) tag.keyValue = String(link.keyVal)
+      // How the filter compares. Checked against a list server side, never
+      // interpolated — see `comparison` in db-connect.js.
+      if (link.keyOp) tag.keyOp = String(link.keyOp)
       if (link.tcol) tag.timeColumn = String(link.tcol)
+      /*
+       * The second half of a combined date and time.
+       *
+       * Plenty of plant tables keep the date and the time of day in two text
+       * columns rather than one `datetime` — so "Newest by" can name both,
+       * and the pair is read as one moment. Only meaningful beside `tcol`.
+       */
+      if (link.tcol && link.tcol2) tag.timeColumn2 = String(link.tcol2)
     }
 
     const connectionId = named[1]

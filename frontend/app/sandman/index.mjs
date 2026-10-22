@@ -134,6 +134,8 @@ function buildLineStrip() {
  */
 function placeStrip(strip) {
   const inPublish = document.body.classList.contains('present')
+  // The bar only exists in that view, and the preview note lives in it.
+  if (inPublish) sayWhetherThePlantSeesThis()
   const home = inPublish
     ? document.getElementById('pbar')
     : document.getElementById('custChip')?.parentElement ||
@@ -276,6 +278,53 @@ function refreshLineStrip() {
     : live
       ? 'Everyone in this foundry can see this version — click to hide it again'
       : 'Not published — click to show this version to the foundry'
+
+  sayWhetherThePlantSeesThis()
+}
+
+/**
+ * The Publish *view* is not publishing, and says so while it looks like it is.
+ *
+ * There are two things called Publish on this screen: the ribbon tab, which
+ * switches to the full-screen operator view, and the pill in the header, which
+ * is the one that shows the loop to the plant. An administrator presses the
+ * tab, gets the operator's screen with the loop on it, and has every reason to
+ * believe the plant is looking at the same thing. The pill that would have
+ * told them otherwise is behind the full-screen view.
+ *
+ * Measured on this plant: `Final Version` had been through fifty-five saves,
+ * the administrator reported it published, and every design on Disa 230C was
+ * still `status = 'draft'` with no published version at all. The operators saw
+ * "No loop published for Disa 230C yet" the whole time.
+ *
+ * So the preview says it is a preview, in the view itself, with the button
+ * that makes it true beside it.
+ */
+function sayWhetherThePlantSeesThis() {
+  const bar = document.getElementById('pbar')
+  const design = designs.current
+  const preview = isAdmin() && design && design.status !== 'published'
+
+  let note = document.getElementById('dlPreview')
+  if (!bar || !preview) {
+    note?.remove()
+    return
+  }
+
+  if (!note) {
+    note = document.createElement('div')
+    note.id = 'dlPreview'
+    note.className = 'dl-preview'
+    note.innerHTML =
+      '<span class="dl-preview-what"></span>' +
+      '<button type="button" class="dl-preview-go"></button>'
+    note.querySelector('.dl-preview-go').addEventListener('click', togglePublish)
+    bar.prepend(note)
+  }
+
+  note.querySelector('.dl-preview-what').textContent =
+    `Preview — the plant is not seeing ${design.name} yet.`
+  note.querySelector('.dl-preview-go').textContent = `Publish v${design.latestVersion}`
 }
 
 /* ------------------------------------------------------------------ opening ---*/
@@ -332,9 +381,28 @@ function emptyNotice({ heading, body, action }) {
   // Over the canvas, inside the element the publish view sizes itself to.
   const canvas = document.getElementById('cwrap') || document.body
   canvas.append(card)
+
+  /*
+   * An empty line has no plant to control, so it offers no controls.
+   *
+   * The publish view's bar is Fault alarm, System diagnosis, Silence alarm,
+   * Fault reset — the operator's panel for a running line. Over "No loop
+   * published for Disa 230C yet" it was a row of red and amber buttons
+   * standing on nothing: "Fault alarm (0)" on a line with no readings reads as
+   * an alarm system saying all is well, when there is no system. Worse, Fault
+   * reset and Silence alarm invite a press that cannot do anything.
+   *
+   * The strip beside them stays — the line picker and the way back are how
+   * somebody leaves this screen, and they are the only two things on it that
+   * still mean something.
+   */
+  document.body.classList.add('dl-no-loop')
 }
 
-const clearEmptyNotice = () => document.getElementById('dlEmpty')?.remove()
+const clearEmptyNotice = () => {
+  document.getElementById('dlEmpty')?.remove()
+  document.body.classList.remove('dl-no-loop')
+}
 
 /** The administrator's way out of an empty line: leave publish, start drawing. */
 const startDesigning = () => {
@@ -761,7 +829,22 @@ async function togglePublish() {
 function reportFailure(error) {
   if (error instanceof ApiError && error.code === 'missing_data_tags') {
     const items = (error.detail?.missing || []).map(item => item.name || item.id).join(', ')
-    studio.toast(`${error.message}${items ? ` (${items})` : ''}`)
+    /*
+     * A refused publish is told in a box, not a toast.
+     *
+     * This is the one failure where the screen afterwards looks exactly like
+     * success — the loop is still open, the drawing is still there, and the
+     * only difference is on somebody else's terminal. A plant spent a day
+     * believing a loop was published because the toast saying otherwise had
+     * come and gone: an administrator pressed Publish on a loop whose single
+     * reading was not linked to anything, the API refused it for exactly that
+     * reason, and the operators went on seeing "No loop published".
+     */
+    studio.say({
+      title: 'Not published',
+      body: `${error.message}${items ? `\n\nWaiting on: ${items}` : ''}`,
+      hint: 'Nothing has changed for the plant — whatever was published before is still what they see.',
+    })
     return
   }
   studio.toast(error.message)
@@ -827,7 +910,9 @@ async function boot() {
      * readings has to be in place before the first tick — not when the first
      * loop happens to load.
      */
-    live.install()
+    //  because setting them for the whole loop changes the
+    // document, and a change to the document belongs on the server.
+    live.install({ onDecimals: properties.persist })
 
     /*
      * Before the first loop opens, for the same reason `live.install()` is:

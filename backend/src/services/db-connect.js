@@ -104,10 +104,102 @@ async function openTunnel(row) {
   }
 }
 
+/*
+ * One tunnel per connection, kept alive between queries.
+ *
+ * Every `ask` used to open an SSH tunnel and tear it down again. Opening one
+ * chart is five or six asks — the readings, the chart, a preview, the schema,
+ * and the date-format probes — so a single click paid for five or six SSH
+ * handshakes against the same jump box, in parallel. Measured on the plant's
+ * own: twenty to twenty-four seconds a request, and the jump box answering
+ * "Timed out while waiting for handshake" because several were racing it at
+ * once.
+ *
+ * So the tunnel is opened once and shared. The handshake is paid for by
+ * whoever arrives first; everyone after reuses the forward, which is a local
+ * socket. It closes itself after a spell of disuse rather than being held
+ * open all night, and a tunnel that falls over is dropped so the next caller
+ * opens a fresh one.
+ */
+const tunnels = new Map()
+
+/** How long an unused tunnel is kept before it is closed. */
+const TUNNEL_IDLE_MS = 5 * 60_000
+
+/** The settings that decide whether two callers can share one tunnel. */
+const tunnelKey = row => [
+  row.id, row.tunnel_host, row.tunnel_port, row.tunnel_user, row.host, row.port,
+  row.updated_at || '',
+].join('\u0000')
+
+function retire(key) {
+  const held = tunnels.get(key)
+  if (!held) return
+  tunnels.delete(key)
+  clearTimeout(held.idle)
+  try { held.forward.close() } catch { /* already gone */ }
+}
+
 /** Where to dial: the jump box's local end, or the database itself. */
 async function route(row) {
-  if (row.tunnel_host) return openTunnel(row)
-  return { host: row.host, port: row.port, close() {} }
+  if (!row.tunnel_host) return { host: row.host, port: row.port, release() {} }
+
+  const key = tunnelKey(row)
+  const held = tunnels.get(key)
+  if (held) return lend(key, held)
+
+  /*
+   * The promise is cached, not the result.
+   *
+   * Three requests arriving together is the normal case — values, chart and
+   * preview all fire as a trend opens — and caching only the finished tunnel
+   * would have all three open their own while the first was still shaking
+   * hands, which is the problem this exists to solve.
+   */
+  const opening = openTunnel(row).then(
+    forward => {
+      const entry = { forward, lent: 0, idle: null }
+      tunnels.set(key, entry)
+      return entry
+    },
+    error => {
+      tunnels.delete(key)
+      throw error
+    }
+  )
+  tunnels.set(key, opening)
+
+  const entry = await opening
+  return lend(key, entry)
+}
+
+/**
+ * Hand the shared forward to one caller.
+ *
+ * `release` is what `ask` calls in its `finally`. It does not close anything
+ * while another caller still holds it, and starts the idle clock when the
+ * last one lets go.
+ */
+function lend(key, entryOrPromise) {
+  return Promise.resolve(entryOrPromise).then(entry => {
+    entry.lent += 1
+    clearTimeout(entry.idle)
+    entry.idle = null
+
+    return {
+      host: entry.forward.host,
+      port: entry.forward.port,
+      release() {
+        entry.lent = Math.max(0, entry.lent - 1)
+        if (entry.lent > 0) return
+        entry.idle = setTimeout(() => retire(key), TUNNEL_IDLE_MS)
+        // Node should not be held awake by a tunnel nobody is using.
+        entry.idle.unref?.()
+      },
+      /** A broken tunnel is not worth lending to the next caller. */
+      drop() { retire(key) },
+    }
+  })
 }
 
 /* ------------------------------------------------------------- the engines ---*/
@@ -120,6 +212,18 @@ async function askMysql(row, where, question) {
     password: unseal(row.password) || '',
     database: row.database_name,
     connectTimeout: CONNECT_TIMEOUT_MS,
+    /*
+     * Dates as they are written, not as this server would reinterpret them.
+     *
+     * A plant's `datetime` column carries no timezone. Without this the driver
+     * hands back a JS `Date` read in *this* process's timezone, and turning
+     * that into ISO shifts it: `2026-10-22 00:00:00` in the table came out as
+     * `2026-10-21T18:30:00.000Z` on screen — the same instant, the wrong day,
+     * and a day that disagrees with what Workbench shows for the same row.
+     *
+     * Read as a string, it stays the moment the plant recorded.
+     */
+    dateStrings: true,
     // Metadata only, so there is nothing here that needs several statements.
     multipleStatements: false,
     ...(row.use_tls ? { ssl: { rejectUnauthorized: false } } : {}),
@@ -229,16 +333,20 @@ const DIALECT = {
     quote: name => `\`${String(name).replaceAll('`', '``')}\``,
     param: () => '?',
     one: sql => `${sql} LIMIT 1`,
+    /** This many seconds ago, by the database's own clock — never by ours. */
+    ago: seconds => `NOW() - INTERVAL ${seconds} SECOND`,
   },
   postgres: {
     quote: name => `"${String(name).replaceAll('"', '""')}"`,
-    param: index => `$${index}`,
+    param: index => `${index}`,
     one: sql => `${sql} LIMIT 1`,
+    ago: seconds => `NOW() - INTERVAL '${seconds} seconds'`,
   },
   sqlserver: {
     quote: name => `[${String(name).replaceAll(']', ']]')}]`,
     param: index => `@p${index}`,
     one: sql => sql.replace(/^SELECT /, 'SELECT TOP 1 '),
+    ago: seconds => `DATEADD(second, -${seconds}, SYSDATETIME())`,
   },
 }
 DIALECT.mariadb = DIALECT.mysql
@@ -252,8 +360,16 @@ async function ask(row, question) {
   const where = await route(row)
   try {
     return await engine(row, where, question)
+  } catch (error) {
+    /*
+     * A tunnel that just failed a query is not one to hand to the next
+     * caller. Dropping it costs one handshake; keeping a dead forward alive
+     * costs every request for the next five minutes.
+     */
+    where.drop?.()
+    throw error
   } finally {
-    where.close()
+    where.release()
   }
 }
 
@@ -308,8 +424,33 @@ function readable(value) {
 
   const text = String(value).trim()
   if (text && Number.isFinite(Number(text))) return Number(text)
-  return text
+
+  /*
+   * An empty cell is no value, not an empty piece of text.
+   *
+   * Returning `''` made the studio decide the reading was textual — the first
+   * record it sees is what settles that — so a numeric column whose newest row
+   * happened to be blank became a text reading for good: no chart, no limits,
+   * and "This reading is text, so it has no chart" on a column of numbers.
+   * `null` is what "the line has no record for this column yet" already means
+   * everywhere else, and it is what a blank cell is.
+   */
+  return text || null
 }
+
+/**
+ * How a row filter compares, and the only comparisons allowed.
+ *
+ * The operator comes from the browser, so it is never interpolated into the
+ * statement — it is looked up here, and anything not on this list becomes
+ * equality. A filter used to be equality only, which answers "this line" and
+ * cannot answer "above this batch number" or "anything but the trial line".
+ */
+const OPERATORS = {
+  '=': '=', '!=': '<>', '<>': '<>', '>': '>', '<': '<', '>=': '>=', '<=': '<=',
+}
+const two = number => String(number).padStart(2, '0')
+const comparison = operator => OPERATORS[String(operator || '=').trim()] || '='
 
 /**
  * When a record was taken, in a form every reader agrees on — or nothing.
@@ -334,10 +475,31 @@ function readable(value) {
 const EARLIEST = Date.UTC(1970, 0, 1)
 const LATEST_AHEAD = 366 * 24 * 60 * 60 * 1000
 
+/** `2026-10-22 00:00:00` — a moment with no timezone attached to it. */
+const NAIVE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/
+
 function moment(value) {
   if (!value) return null
 
-  const when = value instanceof Date ? value.getTime() : Date.parse(String(value))
+  /*
+   * A naive timestamp is passed through as one.
+   *
+   * It used to be turned into an ISO instant, which meant deciding what
+   * timezone the plant meant — and deciding wrong: `2026-10-22 00:00:00`
+   * became `2026-10-21T18:30:00.000Z`, the right instant under a rule nobody
+   * had stated and the wrong day beside the same row in Workbench. The column
+   * says nothing about zones, so neither does this. The browser reads it as
+   * local time, which is the clock the plant floor is on.
+   */
+  const text = String(value)
+  const parts = NAIVE.exec(text)
+  if (parts) {
+    const year = Number(parts[1])
+    if (year < 1970 || year > new Date().getFullYear() + 1) return null
+    return `${parts[1]}-${parts[2]}-${parts[3]}T${parts[4]}:${parts[5]}:${parts[6] || '00'}`
+  }
+
+  const when = value instanceof Date ? value.getTime() : Date.parse(text)
   if (!Number.isFinite(when)) return null
   if (when < EARLIEST || when > Date.now() + LATEST_AHEAD) return null
 
@@ -387,7 +549,18 @@ export function safeToRun(sql) {
 /** The first column of a row as the value, the second as its time. */
 function positional(record) {
   const values = Object.values(record || {})
-  return { value: values[0], at: values.length > 1 ? values[1] : null }
+  return {
+    value: values[0],
+    /*
+     * The last column, not the second.
+     *
+     * A written query selects two — the measurement and its time — and so did
+     * the built one until a date and a time of day had to be selected as
+     * themselves as well. The moment is always what the statement ends with,
+     * which is true of both and does not need the caller to say which it is.
+     */
+    at: values.length > 1 ? values[values.length - 1] : null,
+  }
 }
 
 export async function runQuery(row, sql, limit = 200) {
@@ -437,12 +610,26 @@ export function readStatement(engine, tag) {
   if (tag?.sql) return { sql: String(tag.sql), params: [] }
   if (!dialect || !tag?.table || !tag?.column) return null
 
+  /*
+   * The same two names the chart's statement uses.
+   *
+   * This said `AS value, AS at` while `recentValues` said
+   * `AS \`BENTONITE_LEVEL_PCT\`, … AS \`datetime\``, so the card showed one
+   * statement before Read now and a different one after it — for the same
+   * reading, against the same table. Two statements that disagree about what
+   * they select is worse than either of them alone.
+   */
   const filtered = !!(tag.keyColumn && tag.keyValue)
-  const select = `SELECT ${dialect.quote(tag.column)} AS value` +
-    (tag.timeColumn ? `, ${dialect.quote(tag.timeColumn)} AS at` : '')
+  const named = dialect.quote(String(tag.named || tag.id || tag.column))
+  const moment = tag.timeColumn && tag.timeColumn2
+    ? `${dialect.quote(tag.timeColumn)} + ${dialect.quote(tag.timeColumn2)}`
+    : (tag.timeColumn ? dialect.quote(tag.timeColumn) : null)
+
+  const select = `SELECT ${dialect.quote(tag.column)} AS ${named}` +
+    (moment ? `, ${moment} AS ${dialect.quote('datetime')}` : '')
   const from = ` FROM ${dialect.quote(tag.table)}`
-  const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} = ${dialect.param(1)}` : ''
-  const order = tag.timeColumn ? ` ORDER BY ${dialect.quote(tag.timeColumn)} DESC` : ''
+  const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(1)}` : ''
+  const order = moment ? ` ORDER BY ${dialect.quote('datetime')} DESC` : ''
 
   return {
     sql: dialect.one(select + from + where + order),
@@ -499,7 +686,7 @@ export async function latestValues(row, wanted) {
       const select = tag.sql ? null : `SELECT ${dialect.quote(tag.column)} AS value` +
         (tag.time ? `, ${dialect.quote(tag.time)} AS at` : '')
       const from = tag.sql ? '' : ` FROM ${dialect.quote(tag.table)}`
-      const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} = ${dialect.param(1)}` : ''
+      const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(1)}` : ''
       const order = tag.time ? ` ORDER BY ${dialect.quote(tag.time)} DESC` : ''
 
       try {
@@ -539,7 +726,14 @@ export async function latestValues(row, wanted) {
   return out
 }
 
-/** The most a chart is given, however many rows the table holds. */
+/**
+ * The most a chart is given where nothing else bounds the read.
+ *
+ * A windowed statement carries no limit at all — the window is the bound, and
+ * it is the one on the buttons above the chart. This is for the reads that
+ * have no window: a table with no clock, and the fallback that runs when a
+ * window turns out to be empty.
+ */
 const MAX_POINTS = 500
 
 /**
@@ -555,7 +749,7 @@ const MAX_POINTS = 500
  * whatever order the database returns them are not a trend — so that is said
  * rather than guessed at.
  */
-export async function recentValues(row, tag, points = 200) {
+export async function recentValues(row, tag, points = 200, windowSeconds = null) {
   const dialect = DIALECT[row.engine]
   if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
 
@@ -586,30 +780,282 @@ export async function recentValues(row, tag, points = 200) {
       .map(record => ({ value: readable(record.value), recordedAt: moment(record.at) }))
       .filter(record => typeof record.value === 'number' && record.recordedAt)
 
+    /*
+     * Rows came back, and none of them could be put on a chart.
+     *
+     * A written query names its own two columns, so there is no table to ask
+     * for a better one the way the branch below does — what comes second is
+     * whatever was asked for. If none of it reads as a time, or none of the
+     * first column reads as a number, every row is dropped by the filter
+     * above and the chart is empty for a query that plainly returned data.
+     *
+     * Which of the two it was is worth saying, because they are different
+     * mistakes: the wrong column second, or a column of text first.
+     */
+    if (list.length && !charted.length) {
+      const sample = positional(list[0])
+      const numbers = typeof readable(sample.value) === 'number'
+      throw new Error(
+        numbers
+          ? 'This query\'s second column is not a date or time, so its rows cannot be ' +
+            'placed on a chart. Select a timestamp as the second column.'
+          : 'This query\'s first column is not a number, so there is nothing to chart. ' +
+            'Select the measurement as the first column and its timestamp as the second.'
+      )
+    }
+
     // Newest first out of most such queries, oldest first onto a chart.
     const ordered = charted.slice().sort((a, b) =>
       String(a.recordedAt).localeCompare(String(b.recordedAt)))
-    return ordered.slice(-Math.min(Math.max(Number(points) || 200, 1), MAX_POINTS))
+    return withStatement(
+      ordered.slice(-Math.min(Math.max(Number(points) || 200, 1), MAX_POINTS)), String(tag.sql))
   }
 
   const columns = (await tablesFor(row, [tag])).get(tag.table)
   if (!columns) throw new Error(`There is no table "${tag.table}" in this database.`)
   if (!columns.has(tag.column)) throw new Error(`There is no column "${tag.column}" in "${tag.table}".`)
 
-  const time = await timeColumnFor(row, tag, columns)
-  if (!time) {
+  /*
+   * Ordered by the best column there is, which is not always a time.
+   *
+   * This used to refuse outright when a table had no date or time column —
+   * which is correct about the x-axis and wrong about the chart. An
+   * individuals chart is a run of observations in the order they were taken;
+   * the clock is how that order is usually expressed, not what makes it a
+   * chart. A table keyed by `id` and nothing else still has an order, and a
+   * reading pointed at it still has a run of values worth looking at.
+   *
+   * So it falls back to whatever the reading is ordered by. Those points come
+   * back with no `recordedAt` — `moment` refuses to read an id as a date —
+   * and the studio draws them by position instead, which is honest about what
+   * the axis means.
+   */
+  const known = typesByTable((await schemaFor(row)).schema).get(tag.table) || []
+  const typeOf = name => known.find(column => column.name === name)?.type || ''
+
+  /*
+   * A date column and a time column beat a copying tool's stamp.
+   *
+   * `timeColumnFor` prefers a plant's own `datetime` and falls back to
+   * `_watermark_ts` when that is all there is — which on `pouring_data` means
+   * charting when rows were copied rather than when pours happened. That
+   * table's real timestamp is its `Date` and `Time` text columns, and reading
+   * them as one is better than the bookkeeping column by every measure.
+   *
+   * A real `datetime` the plant writes still wins over both.
+   */
+  /*
+   * A combined date and time is used when the reading asks for one, and
+   * otherwise only where the chosen column is not a time at all.
+   */
+  const chosen = await timeColumnFor(row, tag, columns)
+
+  /*
+   * The pair is used when it is chosen, or when nothing is.
+   *
+   * It used to step in whenever the chosen column was not a time, which is
+   * the same overruling as above wearing a different hat: "Newest by" said
+   * `id` and the statement said `STR_TO_DATE(CONCAT(Date, ' ', Time), …)`.
+   * The dropdown offers the pair as its own entry; choosing it is how it gets
+   * used, and leaving it unchosen is how it does not.
+   */
+  /*
+   * The merge is tried when it could add something, and only then.
+   *
+   * That is: when it was asked for outright, when nothing has been chosen, or
+   * when what was chosen is a date with no time of day. A chosen column that
+   * is not a time at all — an `id` — is left exactly as chosen, because
+   * "newest by id" is a decision about order and not about the clock.
+   */
+  /*
+   * Ordering and the time axis are two questions, not one.
+   *
+   * "Newest by" answers the first: which column puts the rows in order. It
+   * was being used for the second as well, so a reading ordered by `id` had
+   * no time to window against — and the chart fell back to the newest two
+   * hundred rows whatever window was chosen. The table's timestamp is a fact
+   * about the table, not about that choice, so it is found either way.
+   */
+  const pair = await stampFromParts(row, tag, known)
+
+  const time = chosen
+  if (!time && !pair) {
     throw new Error(
-      `"${tag.table}" has no date or time column, so its records cannot be put in order.`
+      `"${tag.table}" has no column to put its rows in order by. ` +
+      'Set this reading\'s "Newest by" to a timestamp or an id.'
     )
   }
 
   const filtered = !!(tag.keyColumn && columns.has(tag.keyColumn) && tag.keyValue)
   const wanted = Math.min(Math.max(Number(points) || 200, 1), MAX_POINTS)
 
-  const select = `SELECT ${dialect.quote(tag.column)} AS value, ${dialect.quote(time)} AS at`
+  /*
+   * The window the chart is showing, asked for in the statement.
+   *
+   * It used to fetch the newest two hundred rows whatever window was chosen
+   * and let the studio cut them down — which reads two hundred rows over an
+   * SSH tunnel to draw twelve, and makes the statement in Preview data
+   * disagree with the chart above it. Asking the database for the window is
+   * both the smaller read and the honest statement.
+   *
+   * Only where the ordering column is a time. Where it is an `id` there is no
+   * window to express, and the rows come back in order instead — see above.
+   */
+  /*
+   * What the window is measured against, and what the chart is placed by.
+   *
+   * A pair of text columns read as one timestamp (see `stampFromParts`) is as
+   * good a clock as a `datetime` and is used the same way — in the WHERE, in
+   * the ORDER BY, and as the second thing selected.
+   */
+  /*
+   * The best clock the table has, whatever the rows are ordered by.
+   *
+   * A merged date and time first, then the chosen column if it is itself a
+   * time, then any timestamp the plant writes. Only when the table has none
+   * of those is there no window to apply — and then the chart is a run of
+   * readings in order, which is what it says.
+   */
+  const plantsClock = known.find(column =>
+    TEMPORAL.test(column.type) && !BOOKKEEPING.test(column.name))?.name || null
+
+  const clock = pair ? null
+    : TEMPORAL.test(typeOf(time)) ? time
+      : plantsClock
+
+  const stamp = pair ? pair.sql : (clock ? dialect.quote(clock) : dialect.quote(time))
+  const temporal = !!pair || !!clock
+  const window_ = Number(windowSeconds)
+  const windowed = temporal && Number.isFinite(window_) && window_ > 0
+
+  /*
+   * The columns under their own names, not under `value` and `at`.
+   *
+   * They used to be aliased, which made the statement in Preview data read
+   * `SELECT \`C10\` AS value, \`Det\` AS at` and the rows underneath come back
+   * headed `recordedAt,value` — two names that appear nowhere in the plant's
+   * database. Pasted into Workbench it was a different-looking query, and the
+   * columns somebody was trying to match against their own schema had been
+   * renamed on the way past.
+   *
+   * The two are read by position instead, exactly as a written query already
+   * is — see `positional`. First column the measurement, second its time.
+   */
+  /*
+   * Two columns: the reading, under its own name, and `datetime`.
+   *
+   * The aliases earlier in this file's history were `value` and `at` — words
+   * that mean nothing to anybody reading the statement beside their own
+   * schema. These two do: the reading is called what the loop calls it, and
+   * the moment is called what it is, however the table happened to store it.
+   * A date and a time kept in two text columns are joined here and are
+   * `datetime` from that point on, exactly as a table with a real one is.
+   *
+   * **The WHERE repeats the expression rather than using the alias**, because
+   * SQL will not have it otherwise: a column alias is not in scope in a WHERE
+   * clause — the rows are chosen before the SELECT list is worked out. ORDER
+   * BY comes after, so there the alias is used. Putting the whole thing in a
+   * subquery would let the WHERE say `datetime`, at the cost of the index on
+   * the real column, which is the one thing making this fast.
+   */
+  const named = dialect.quote(String(tag.id || tag.column))
+
+  /*
+   * `datetime` only where it is one.
+   *
+   * Calling an `id` "datetime" is the same invented label as `value` and `at`
+   * were, and a worse one: it states something about the column that is not
+   * true. Where the ordering column is not a time it keeps its own name, and
+   * the statement then says plainly that this chart is a run of readings in
+   * order rather than a history — which is exactly what it is.
+   */
+  const when = temporal ? dialect.quote('datetime') : (pair ? dialect.quote('datetime') : null)
+  const select = when
+    ? `SELECT ${dialect.quote(tag.column)} AS ${named}, ${stamp} AS ${when}`
+    : `SELECT ${dialect.quote(tag.column)} AS ${named}, ${stamp}`
   const from = ` FROM ${dialect.quote(tag.table)}`
-  const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} = ${dialect.param(1)}` : ''
-  const order = ` ORDER BY ${dialect.quote(time)} DESC`
+  const terms = []
+  const args = []
+  if (filtered) {
+    terms.push(`${dialect.quote(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(args.length + 1)}`)
+    args.push(tag.keyValue)
+  }
+  /*
+   * The window is measured by the database's own clock, not by ours.
+   *
+   * It used to be a literal built here — `>= '2026-10-22 05:56:45'` — and that
+   * is only right when three clocks agree: this server's, the database
+   * server's, and whatever timezone the column is written in. On the plant's
+   * own data none of them do. `NOW()` reads `02:32` UTC while `_watermark_ts`
+   * on the newest row says `07:13`, because that column is written in local
+   * time and read back as if it were UTC. Our literal was then five and a half
+   * hours away from the rows it was meant to select.
+   *
+   * `NOW() - INTERVAL n SECOND` has none of that to get wrong: both sides of
+   * the comparison come from the same clock, in the same timezone, inside the
+   * database. The number is an integer this function clamped, so it is written
+   * into the statement rather than bound — and it is the same statement
+   * somebody reads in Preview data, which now says what it means.
+   */
+  /*
+   * The window is measured against the data's own clock, not the server's.
+   *
+   * `NOW()` is the database session's idea of now, and that is not the clock
+   * the rows are written in. Measured on the plant's own: the session is UTC
+   * and says `09:55`, while the newest row says `15:16` — the rows carry IST
+   * wall-clock with no timezone on them. `NOW() - 2 hours` then meant 07:55
+   * UTC compared against IST values, and "the last two hours" returned seven
+   * and a half.
+   *
+   * Nothing here can know which zone a column was written in, and guessing
+   * one would be the same mistake with an extra step. The newest row *is* now
+   * in whatever frame the data uses, so the window is measured back from it.
+   * On a line that is producing, that is the last two hours and it moves as
+   * rows arrive; on one that has stopped it is the last two hours of what
+   * there is, which is the more useful of the two answers anyway.
+   */
+  /*
+   * The window's start is looked up once, then written in.
+   *
+   * It was a subquery — `>= (SELECT MAX(…) FROM table) - INTERVAL n SECOND` —
+   * which meant the whole `STR_TO_DATE(CONCAT(…))` expression appeared three
+   * times in one statement, and nobody could read it. Asking for the newest
+   * moment first and putting the answer in as a literal says the same thing
+   * in one line, runs as its own small query, and leaves a statement somebody
+   * can paste into Workbench and follow.
+   */
+  let since = null
+  if (windowed) {
+    const [newest] = await ask(row, async ({ query }) =>
+      query(`SELECT MAX(${stamp}) AS newest FROM ${dialect.quote(tag.table)}`, []))
+
+    const latest = moment(newest?.newest)
+    if (latest) {
+      const started = new Date(Date.parse(latest) - window_ * 1000)
+      since = `${started.getFullYear()}-${two(started.getMonth() + 1)}-${two(started.getDate())} ` +
+        `${two(started.getHours())}:${two(started.getMinutes())}:${two(started.getSeconds())}`
+      terms.push(`${stamp} >= '${since}'`)
+    }
+  }
+
+  const where = terms.length ? ` WHERE ${terms.join(' AND ')}` : ''
+
+  /*
+   * Newest first, and by id where two rows claim the same moment.
+   *
+   * `Det` on the RTC table is a date with no time of day, so two hundred
+   * readings taken through one day are all "the same instant" to an ORDER BY
+   * — and which two hundred come back is then whatever the engine felt like.
+   * The reading's own ordering column breaks the tie, which is what it was
+   * chosen for in the first place.
+   */
+  const tiebreak = tag.timeColumn && columns.has(tag.timeColumn) && tag.timeColumn !== time &&
+    tag.timeColumn !== pair?.date && tag.timeColumn !== pair?.time
+    ? `, ${dialect.quote(tag.timeColumn)} DESC`
+    : ''
+  // The alias is in scope here, which is why it reads as it does — and
+  // where there is no alias, the column itself.
+  const order = ` ORDER BY ${when || stamp} DESC${tiebreak}`
 
   /*
    * The limit is a number this function chose, bounded above, and written into
@@ -617,37 +1063,118 @@ export async function recentValues(row, tag, points = 200) {
    * parameter in that position, and a clamped integer is not user input by the
    * time it reaches here.
    */
-  const limited = row.engine === 'sqlserver' || row.engine === 'azuresql'
-    ? `${select} ${from}${where}${order}`.replace(/^SELECT /, `SELECT TOP ${wanted} `)
-    : `${select}${from}${where}${order} LIMIT ${wanted}`
+  /*
+   * No LIMIT where the window is doing the limiting.
+   *
+   * A row count and a time window are two different answers to "how much",
+   * and having both meant the smaller one silently won: ask for a day and get
+   * the newest two hundred rows of it, with nothing on screen saying the rest
+   * had been cut. The window is the one somebody chose — it is on the buttons
+   * above the chart — so it decides, and the statement says so.
+   *
+   * Capping a windowed read at a high ceiling instead was tried and taken out
+   * again: `LIMIT 2000` on the end of a statement under a chart labelled two
+   * hours is a number nobody asked for, in the one box whose whole purpose is
+   * to say exactly what the chart ran.
+   *
+   * The cap stays where there is no window, because then nothing else bounds
+   * the read at all.
+   */
+  const capped = sql => (row.engine === 'sqlserver' || row.engine === 'azuresql'
+    ? sql.replace(/^SELECT /, `SELECT TOP ${wanted} `)
+    : `${sql} LIMIT ${wanted}`)
 
-  const rows = await ask(row, async ({ query }) => query(limited, filtered ? [tag.keyValue] : []))
-
-  // Newest first out of the database, oldest first onto a chart.
-  const charted = (Array.isArray(rows) ? rows : [])
-    .map(record => ({ value: readable(record.value), recordedAt: moment(record.at) }))
-    .filter(record => typeof record.value === 'number')
-    .reverse()
+  const limited = windowed
+    ? `${select}${from}${where}${order}`
+    : capped(`${select}${from}${where}${order}`)
 
   /*
-   * Ordered by that column, but not placed in time by it.
+   * The window, and the whole run if the window is empty.
    *
-   * `ORDER BY id DESC` finds the newest row perfectly well, and plenty of
-   * readings are set up that way — so `id` is a fine answer to "newest by" and
-   * no answer at all to "when". Every point would land at the moment it was
-   * read, which draws a chart of one instant pretending to be a history.
+   * A sand line goes quiet: a shift ends, a shutdown, a reading taken once a
+   * batch. Asking for the last two hours then returns nothing, and an empty
+   * chart reads as "this reading is broken" rather than "nothing since
+   * lunchtime". So a windowed query that finds nothing is asked again without
+   * the window, and what comes back is the newest records there are.
    *
-   * Said plainly instead, naming the column, because the fix is to point the
-   * reading's "Newest by" at a date column and there is no way to guess which.
+   * The statement reported is the one whose rows are being shown, so Preview
+   * data never shows a query that returned something other than the chart.
    */
-  if (charted.length && !charted.some(record => record.recordedAt)) {
-    throw new Error(
-      `"${time}" is not a date or time, so these records cannot be placed on a chart. ` +
-      'Set this reading\'s "Newest by" to a date or time column.'
-    )
+  /*
+   * Two versions of the same statement: one to run, one to read.
+   *
+   * It runs with bound parameters, which is what keeps a row filter somebody
+   * typed out of the SQL. What Preview data shows has those values written in
+   * as literals, because a statement full of `?` cannot be run by the person
+   * reading it — and being able to run it, edit it and run it again is the
+   * whole point of showing it.
+   */
+  const shown = (sql, values = args) => {
+    let index = 0
+    return sql.replace(/\?|\$\d+|@p\d+/g, () => {
+      const value = values[index++]
+      return value === undefined ? '?' : `'${String(value).replaceAll("'", "''")}'`
+    })
   }
 
-  return charted
+  let statement = shown(limited)
+  let rows = await ask(row, async ({ query }) => query(limited, args))
+
+  if (windowed && !(Array.isArray(rows) && rows.length)) {
+    const whole = filtered
+      ? ` WHERE ${dialect.quote(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(1)}`
+      : ''
+    // The fallback has no window, so the cap is the only thing bounding it.
+    const plain = capped(`${select}${from}${whole}${order}`)
+    rows = await ask(row, async ({ query }) => query(plain, filtered ? [tag.keyValue] : []))
+    // Reported with its row filter written in, for the same reason as above.
+    statement = filtered ? shown(plain, [tag.keyValue]) : plain
+  }
+
+  // Newest first out of the database, oldest first onto a chart.
+  const read = (Array.isArray(rows) ? rows : [])
+    .map(record => positional(record))
+    .map(record => ({ value: readable(record.value), recordedAt: moment(record.at) }))
+  const charted = read.filter(record => typeof record.value === 'number').reverse()
+
+  /*
+   * Rows came back and not one of them held a number.
+   *
+   * A column of blanks, or of text, charts as nothing — and "0 records" over
+   * a table with two hundred rows in it reads as a fault in the reading when
+   * it is a fact about the column. `aiw_data.pouring_data._col46` is exactly
+   * this: two hundred rows read, every cell empty.
+   *
+   * Said rather than returned empty, because the fix is to point the reading
+   * at a column that holds measurements and nothing here can guess which.
+   */
+  if (read.length && !charted.length) {
+    const blank = read.every(record => record.value === null)
+    const refused = new Error(
+      `"${tag.column}" holds ${blank ? 'no values' : 'text'}, not measurements, ` +
+      `so there is nothing to chart. ${read.length} row(s) were read from "${tag.table}".`
+    )
+    // The statement travels with the refusal: this is precisely the moment
+    // somebody wants to see what was run and edit it.
+    refused.statement = statement
+    throw refused
+  }
+
+  /*
+   * Ordered by that column, and not always placed in time by it.
+   *
+   * `ORDER BY id DESC` finds the newest row perfectly well — plenty of
+   * readings are set up that way — and says nothing about when. Those records
+   * come back with no `recordedAt`, because `moment` will not read an id as a
+   * year, and the studio draws them by position: an individuals chart is a run
+   * of observations in order, and the order here is the one the rows are in.
+   *
+   * This used to throw instead, which refused a chart over records that were
+   * sitting right there. Where the column genuinely holds nothing chartable
+   * the message above says so; a missing timestamp is not that.
+   */
+
+  return withStatement(charted, statement, [String(tag.id || tag.column), when ? 'datetime' : time])
 }
 
 /**
@@ -735,6 +1262,25 @@ const typesByTable = schema =>
   new Map((schema.tables || []).map(table =>
     [table.name, (table.columns || []).map(c => ({ name: c.name, type: String(c.type || '') }))]))
 
+/**
+ * The records, carrying the statement they came from.
+ *
+ * Set on the array rather than wrapped in an object, because every caller
+ * wants the points and only one wants the statement — and that one is the
+ * trend window's Preview data, which exists so an administrator can see what
+ * the chart actually ran and change it. It used to be shown the single-value
+ * query instead (`… LIMIT 1`), which answers a different question entirely
+ * and left somebody editing a statement that was never the one failing.
+ *
+ * Not enumerable, so it does not turn up in `JSON.stringify` or in a spread.
+ */
+function withStatement(points, sql, columns = null) {
+  Object.defineProperty(points, 'statement', { value: sql, enumerable: false })
+  /** The names the statement gives its two columns, in order. */
+  Object.defineProperty(points, 'columns', { value: columns, enumerable: false })
+  return points
+}
+
 /* -------------------------------------- which column puts a chart in time ---*/
 
 /** Column types that hold a moment. A bare `time` has no day and is no use. */
@@ -767,13 +1313,231 @@ async function timeColumnFor(row, tag, columns) {
   const known = typesByTable(schema).get(tag.table) || []
   const typeOf = name => known.find(column => column.name === name)?.type || ''
 
-  // The reading's own choice, when it is a time. Also when the schema has no
-  // opinion: an unknown type is not a reason to overrule what was chosen.
-  if (asked && (!known.length || TEMPORAL.test(typeOf(asked)))) return asked
+  /*
+   * What "Newest by" says, and nothing else.
+   *
+   * This had two goes at being clever and both were wrong. It overruled the
+   * choice whenever that column was not itself a timestamp — so a reading set
+   * to `id` was charted against `_watermark_ts`, a copying tool's column
+   * nobody picked. Narrowing that to "never a bookkeeping column" only moved
+   * the problem: `id` then became `Det`, which is a better column and still
+   * not the one on screen. A dropdown that says `id` while the statement
+   * underneath says `Det` is the panel disagreeing with itself, and the
+   * person reading it has no way to tell which is in force.
+   *
+   * So the selection wins, always. Where it names something that is not a
+   * time there is no window to express — the rows come back in that column's
+   * order and the chart draws them by position, which the statement shows.
+   * Choosing a timestamp in the dropdown is what turns the window on, and
+   * that is a decision with one place to make it.
+   */
+  if (asked) return asked
 
-  const temporal = known.filter(column => TEMPORAL.test(column.type))
-  const plants = temporal.filter(column => !BOOKKEEPING.test(column.name))
-  return (plants[0] || temporal[0])?.name || null
+  // Nothing chosen yet: the plant's own timestamp, never a bookkeeping one.
+  const plants = known.filter(column =>
+    TEMPORAL.test(column.type) && !BOOKKEEPING.test(column.name))
+  return plants[0]?.name || null
+}
+
+/* ------------------------------------------- a date and a time, as columns --*/
+
+/** Columns a plant keeps its date and its time of day in, as text. */
+const DATEISH = /(^|_)date($|_)|^d$/i
+const TIMEISH = /(^|_)time($|_)|^t$/i
+const TEXTUAL = /^(char|varchar|nchar|nvarchar|text|tinytext|mediumtext|longtext)\b/i
+
+/**
+ * The orders a plant writes a date in. First one that parses every row wins.
+ *
+ * Ambiguous on its own — `10-11-2026` is valid under two of these — and not
+ * ambiguous across a table, because any month of real data contains a day past
+ * the twelfth, which only the right order parses. That is why the test below
+ * is "every row", not "this row".
+ */
+const DATE_ORDERS = [
+  '%m-%d-%Y', '%d-%m-%Y', '%Y-%m-%d',
+  '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d',
+  '%d-%b-%Y', '%d %b %Y',
+]
+const TIME_ORDER = '%H:%i:%s'
+
+/** connection + table → the pair and the format that parses it, once found. */
+const stamps = new Map()
+
+/**
+ * A timestamp built from a date column and a time column.
+ *
+ * Plenty of plant tables have no `datetime` at all: the date and the time of
+ * day are two text columns, written by whatever wrote the row. `pouring_data`
+ * is one — `Date` holds `10-22-2026` and `Time` holds `13:35:35` — and its
+ * only real timestamps are `_watermark_ts` and `_synced_at`, which are when a
+ * copying tool touched the row rather than when the pour happened. Charting
+ * against those is charting the copy, and on a backfill they are all the same
+ * afternoon.
+ *
+ * So the two text columns are read as the timestamp they are. The format is
+ * not guessed: each candidate is tried against the whole table and only one
+ * that leaves nothing unparsed is used, which is both the test and the proof.
+ * A table it cannot read falls through to whatever the chooser above picked.
+ *
+ * MySQL and MariaDB only. `STR_TO_DATE` is theirs; the equivalents elsewhere
+ * are different enough that claiming support without a plant to test it on
+ * would be claiming a check that is not happening.
+ */
+async function stampFromParts(row, tag, known) {
+  if (row.engine !== 'mysql' && row.engine !== 'mariadb') return null
+
+  const textual = known.filter(column => TEXTUAL.test(column.type))
+
+  /*
+   * The date half may be a `datetime` column, not only text.
+   *
+   * `RTC Data` keeps `Det` as a `datetime` whose time of day is always
+   * midnight, and the actual time in a `Time` text column beside it. Requiring
+   * both halves to be text ruled that pair out — so the one table where the
+   * combination was most needed was the one table that could not have it, and
+   * its chart fell back to no window at all.
+   */
+  const dateColumns = known.filter(column =>
+    TEXTUAL.test(column.type) || TEMPORAL.test(column.type))
+
+  /*
+   * The pair the reading asked for, or the pair this table obviously has.
+   *
+   * `timeColumn` and `timeColumn2` are what the "Newest by" dropdown stores
+   * when somebody picks a combined date and time — their choice, and used
+   * without argument. The name match below is only for a reading that has
+   * chosen nothing yet.
+   */
+  const named = tag.timeColumn && tag.timeColumn2
+  /*
+   * A `datetime` column needs no name test; a text one does — see the same
+   * rule in `datePair` on the panel side. `Det` holds the day on `RTC Data`
+   * and is called nothing like "date".
+   */
+  /*
+   * The chosen column is the date half, when there is one.
+   *
+   * Choosing `Det` and being given `Det + Time` is not this overruling the
+   * dropdown — it is the same column with the clock it was missing. The time
+   * half is found beside it, and if `Det` turns out to carry a time of day
+   * after all, the check further down abandons the merge entirely.
+   */
+  const preferred = tag.timeColumn
+    ? dateColumns.find(column =>
+      column.name === tag.timeColumn && !BOOKKEEPING.test(column.name))
+    : null
+
+  const date = named
+    ? dateColumns.find(column => column.name === tag.timeColumn)
+    : preferred ||
+      dateColumns.find(column =>
+        TEMPORAL.test(column.type) && !BOOKKEEPING.test(column.name)) ||
+      dateColumns.find(column => DATEISH.test(column.name))
+  const time = named
+    ? textual.find(column => column.name === tag.timeColumn2)
+    : textual.find(column => TIMEISH.test(column.name))
+
+  const key = `${schemaKey(row)}\u0000${tag.table}\u0000${date?.name}\u0000${time?.name}`
+  if (stamps.has(key)) return stamps.get(key)
+
+  if (!date || !time) {
+    stamps.set(key, null)
+    return null
+  }
+
+  const dialect = DIALECT[row.engine]
+
+  /*
+   * A `datetime` date half is taken down to its date before joining.
+   *
+   * `Det` is midnight on the day, so `CONCAT(Det, ' ', Time)` would read
+   * `2026-10-22 00:00:00 14:39` — not a timestamp in any format. `DATE()`
+   * leaves `2026-10-22`, which the time column then completes, and the format
+   * for that half is known rather than guessed.
+   */
+  const dateIsTemporal = TEMPORAL.test(date.type)
+  const datePart = dateIsTemporal
+    ? `DATE(${dialect.quote(date.name)})`
+    : dialect.quote(date.name)
+
+  const joined = format =>
+    `STR_TO_DATE(CONCAT(${datePart}, ' ', ${dialect.quote(time.name)}), ` +
+    `'${format} ${TIME_ORDER}')`
+
+  /*
+   * Every candidate in one question, not one question each.
+   *
+   * Eight formats meant eight round trips to the plant's database, over an
+   * SSH tunnel, before a chart could even be built. They are independent
+   * counts over the same rows, so they are counted together: one scan, one
+   * answer, and the first format with nothing unparsed wins.
+   */
+  const orders = dateIsTemporal ? ['%Y-%m-%d'] : DATE_ORDERS
+  const counts = orders
+    .map((order, index) =>
+      `SUM(CASE WHEN ${joined(order)} IS NULL THEN 1 ELSE 0 END) AS bad${index}`)
+    .join(', ')
+
+  /*
+   * Does the `datetime` half already carry a time of day?
+   *
+   * If it does, there is nothing to merge — it is the moment, and joining a
+   * separate time column to it would be inventing one. `Det` on `RTC Data`
+   * does not: every row is midnight, with the real time in a `Time` column
+   * beside it, and that is the case this merging exists for.
+   *
+   * Asked of the data rather than the schema, because the type says
+   * `datetime` either way. Counted in the same scan as the formats above.
+   */
+  /*
+   * Counted in seconds, not compared as a string.
+   *
+   * `TIME(col) <> '00:00:00'` looks right and is not: a `datetime` with
+   * fractional seconds gives `00:00:00.000`, which is not equal to
+   * `'00:00:00'`, so every midnight row counted as having a clock. Measured
+   * on `RTC Data`: that test said all 15,914 rows carried a time of day and
+   * the arithmetic below says none of them do.
+   */
+  const clock = column =>
+    `HOUR(${column})*3600 + MINUTE(${column})*60 + SECOND(${column})`
+  const hasTimeOfDay = dateIsTemporal
+    ? `, SUM(CASE WHEN ${clock(dialect.quote(date.name))} <> 0 THEN 1 ELSE 0 END) AS withTime`
+    : ''
+
+  try {
+    const [checked] = await ask(row, async ({ query }) => query(
+      `SELECT COUNT(*) AS seen, ${counts}${hasTimeOfDay} FROM ${dialect.quote(tag.table)}`, []
+    ))
+
+    /*
+     * A `datetime` that already has the time of day needs no second half.
+     *
+     * Merging would take the day from one column and the clock from another
+     * when the first column has both — at best the same answer, at worst a
+     * different one, and either way a longer statement saying less.
+     */
+    if (dateIsTemporal && Number(checked?.withTime || 0) > 0) {
+      stamps.set(key, null)
+      return null
+    }
+
+    const seen = Number(checked?.seen || 0)
+    if (seen > 0) {
+      const index = orders.findIndex((_, at) => Number(checked?.[`bad${at}`] ?? 1) === 0)
+      if (index >= 0) {
+        const order = orders[index]
+        const found = { sql: joined(order), date: date.name, time: time.name, order }
+        stamps.set(key, found)
+        return found
+      }
+    }
+  } catch {
+    // A table this cannot be asked about is one to leave alone.
+  }
+
+  stamps.set(key, null)
+  return null
 }
 
 /** Does the schema have every name this reading needs? */

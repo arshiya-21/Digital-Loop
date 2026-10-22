@@ -431,6 +431,64 @@ body.present #cwrap {
   position: relative;
 }
 
+/*
+ * A line with nothing published offers no plant controls.
+ *
+ * Fault alarm, System diagnosis, Silence alarm and Fault reset are the
+ * operator's panel for a running line, and over "No loop published yet" they
+ * are a row of red and amber buttons standing on nothing — an alarm count of
+ * (0) where there is no alarm system at all, and two buttons inviting a press
+ * that cannot do anything.
+ *
+ * Only our own strip is kept: the line picker and the way back are how
+ * somebody leaves this screen. `!important` because the studio sets `display`
+ * on several of these itself as it shows and hides the bar.
+ */
+body.dl-no-loop #pbar > button,
+body.dl-no-loop #pbar > .pinfo,
+body.dl-no-loop #pbar > .pfit {
+  display: none !important;
+}
+
+/*
+ * "This is a preview", in the view that looks exactly like the real thing.
+ *
+ * Only in the publish view, and only for an administrator whose open loop is
+ * not the one the plant is on — see `sayWhetherThePlantSeesThis`.
+ */
+.dl-preview {
+  display: none;
+}
+
+body.present .dl-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px 12px;
+  margin-right: 6px;
+  border: 1px solid #b45309;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #7c2d12;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dl-preview-go {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dl-preview-go:hover {
+  background: #92400e;
+}
+
 body.present .dl-empty {
   display: flex;
   position: absolute;
@@ -619,6 +677,18 @@ body.present .dl-empty {
   height: auto;
   font-size: 11px;
 }
+
+/* Which of the reading's two statements the box is showing: the one row the
+   value comes from, or the window the chart reads. */
+.dl-query-what {
+  flex: 0 0 auto;
+  height: auto;
+  padding: 3px 4px;
+  font-size: 11px;
+  max-width: 108px;
+}
+
+.dl-query-what[hidden] { display: none; }
 
 .dl-sql-text {
   width: 100%;
@@ -911,3 +981,176 @@ body.present .dl-empty {
  * a stylesheet that hides a card hides it everywhere the studio ever draws
  * one, including places this was never meant to touch.
  */
+
+/* "Only rows where" on a reading: the column beside the value it must equal.
+   One field, two controls — see the link row in properties.mjs. */
+.dl-link-where {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dl-link-where select { flex: 1 1 auto; min-width: 0; }
+.dl-link-where input { flex: 0 1 40%; min-width: 0; }
+
+/* The rows a reading's Preview data shows: a table, not CSV in a box.
+   Headings stay put while the rows scroll, because two hundred of them is
+   further than the modal is tall. */
+.dl-query-rows {
+  margin-top: 8px;
+  max-height: 34vh;
+  overflow: auto;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+}
+
+.dl-rows { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.dl-rows th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  font-weight: 600;
+  background: var(--panel2, #f4f7fa);
+  border-bottom: 1px solid var(--line, #e2e8f0);
+  padding: 6px 10px;
+}
+
+.dl-rows td {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--line, #eef2f6);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.dl-rows tr:last-child td { border-bottom: 0; }
+
+/* A filter column chosen with nothing to match against is not a filter. */
+.dl-needs-value input { border-color: var(--warn, #d97706); }
+
+/* The comparison between the filter's column and its value. Narrow: it holds
+   two characters and should not take width from either side of it. */
+.dl-link-where select.dl-link-op { flex: 0 0 auto; width: 64px; min-width: 0; }
+
+/* The formulas in the Data tab, beside the Decimals control. Monospace for
+   the arithmetic, because the point is to be able to follow it. */
+.dl-how-figured {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  background: var(--panel2, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.dl-how-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.dl-how-head button { margin-left: auto; }
+
+.dl-how-figured code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+
+.dl-how-figured .note { margin-left: 6px; }
+
+/* The formulas in the Data ribbon's Figures group — reference, read beside
+   the control that decides how the numbers are shown. */
+.dl-formulas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  margin-left: 10px;
+  border-left: 1px solid var(--line, #e2e8f0);
+  max-width: 420px;
+}
+
+.dl-formulas code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--tx, #22415c);
+}
+
+.dl-formulas .note { font-size: 10.5px; line-height: 1.35; margin-top: 2px; }
+
+/* Adding a reading: the two ways to say where it comes from, and the box for
+   the one that is written. */
+.dl-how { margin: 8px 0; }
+.dl-how .seg { display: inline-flex; }
+
+/* `hidden` wins over the rule below.
+ *
+ * `display: flex` overrides the hidden attribute — the third time that has
+ * caught something in this file. The statement box stayed on screen while
+ * "From the dropdowns" was the chosen mode, pushing the table and column
+ * steps below the fold so they read as missing. */
+.dl-written[hidden] { display: none; }
+
+.dl-written {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.dl-written textarea { width: 100%; }
+
+.dl-written-acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dl-written-acts .ib { margin-left: auto; }
+
+/* The statement a new reading will run, shown while it is being set up.
+   In a box of its own, like every other statement on this panel: loose text
+   under three dropdowns reads as a caption about them rather than as the SQL
+   they produce. */
+.dl-new-sql {
+  display: block;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel, #fff);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text, #0f172a);
+  word-break: break-word;
+}
+
+.dl-new-sql:empty { display: none; }
+
+/* "Watch this one": a reading set to blink on the drawing, and how often —
+   see `offerToBlink`. The interval appears only once blinking is asked for. */
+.dl-blink-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+
+.dl-blink-every[hidden] { display: none; }
+
+.dl-blink-secs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.dl-blink-secs input {
+  width: 84px;
+  flex: 0 0 auto;
+}
+
+.dl-blink-secs small { color: var(--muted); }

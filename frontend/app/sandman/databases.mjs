@@ -259,18 +259,31 @@ function narrowTheFlowsDatabases() {
  * resolves it through `customerSource()` — so the card added here is the one
  * the wizard would have drawn if the list had included it.
  */
-function offerTheFoundryDatabase() {
+function watchTheLinkingWizard() {
   const original = window.lwRender
   if (typeof original !== 'function' || original.__dlCustomer) return
 
-  const replaced = function lwRenderWithTheFoundryDatabase() {
+  const replaced = function lwRenderThenStoreWhatItLinks() {
     const answer = original.apply(this, arguments)
     try {
-      addFoundryCard()
+      /*
+       * `addFoundryCard()` is deliberately not called any more.
+       *
+       * It put a "★ Munjal Kiriu database" card at the front of this wizard,
+       * built from `CUSTOMER.defaultDb` rather than from the data sources —
+       * the last place the launch's database was still offered as something
+       * to link to, after the Add reading menu and the Data sources page both
+       * stopped offering it. Three lists that answer "where can this read
+       * from" have to answer it the same way, and the answer is: the
+       * databases somebody registered.
+       *
+       * What this wrapper is still here for is below, and always was the more
+       * important half of it.
+       */
       storeWhatItLinks()
     } catch (error) {
-      // The wizard is drawn either way; without the card it is what it was.
-      console.error('Offering the foundry database failed:', error)
+      // The wizard works either way; only the storing would be missing.
+      console.error('Watching the linking wizard failed:', error)
     }
     return answer
   }
@@ -341,7 +354,7 @@ export async function install({ onLinked } = {}) {
   replaceSources()
   replaceCatalog()
   narrowTheFlowsDatabases()
-  offerTheFoundryDatabase()
+  watchTheLinkingWizard()
   await load()
   // The properties panel may already be open on an equipment item.
   window.renderProps?.()

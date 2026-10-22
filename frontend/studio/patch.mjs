@@ -37,6 +37,164 @@ const keepWatching = process.argv.includes('--watch')
 
 const PATCHES = [
   {
+    name: 'the σ bands can be turned off',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `TR.sig = 'cfg';
+TR.basis = 'typ';
+TR.alm = false;`,
+    replacement: `TR.sig = 'cfg';
+TR.basis = 'typ';
+TR.alm = false;
+/* The σ bands — zones, lines and labels — are on until somebody turns them off. */
+TR.bands = true;`,
+  },
+  {
+    name: 'a σ of nought falls back to the configured one',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `  const sigma = Math.max(
+      TR.sig === 'cfg' ? sp.sd : TR.sig === 'sd' ? sdw : mrb / 1.128,
+      Math.abs(t.typ) * 1e-6,
+      1e-9,
+    ),
+    cl = TR.basis === 'typ' ? t.typ : mean;`,
+    replacement: `  /*
+   * σ from the data, and the configured σ when the data has none.
+   *
+   * A run of identical readings — a column parked on one value, a line that
+   * has not moved — has a standard deviation of nought, and a nought σ is not
+   * a control chart: all six band lines land on the centre line and the chart
+   * loses the one thing it is for. The configured σ (or the one suggested from
+   * the alarm limits) stands in, so the bands are drawn where the limits say
+   * they should be and the flat run is visible against them.
+   *
+   * Nothing is hidden by this: the stats row below reports "σ used" and "σ of
+   * data" separately, so a nought spread still says so.
+   */
+  const asked = TR.sig === 'cfg' ? sp.sd : TR.sig === 'sd' ? sdw : mrb / 1.128;
+  const spread = asked > 0 ? asked : sp.sd > 0 ? sp.sd : Math.abs(t.typ) * 0.02;
+  const sigma = Math.max(spread, Math.abs(t.typ) * 1e-6, 1e-9),
+    cl = TR.basis === 'typ' ? t.typ : mean;`,
+  },
+  {
+    name: 'a σ bands tick, beside Min / Max',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `<label class="chk"><input type="checkbox" id="trSpec" \${TR.spec ? 'checked' : ''}> Min / Max</label><label class="chk"><input type="checkbox" id="trAlm"`,
+    replacement: `<label class="chk"><input type="checkbox" id="trSpec" \${TR.spec ? 'checked' : ''}> Min / Max</label><label class="chk"><input type="checkbox" id="trBands" \${TR.bands !== false ? 'checked' : ''}> σ bands</label><label class="chk"><input type="checkbox" id="trAlm"`,
+  },
+  {
+    name: 'the σ bands tick redraws the chart',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `  $('#trSpec').onchange = e => {
+    TR.spec = e.target.checked;
+    drawTrend();
+  };`,
+    replacement: `  $('#trSpec').onchange = e => {
+    TR.spec = e.target.checked;
+    drawTrend();
+  };
+  $('#trBands').onchange = e => {
+    TR.bands = e.target.checked;
+    drawTrend();
+  };`,
+  },
+  {
+    name: 'the axis reaches only as far as what is drawn',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `      let lo = Math.min(S.min, S.cl - 3.4 * S.sigma, ...extra.map(x => x[0])),
+        hi = Math.max(S.max, S.cl + 3.4 * S.sigma, ...extra.map(x => x[0]));`,
+    replacement: `      /*
+       * The axis reaches as far as what is being drawn, and no further.
+       *
+       * ±3.4σ is in the range only while the bands are on screen. With them
+       * turned off that reach was still stretching the axis to make room for
+       * lines nobody was drawing, which flattened the readings into a band
+       * across the middle.
+       */
+      const reach = TR.bands !== false ? [S.cl - 3.4 * S.sigma, S.cl + 3.4 * S.sigma] : [S.cl];
+      let lo = Math.min(S.min, ...reach, ...extra.map(x => x[0])),
+        hi = Math.max(S.max, ...reach, ...extra.map(x => x[0]));`,
+  },
+  {
+    name: 'right-hand labels stay level with their own lines',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `        let ly = y + 4;
+        for (let k = 0; k < 6 && LY.some(q => Math.abs(q - ly) < 11); k++) ly += y < H / 2 ? 11 : -11;
+        LY.push(ly);
+        c.fillStyle = col;
+        c.font = \`\${bold ? 700 : 600} 10.5px IBM Plex Mono,monospace\`;
+        c.textAlign = 'left';
+        c.fillText(\`\${lab} \${fmt(v)}\`, W - pr + 6, ly);`,
+    replacement: `        /*
+         * A line without a label is a line, and that is often the right one.
+         *
+         * Callers pass no label for the σ lines. Six of them inside a spread
+         * of a quarter of a unit, on an axis eighteen units tall, put seven
+         * numbers in a stack down the right-hand gutter with leader lines
+         * fanning back to a single pixel row — and every one of those numbers
+         * is already in the stats underneath, under "σ used". The zones say
+         * where ±1σ is; the gutter is for the handful of values somebody
+         * reads off the axis: the centre line, Min, Max and the alarm limits.
+         *
+         * Those few are nudged apart when they collide, and stay level with
+         * their own line whenever they can — a label printed above a gridline
+         * it does not belong to is a chart contradicting itself.
+         */
+        if (!lab) return;
+
+        const home = y + 3.5;
+        let ly = home;
+        for (let k = 1; k < 40 && LY.some(q => Math.abs(q - ly) < 11); k++) {
+          ly = home + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 11;
+        }
+        ly = Math.max(pt + 8, Math.min(H - pb - 2, ly));
+        LY.push(ly);
+
+        c.fillStyle = col;
+        c.font = \`\${bold ? 700 : 600} 10.5px IBM Plex Mono,monospace\`;
+        c.textAlign = 'left';
+        c.fillText(\`\${lab} \${fmt(v)}\`, W - pr + 8, ly);`,
+  },
+  {
+    name: 'every σ band drawn, unless there is no spread at all',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `      [
+        [3, ZC.l3, '+3σ'],
+        [2, ZC.l2, '+2σ'],
+        [1, ZC.l1, '+1σ'],
+      ].forEach(([k, col, l]) => {
+        hline(S.cl + k * S.sigma, col, [5, 4], l, k === 3 ? 1.6 : 1.1);
+        hline(S.cl - k * S.sigma, col, [5, 4], l.replace('+', '−'), k === 3 ? 1.6 : 1.1);
+      });`,
+    replacement: `      /*
+       * All three σ bands, unless there is no spread at all.
+       *
+       * They crowd together when σ is small against the axis — the axis is
+       * stretched by Min and Max, and σ may be a fraction of that range — but
+       * crowded is not the same as absent, and a control chart with its ±1σ
+       * and ±2σ bands missing is not the chart anybody came to read. Only a σ
+       * of nought is dropped, where all six lines would be drawn on CL.
+       *
+       * To see them apart, turn off the Min / Max tick above the chart: the
+       * axis then scales to the data and its bands rather than being
+       * stretched to reach the specification.
+       */
+      const sigmaGap = Math.abs(Y(S.cl) - Y(S.cl + S.sigma));
+      const bands =
+        TR.bands === false || sigmaGap < 1
+          ? []
+          : [
+              [3, ZC.l3, '+3σ'],
+              [2, ZC.l2, '+2σ'],
+              [1, ZC.l1, '+1σ'],
+            ];
+      // Drawn, not labelled — see \`hline\`. The legend names the zones and the
+      // stats row gives the σ they are measured with.
+      bands.forEach(([k, col]) => {
+        hline(S.cl + k * S.sigma, col, [5, 4], null, k === 3 ? 1.6 : 1.1);
+        hline(S.cl - k * S.sigma, col, [5, 4], null, k === 3 ? 1.6 : 1.1);
+      });`,
+  },
+  {
     name: 'base href, so assets resolve at any path depth',
     anchor: '<meta charset="utf-8">',
     replacement: `<meta charset="utf-8">
@@ -127,12 +285,31 @@ const PATCHES = [
  */
 const normalise = text => text.replaceAll('\r\n', '\n')
 
+/*
+ * A patch may name a file; without one it is the page template.
+ *
+ * Everything here used to be a change to `index.template.html`, so the file
+ * was implied. One change is not: the control chart draws its σ lines on top
+ * of each other when there is no spread, and that lives in the studio's own
+ * JavaScript. A drop replaces `src/` wholesale, so a change made there and
+ * not declared here is a change that disappears without a word.
+ */
 function applyPatches({ quiet } = {}) {
-  const original = readFileSync(TEMPLATE, 'utf8')
+  const byFile = new Map()
+  for (const patch of PATCHES) {
+    const file = patch.file ? join(HERE, 'src', patch.file) : TEMPLATE
+    if (!byFile.has(file)) byFile.set(file, [])
+    byFile.get(file).push(patch)
+  }
+  for (const [file, patches] of byFile) applyTo(file, patches, { quiet })
+}
+
+function applyTo(file, patches, { quiet } = {}) {
+  const original = readFileSync(file, 'utf8')
   let text = normalise(original)
   let changedCount = 0
 
-  for (const patch of PATCHES) {
+  for (const patch of patches) {
     if (text.includes(patch.replacement)) {
       if (check) console.log(`  = ${patch.name} (already applied)`)
       continue
@@ -166,7 +343,7 @@ function applyPatches({ quiet } = {}) {
    * The CRLF normalisation still happens on the first run, which is what it
    * was for; it simply no longer happens again every time afterwards.
    */
-  if (!check && text !== original) writeFileSync(TEMPLATE, text, 'utf8')
+  if (!check && text !== original) writeFileSync(file, text, 'utf8')
 }
 
 /* ------------------------------------------------------------------- build ---*/
