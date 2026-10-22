@@ -107,7 +107,11 @@ function buildLineStrip() {
   placeStrip(strip)
   followPublishView(strip)
 
-  $('#dlPlant').textContent = session.foundry.name
+  // The name, and the whole of it on hover: the header cuts it short rather
+  // than pushing the line, the publish pill and the way back off the screen.
+  const plant = $('#dlPlant')
+  plant.textContent = session.foundry.name
+  plant.title = session.foundry.name
   const back = $('#dlBack')
   back.href = session.sandmanUrl || '/'
   if (embedded()) back.target = '_top'
@@ -184,8 +188,42 @@ function watchForNew() {
   if (!file || file.dataset.dlWatched) return
   file.dataset.dlWatched = '1'
   file.addEventListener('change', event => {
-    if (event.target.value === 'blank') startedFresh = true
+    if (event.target.value !== 'blank') return
+    startedFresh = true
+    // The studio acts on this event after us — see the capture phase above —
+    // so the clearing below waits for it.
+    requestAnimationFrame(clearTheLastLoopsNumbers)
   }, true)
+}
+
+/**
+ * Nothing of the last loop left on a blank canvas.
+ *
+ * `blankDoc()` carries no processes, so the compliance badges have nothing to
+ * draw from the moment New runs — but the layer they live in is only rewritten
+ * when something asks it to, and the footer's "Checks 69 % OK · 4 overdue" is
+ * the same. Pressing New left both standing on an empty canvas: a percentage
+ * and an overdue count belonging to a loop that is no longer open, floating
+ * where its area used to be, until the next redraw happened along a few
+ * seconds later.
+ *
+ * Numbers about nothing are worse than no numbers, and these are the kind
+ * somebody acts on. So the layer is emptied outright and the studio is asked
+ * to recount — one of those is belt and the other braces, because which of
+ * them runs depends on a drop we do not control.
+ */
+function clearTheLastLoopsNumbers() {
+  const badges = document.getElementById('Lpbadge')
+  if (badges) badges.innerHTML = ''
+
+  for (const redraw of ['cpDrawBadges', 'cpStatus', 'cpAlerts', 'liveCanvas']) {
+    try {
+      window[redraw]?.()
+    } catch {
+      // A drop that renamed one of these is not a reason to leave the canvas
+      // half cleared; the layer above is already empty either way.
+    }
+  }
 }
 
 function refreshLineStrip() {
@@ -616,12 +654,16 @@ function freeLoopName(lineId, wanted) {
 }
 
 /**
- * Open — the latest loop on this line.
+ * Open — the loops on this line, to choose from.
  *
- * A line may hold more than one, because pressing New and saving starts
- * another, but only the newest is ever shown: the older ones are history on
- * the server rather than a list to pick through. So this reloads and opens
- * whatever is latest, which is also what choosing the line does.
+ * It used to open the newest and, when that was already open, say so and stop.
+ * That holds while a line has one loop, and stops holding the moment somebody
+ * presses New: the blank canvas is saved, it becomes the newest, and the loop
+ * they built is behind it with nothing offering to open it. Open then refused
+ * to open anything, which is the one thing a button called Open must not do.
+ *
+ * With one loop there is still nothing to choose, so it opens it. With more
+ * than one it asks — see `pickLoop`.
  */
 async function openAnotherLoop() {
   const lineId = standingLine || designs.current?.lineId
@@ -639,19 +681,35 @@ async function openAnotherLoop() {
   }
 
   const lineName = designs.lineNameFor(lineId) || 'this line'
-  const latest = designs.designOnLine(lineId)
-  if (!latest) {
+  const onLine = designs.designsOnLine(lineId)
+  if (!onLine.length) {
     studio.toast(`Nothing has been drawn for ${lineName} yet — draw it and press Save.`)
     return
   }
 
-  if (latest.id === designs.current?.id) {
-    studio.toast(`${latest.name} is the latest loop on ${lineName}, and it is already open.`)
+  if (onLine.length === 1) {
+    if (onLine[0].id === designs.current?.id) {
+      studio.toast(`${onLine[0].name} is the only loop on ${lineName}, and it is already open.`)
+      return
+    }
+    await openDesign(onLine[0].id)
+    studio.toast(`Opened ${designs.current.name}.`)
     return
   }
 
-  await openDesign(latest.id)
-  studio.toast(`Opened ${designs.current.name}, the latest loop on ${lineName}.`)
+  const chosen = await studio.pickLoop({
+    loops: onLine,
+    lineName,
+    openId: designs.current?.id || null,
+  })
+  if (!chosen) return
+  if (chosen === designs.current?.id) {
+    studio.toast(`${designs.current.name} is already open.`)
+    return
+  }
+
+  await openDesign(chosen)
+  studio.toast(`Opened ${designs.current.name}.`)
 }
 
 async function togglePublish() {
@@ -735,7 +793,7 @@ async function boot() {
     studio.defaultToLightTheme()
     // "Build your sand loop" belongs on the page it is talking about, not in
     // the middle of the window while the page is scrolled somewhere else.
-    studio.anchorEmptyCardToThePage()
+    studio.centreEmptyCardOnTheCanvas()
     applyRole()
     buildLineStrip()
 

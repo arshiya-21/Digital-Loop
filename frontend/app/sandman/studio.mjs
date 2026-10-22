@@ -250,23 +250,74 @@ export function askName({ title, label = 'Name', value = '', hint = '', action =
   )
 }
 
+/**
+ * Choose one of the loops on this line.
+ *
+ * Open used to say "the latest one is already open" and stop there, on the
+ * reasoning that a line has one loop and the rest are history. That reasoning
+ * holds right up until somebody presses New: the blank canvas is saved, it
+ * becomes the newest, and the loop they actually built is behind it with no
+ * way to reach it. Open then refused to open anything, which is the one thing
+ * a button called Open must never do.
+ *
+ * So it lists them. Each row says what the loop is called, which version it
+ * has reached, whether it is published, and when it was last saved — which is
+ * what tells a real loop apart from a blank one started by accident.
+ *
+ * Resolves with the chosen loop's id, or null if they backed out.
+ */
+export function pickLoop({ loops, lineName, openId }) {
+  const when = stamp => {
+    const at = new Date(stamp || '')
+    if (Number.isNaN(at.getTime())) return 'not saved yet'
+    return at.toLocaleString(undefined, {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    })
+  }
+
+  const row = loop => {
+    const open = loop.id === openId
+    return `<button type="button" class="dl-pick-loop${open ? ' on' : ''}" data-loop="${escapeHtml(loop.id)}">
+ <span class="dl-pick-name">${escapeHtml(loop.name || 'Untitled')}</span>
+ <span class="note">v${escapeHtml(String(loop.latestVersion ?? loop.version ?? 1))} · ${
+  loop.status === 'published' ? 'published' : 'draft'
+} · saved ${escapeHtml(when(loop.updatedAt))}${open ? ' · open now' : ''}</span>
+ </button>`
+  }
+
+  return ask(
+    `<div id="dlAskBox"><h3>Open a loop on ${escapeHtml(lineName)}</h3>
+ <div class="note">The newest is first. Opening one leaves the canvas as it is on the server — nothing is overwritten until you save.</div>
+ <div class="dl-pick-list">${loops.map(row).join('')}</div>
+ <div class="mact"><button type="button" class="ib" id="dlAskCancel">Cancel</button></div></div>`,
+    finish => {
+      document.getElementById('dlAskCancel').onclick = () => finish(null)
+      for (const button of document.querySelectorAll('#dlAskBox [data-loop]')) {
+        button.onclick = () => finish(button.dataset.loop)
+      }
+    }
+  )
+}
+
 /* --------------------------------- the empty canvas card, over the page ---*/
 
 /**
- * Keep "Build your sand loop" on the page it is talking about.
+ * Keep "Build your sand loop" in the middle of the canvas.
  *
- * The card is `position: absolute; inset: 0` inside the canvas wrapper, so it
- * centres itself on the **window** — and the drawing area is a 1920-wide page
- * that is usually scrolled or zoomed somewhere else entirely. The invitation
- * to drag equipment onto the canvas ended up floating beside the canvas it
- * meant, and stayed put while the page moved under it.
+ * The card is `position: absolute; inset: 0` inside the canvas wrapper, which
+ * centres it — and then the wrapper is sized by the 1920-wide page, so the
+ * middle of that is somewhere off to the side of what is on screen. The
+ * invitation to drag equipment onto the canvas was being found in the
+ * bottom-right corner, where it reads as something that got stuck rather than
+ * something addressed to you.
  *
- * So it is placed on the middle of the page outline instead, and follows it:
- * panning, zooming and resizing all move it. It is still clamped into the
- * visible area, because a card that follows the page off the screen is an
- * invitation nobody can read.
+ * It is placed on the middle of the visible canvas instead, and follows it:
+ * panning, scrolling, zooming and resizing all move it. The card only ever
+ * shows on an empty canvas, so there is no drawing for it to sit beside and
+ * nothing it could be covering — the middle of the window is simply where it
+ * belongs.
  */
-export function anchorEmptyCardToThePage() {
+export function centreEmptyCardOnTheCanvas() {
   const wrap = document.getElementById('cwrap')
   const card = document.getElementById('fsEmpty')
   if (!wrap || !card || card.dataset.dlAnchored) return
@@ -277,25 +328,21 @@ export function anchorEmptyCardToThePage() {
     frame = null
     if (card.hidden) return
 
-    const page = document.querySelector('#pgframe .pg-edge')
-    if (!page) {
-      // No page outline — the studio's own centring is the right answer.
-      card.classList.remove('dl-empty-anchored')
-      return
-    }
-
-    const area = page.getBoundingClientRect()
     const box = wrap.getBoundingClientRect()
-    if (!area.width || !box.width) return
+    if (!box.width) return
 
     card.classList.add('dl-empty-anchored')
     const size = card.getBoundingClientRect()
     const half = { x: size.width / 2 + 16, y: size.height / 2 + 16 }
 
-    const centre = {
-      x: area.left + area.width / 2 - box.left,
-      y: area.top + area.height / 2 - box.top,
-    }
+    /*
+     * The middle of what is on screen.
+     *
+     * `cwrap` scrolls, so its own box is the window onto the canvas rather
+     * than the canvas itself: half its width and height is the middle of what
+     * somebody is looking at, wherever the page beneath has been scrolled to.
+     */
+    const centre = { x: box.width / 2, y: box.height / 2 }
     card.style.left = `${Math.max(half.x, Math.min(box.width - half.x, centre.x))}px`
     card.style.top = `${Math.max(half.y, Math.min(box.height - half.y, centre.y))}px`
   }

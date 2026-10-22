@@ -373,6 +373,71 @@ const fitted = await evaluate(`(() => {
 check('the whole loop is on screen, not just its width',
   fitted === null || fitted.blocks === 0 || fitted.inside === true, fitted)
 
+/*
+ * The header fits the header, however long the plant is called.
+ *
+ * Our strip used to be `flex: 0 0 auto` — never narrower than its contents —
+ * and nothing else in the studio's header shrinks either, so a plant called
+ * "MPM INFOSOFT PRIVATE LIMITED" pushed the whole right-hand group 52 px past
+ * the edge: the publish pill clipped and the way back half off the screen.
+ *
+ * The plant name is what gives, because it is the only thing in that group
+ * that is read rather than pressed. The whole of it is on the title.
+ */
+const headerFit = await evaluate(`(() => {
+  const hdr = document.querySelector('header.hdr')
+  if (!hdr || getComputedStyle(hdr).display === 'none') return { notShowing: true }
+  const box = hdr.getBoundingClientRect()
+  const fits = el => {
+    if (!el || el.hidden) return null
+    const r = el.getBoundingClientRect()
+    return r.width > 0 && r.right <= box.right + 0.5 && r.left >= box.left - 0.5
+  }
+  const plant = document.getElementById('dlPlant')
+  return {
+    overflowBy: hdr.scrollWidth - hdr.clientWidth,
+    backFits: fits(document.getElementById('dlBack')),
+    lineFits: fits(document.getElementById('dlLine')),
+    plantTitled: !!plant?.getAttribute('title'),
+  }
+})()`)
+if (!headerFit.notShowing) {
+  check('the header fits its own width', headerFit.overflowBy <= 0, headerFit)
+  check('with the way back and the line whole inside it',
+    headerFit.backFits === true && headerFit.lineFits === true, headerFit)
+  check('and the plant name carrying the whole of it on hover',
+    headerFit.plantTitled === true, headerFit)
+}
+
+/*
+ * "Build your sand loop" is in the middle of the canvas, not in a corner.
+ *
+ * `#cwrap` is stretched by the 1920-wide page, so the studio's own `inset: 0`
+ * centring put the card off where the page's middle is rather than where the
+ * person is looking — it was being found in the bottom-right corner, reading
+ * as something stuck rather than an invitation.
+ */
+const invitation = await evaluate(`(() => {
+  const wrap = document.getElementById('cwrap')
+  const card = document.getElementById('fsEmpty')
+  if (!wrap || !card || card.hidden) return { notShowing: true }
+  const w = wrap.getBoundingClientRect(), c = card.getBoundingClientRect()
+  return {
+    offBy: {
+      x: Math.round(c.left + c.width / 2 - (w.left + w.width / 2)),
+      y: Math.round(c.top + c.height / 2 - (w.top + w.height / 2)),
+    },
+    window: { w: Math.round(w.width), h: Math.round(w.height) },
+    inside: c.left >= w.left && c.right <= w.right && c.top >= w.top && c.bottom <= w.bottom,
+  }
+})()`)
+if (!invitation.notShowing) {
+  check('the empty-canvas card is on screen', invitation.inside === true, invitation)
+  check('and in the middle of it',
+    Math.abs(invitation.offBy.x) < invitation.window.w * 0.1 &&
+    Math.abs(invitation.offBy.y) < invitation.window.h * 0.1, invitation)
+}
+
 
 const created = await evaluate(`(async () => {
   const r = await fetch('api/v1/loops', {

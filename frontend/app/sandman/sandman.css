@@ -75,6 +75,42 @@ body.dl-locked > *:not(#dlLocked) {
   user-select: none;
 }
 
+/* ------------------------------------------------- choosing which loop ---
+ *
+ * Open lists the loops on the line. Each row leads with the name, because that
+ * is what is being chosen, and says underneath the things that tell a real
+ * loop from a blank one started by accident: its version, whether it is
+ * published, and when it was last saved.
+ */
+
+.dl-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 4px;
+  max-height: 52vh;
+  overflow: auto;
+}
+
+.dl-pick-loop {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  font: inherit;
+  border: 1px solid var(--bd, #cbd8e2);
+  border-radius: 8px;
+  background: var(--pan, #fff);
+  color: var(--tx, #22415c);
+  cursor: pointer;
+}
+
+.dl-pick-loop:hover { border-color: var(--bd2, #a9bac7); background: var(--accent-l, #eef4fb); }
+.dl-pick-loop.on { border-color: var(--accent, #176eae); }
+.dl-pick-name { font-weight: 600; }
+
 /* ------------------------------------------------------- foundry and line ---
  *
  * In the header's right-hand group, where the studio puts its customer chip —
@@ -82,15 +118,34 @@ body.dl-locked > *:not(#dlLocked) {
  * same thing less usefully, so it is hidden and this takes its place.
  */
 
+/*
+ * It shrinks; the plant name is what gives.
+ *
+ * This group used to be `flex: 0 0 auto` — never narrower than its contents —
+ * on the reasoning that squeezing it put the publish pill under the back link.
+ * Nothing else in the studio's header shrinks either, so with a long plant
+ * name ("MPM INFOSOFT PRIVATE LIMITED") the header ran 52 px past its own
+ * right edge: Publish was clipped and Back was half off the screen, measured
+ * at 1535 px wide.
+ *
+ * So the group may now shrink, and `min-width: 0` lets it — without that a
+ * flex item refuses to go below its content. What gives is the plant name,
+ * below: the line, the publish pill and the way back all stay whole, because
+ * each of those is something you press.
+ */
 .dl-linebar {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* Never narrower than its contents: the publish pill and the back link do
-     not shrink, and squeezing this group put the one under the other. */
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
+/*
+ * The one thing here that is only being read, so the one thing that may be
+ * cut short. The full name is on the title, for the plants whose name does
+ * not fit.
+ */
 #dlPlant {
   font-size: 9.5px;
   font-weight: 700;
@@ -98,6 +153,11 @@ body.dl-locked > *:not(#dlLocked) {
   text-transform: uppercase;
   color: var(--mut, #7d909f);
   white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #dlLine {
@@ -109,8 +169,8 @@ body.dl-locked > *:not(#dlLocked) {
   background: var(--pan, #fff);
   color: var(--tx, #22415c);
   flex: 0 1 auto;
-  min-width: 140px;
-  max-width: 240px;
+  min-width: 112px;
+  max-width: 170px;
 }
 
 #dlLine:hover { border-color: var(--bd2, #a9bac7); }
@@ -617,10 +677,11 @@ body.present .dl-empty {
   font-weight: 600;
 }
 
-/* "Build your sand loop", placed on the drawing area rather than centred on
-   the window — see `anchorEmptyCardToThePage`. The studio's own rule is
-   `inset: 0` with flex centring, so this takes the box out of that and lets
-   `left`/`top` put it where the page is. */
+/* "Build your sand loop", in the middle of what is on screen — see
+   `centreEmptyCardOnTheCanvas`. The studio's own rule is `inset: 0` with flex
+   centring inside a wrapper the 1920-wide page has stretched, which put the
+   card off in a corner; this takes the box out of that so `left`/`top` can
+   place it against the visible canvas instead. */
 .fsempty.dl-empty-anchored {
   inset: auto;
   width: max-content;
