@@ -129,6 +129,36 @@ async function open(who) {
 /* ---------------------------------------------------------- administrator ---*/
 
 console.log('\nOPENING — from a SandMan session, never a link')
+
+/*
+ * The cover offers no way out of its own.
+ *
+ * It used to carry a "← Back to SandMan" button, and `.dl-locked-go` gave it
+ * `display: inline-block`, which beats the `hidden` attribute — so it stood on
+ * screen from the first paint, under "Opening…", before any script had decided
+ * where it went and while it still held the template's placeholder href.
+ * SandMan opens this page in a full-page iframe and its own pages refuse to be
+ * framed, so pressing it then turned the whole window into "refused to
+ * connect" with the address bar unchanged.
+ *
+ * Measured on a page that has not entered yet, which is the state it was wrong
+ * in: the cover is up and there is nothing on it to press. The way back is
+ * `#dlBack` in the header, checked under CHROME below.
+ */
+const beforeEntering = await enterAs({ user: 'admin@mpminfosoft', role: 'admin' })
+await send('Page.navigate', { url: beforeEntering.origin })
+await wait(1200)
+const cover = await evaluate(`(() => {
+  const screen = document.getElementById('dlLocked')
+  return {
+    up: !!screen,
+    says: document.getElementById('dlLockedReason')?.textContent?.trim() || '',
+    links: screen ? screen.querySelectorAll('a, button').length : -1,
+  }
+})()`)
+check('the cover is up before a session is confirmed', cover.up === true, cover)
+check('and carries nothing to press', cover.links === 0, cover)
+
 check('the studio opens', await open({ user: 'admin@mpminfosoft', role: 'admin', line: PLANT.lines[0].id }))
 
 console.log('\nCONTEXT — the server writes the plant into the page')

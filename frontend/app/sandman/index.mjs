@@ -34,14 +34,23 @@ const $ = selector => document.querySelector(selector)
 
 /* ------------------------------------------------------------ lock screen ---*/
 
-function lock(reason, sandmanUrl) {
+/**
+ * The cover stays up, and says why.
+ *
+ * It offers no way out of its own. The button that used to be here stood on
+ * screen from the first paint — `.dl-locked-go` is `display: inline-block`,
+ * which beats the `hidden` attribute — so it could be pressed before this
+ * function had decided where it went, while it still carried the template's
+ * placeholder href. SandMan frames this page and its own pages refuse to be
+ * framed, so that press turned the whole window into "refused to connect".
+ *
+ * The way back lives in the studio's header, set up from the session and
+ * aimed out of the frame — see `#dlBack` below.
+ */
+function lock(reason) {
   const screen = $('#dlLocked')
   if (!screen) return
   $('#dlLockedReason').textContent = reason
-  const back = $('#dlLockedGo')
-  back.href = sandmanUrl || '/'
-  back.hidden = false
-  if (embedded()) back.target = '_top'
 }
 
 const unlock = () => {
@@ -693,7 +702,7 @@ function applyRole() {
 async function boot() {
   const result = await enter()
   if (!result.ok) {
-    lock(result.reason, result.sandmanUrl)
+    lock(result.reason)
     return
   }
 
@@ -820,8 +829,7 @@ async function boot() {
     console.error('Opening the studio failed:', error)
     lock(
       `This plant could not be opened: ${error?.message || error}. ` +
-      'Try opening Digital Loop from SandMan again.',
-      session.sandmanUrl
+      'Try opening Digital Loop from SandMan again.'
     )
   }
 }

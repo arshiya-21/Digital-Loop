@@ -77,12 +77,26 @@ const PATCHES = [
     align-items: center; justify-content: center; background: #0d1b26;
   }
 </style>
+<!--
+  No way out on this screen, deliberately.
+
+  There used to be a "← Back to SandMan" button here, and it was worse than
+  nothing. The .dl-locked-go rule gives it display:inline-block, which beats
+  the hidden attribute, so it stood on screen under "Opening…" from the first
+  paint — before any script had decided where it should go, still carrying
+  the placeholder href. SandMan opens this page in a full-page iframe and its
+  own pages refuse to be framed, so pressing it then turned the whole window
+  into "refused to connect" with the address bar unchanged.
+
+  The way back belongs in the studio's own header, where it is set up from
+  the session and breaks out of the frame — see #dlBack in sandman/index.mjs.
+  This screen says what happened and nothing else.
+-->
 <div id="dlLocked" class="dl-locked-screen">
   <div class="dl-locked-card">
     <span class="dl-locked-eyebrow">SANDMAN</span>
     <h1>Digital Loop</h1>
     <p id="dlLockedReason">Opening…</p>
-    <a class="dl-locked-go" id="dlLockedGo" href="/" hidden>← Back to SandMan</a>
   </div>
 </div>`,
   },

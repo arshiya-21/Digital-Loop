@@ -49,18 +49,18 @@
   color: #a9bfcd;
 }
 
-.dl-locked-go {
-  display: inline-block;
-  padding: 10px 20px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 8px;
-  background: #176eae;
-  color: #fff;
-  text-decoration: none;
-}
-
-.dl-locked-go:hover { background: #125a91; }
+/*
+ * The lock screen has no button, so `.dl-locked-go` is gone with it.
+ *
+ * `display: inline-block` here beat the `hidden` attribute on the markup, so
+ * the way out was on screen from the first paint — under "Opening…", before
+ * any script had decided where it went, still carrying a placeholder href.
+ * SandMan frames this page and its own pages refuse to be framed, so pressing
+ * it turned the whole window into "refused to connect".
+ *
+ * The way back is `#dlBack` in the studio's header, which the session sets up
+ * and which is aimed out of the frame.
+ */
 
 /*
  * Nothing behind the lock is reachable or even visible.
