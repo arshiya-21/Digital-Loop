@@ -987,11 +987,15 @@ function drawTrend() {
               [2, ZC.l2, '+2σ'],
               [1, ZC.l1, '+1σ'],
             ];
-      // Drawn, not labelled — see `hline`. The legend names the zones and the
-      // stats row gives the σ they are measured with.
-      bands.forEach(([k, col]) => {
-        hline(S.cl + k * S.sigma, col, [5, 4], null, k === 3 ? 1.6 : 1.1);
-        hline(S.cl - k * S.sigma, col, [5, 4], null, k === 3 ? 1.6 : 1.1);
+      /*
+       * Named and valued, both sides — but with no leader drawn back to the
+       * line. The leaders were the thing in the way: six of them fanning into
+       * one pixel row. The labels themselves are how somebody reads ±1σ off
+       * the chart without doing the arithmetic.
+       */
+      bands.forEach(([k, col, l]) => {
+        hline(S.cl + k * S.sigma, col, [5, 4], l, k === 3 ? 1.6 : 1.1);
+        hline(S.cl - k * S.sigma, col, [5, 4], l.replace('+', '−'), k === 3 ? 1.6 : 1.1);
       });
       c.strokeStyle = '#1f6feb';
       c.lineWidth = 1.5;

@@ -820,8 +820,8 @@ function useRealChartData() {
      * data since lunchtime" — so the window ends at the newest record, or at
      * the point the navigator below the chart has been dragged to.
      */
-    const TR = peek('TR')
-    const window_ = Number(TR?.win) * 1000
+    // What is drawn, not what was read — see `viewSpan`.
+    const window_ = viewSpan() * 1000
     if (!points.length || !Number.isFinite(window_) || window_ <= 0) return points
 
     const newest = points[points.length - 1].t
@@ -1027,6 +1027,46 @@ function markWindowButtons() {
   }
 }
 
+/* ------------------------------------------- what is read, what is drawn ---*/
+
+/**
+ * The window is read; half an hour of it is drawn.
+ *
+ * These are two questions that were one for too long, and making them one
+ * forced a choice between two things both of which were asked for: a
+ * statement that describes the chart exactly, and a navigator with somewhere
+ * to slide to. Tying the read to the drawn span gave the first and left the
+ * handle filling the strip; reading a day and drawing two hours of it gave the
+ * second and put `>= '21 Oct 17:13' … LIMIT 2000` under a chart labelled two
+ * hours.
+ *
+ * Separated, both hold. The buttons above the chart say what is **read** —
+ * `WHERE datetime >= (newest − 2 h)`, nothing else in the statement, which is
+ * what Preview data shows. The strip underneath says what is **drawn**: half
+ * an hour of those records, moved across the read by dragging, widened or
+ * narrowed by its grips.
+ *
+ * Half an hour because a sand line writes a reading every two or three
+ * minutes: that is a dozen or so points, far enough apart to read a drift off
+ * and close enough together that the line is not a single flat stroke.
+ */
+const DEFAULT_VIEW = 1_800
+
+/** The drawn span, as last left by a grip — see `viewSpan` for what applies. */
+let viewAsked = DEFAULT_VIEW
+
+/**
+ * The span the chart draws, in seconds.
+ *
+ * Never wider than what was read: there is nothing out there to draw. A
+ * narrower read than the drawn span is what happens on "2 h" after the grips
+ * were widened on "1 day", and then the chart is simply the whole read.
+ */
+function viewSpan() {
+  const read = Number(peek('TR')?.win) || DEFAULT_WINDOW
+  return Math.max(60, Math.min(viewAsked, read))
+}
+
 /* ------------------------------------------------------ the range navigator ---*/
 
 /**
@@ -1157,7 +1197,7 @@ function bindDragging(strip) {
     const TR = peek('TR')
     if (!bounds || !TR) return
 
-    const window_ = TR.win * 1000
+    const window_ = viewSpan() * 1000
     const end = clampEnd(
       Number.isFinite(viewport.end) ? viewport.end : bounds.last,
       bounds.first, bounds.last, window_,
@@ -1188,19 +1228,26 @@ function bindDragging(strip) {
     const at = timeAt(event, drag.bounds)
     const narrowest = smallestWindow(seriesPoints(viewport.id)) * 1000
 
+    /*
+     * A grip resizes what is drawn, and reads nothing.
+     *
+     * It used to move `TR.win`, which is the read — so widening the view by a
+     * centimetre was a query, through an SSH tunnel, on every pointermove.
+     * The records are already here; the grips choose how much of them to put
+     * on the chart. Reaching past what was read is what the buttons are for.
+     */
     if (drag.kind === 'pan') {
-      viewport.end = clampEnd(at + drag.grab, drag.bounds.first, drag.bounds.last, TR.win * 1000)
+      viewport.end = clampEnd(at + drag.grab, drag.bounds.first, drag.bounds.last, viewSpan() * 1000)
     } else if (drag.kind === 'to') {
       const to = Math.max(drag.from + narrowest, Math.min(drag.bounds.last, at))
-      TR.win = Math.round((to - drag.from) / 1000)
+      viewAsked = Math.round((to - drag.from) / 1000)
       viewport.end = to
     } else {
       const from = Math.min(drag.to - narrowest, Math.max(drag.bounds.first, at))
-      TR.win = Math.round((drag.to - from) / 1000)
+      viewAsked = Math.round((drag.to - from) / 1000)
       viewport.end = drag.to
     }
 
-    if (drag.kind !== 'pan') markWindowButtons()
     redraw()
   })
 
@@ -1237,7 +1284,14 @@ function syncNavigator(id) {
   const first = points[0].t
   const last = points[points.length - 1].t
   const width = last - first
-  const window_ = TR.win * 1000
+  const window_ = viewSpan() * 1000
+  /*
+   * Hidden only when there is nothing to drag.
+   *
+   * That is: no spread in the records at all, or a drawn span that already
+   * covers every one of them — which happens when the grips are pulled out to
+   * the full width of the read. A handle filling the strip is furniture.
+   */
   if (width <= 0 || width <= window_) {
     existing?.classList.add('dl-hidden')
     return
@@ -1697,6 +1751,8 @@ function loadChartsOnOpen() {
     viewport.id = id
     viewport.end = null
     navSignature = ''
+    // And on half an hour of them, however wide the last chart was dragged.
+    viewAsked = DEFAULT_VIEW
     original.call(this, id)
     hideMovingRange()
     useDayWindows()
@@ -1732,7 +1788,22 @@ function addChartSwitch(id) {
   }
 
   const loaded = charts.get(id)
-  const points = loaded?.series?.length || 0
+  /*
+   * What is drawn, out of what was read.
+   *
+   * These are two numbers now — the window button says what was read, the
+   * strip under the chart says how much of it is on screen — and printing
+   * only the second made the chart look like it had lost records. "12 of 33"
+   * says plainly that the rest are a drag away.
+   */
+  const read = loaded?.series?.length || 0
+  const drawn = (() => {
+    try {
+      return typeof window.ccData === 'function' ? window.ccData().length : read
+    } catch {
+      return read
+    }
+  })()
 
   /*
    * Readable, not machine-readable.
@@ -1793,9 +1864,9 @@ function addChartSwitch(id) {
     <span class="note">${loaded
       ? loaded.failed
         ? escapeHtml(loaded.failed)
-        : `${points} record${points === 1 ? '' : 's'}${range ? ' · ' + range : ''}${
-            from ? ` · from ${escapeHtml(from)}` : ''
-          }`
+        : `${drawn < read ? `${drawn} of ${read}` : read} record${read === 1 ? '' : 's'}${
+            range ? ' · ' + range : ''
+          }${from ? ` · from ${escapeHtml(from)}` : ''}`
       : 'Loading the records…'}</span>
     ${replaying()
       ? '<span class="note dl-stale">Replay is simulated — these charts are the real records.</span>'

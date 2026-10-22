@@ -1084,11 +1084,24 @@ const span = await evaluate(`(() => {
     windows: [...(seg?.querySelectorAll('button') || [])].map(b => b.textContent.trim()),
     on: seg?.querySelector('button.on')?.textContent.trim(),
     navigator: !!nav && getComputedStyle(nav).display !== 'none',
+    // What the strip says it is showing, out of what the button read.
+    showing: document.getElementById('dlNavNow')?.textContent.trim() || '',
   }
 })()`)
 check('on the same four windows as every other chart',
   span.windows.join(' ') === '2 h 4 h 8 h 1 day' && span.on === '2 h', span)
 check('with the rest of the records a drag away', span.navigator === true, span)
+/*
+ * The read and the drawn span are two different numbers.
+ *
+ * The button says what was read — two hours, and the statement in Preview
+ * data says exactly that and nothing else. The strip says what is on the
+ * chart: half an hour of those records, which is what gives the handle
+ * somewhere to slide to. Tying the two together is what left the navigator
+ * with a handle the width of the strip.
+ */
+check('and the chart opens on half an hour of them',
+  /^30 min · /.test(span.showing), span.showing)
 
 const pc = await evaluate(`(() => {
   const button = [...document.querySelectorAll('#dlChartSeg button')].find(b => b.dataset.cv === 'pc');
