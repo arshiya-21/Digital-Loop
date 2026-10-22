@@ -989,8 +989,40 @@ check('with the box saying how many it is showing',
 
 console.log('\nCONTROL CHART — real records, and SandMan\'s own')
 
+/*
+ * The window is what the chart asks for, and the only thing it asks for.
+ *
+ * This has now regressed twice. Both times the chart fetched more than the
+ * window and relied on a row count to bound it, and both times the statement
+ * in Preview data came back reading `>= '21 Oct 17:13' … LIMIT 2000` under a
+ * chart labelled two hours — a statement that does not describe the chart
+ * above it, which is the one thing that box exists to prevent.
+ *
+ * So what goes on the wire is asserted rather than looked at: the window the
+ * buttons show, and no `points` at all.
+ */
+await evaluate(`(() => {
+  window.__dlCalls = [];
+  if (!window.fetch.__dlWatched) {
+    const original = window.fetch;
+    const watched = function (input, init) {
+      try { window.__dlCalls.push(String(input?.url || input)); } catch {}
+      return original.apply(this, arguments);
+    };
+    watched.__dlWatched = true;
+    window.fetch = watched;
+  }
+})()`)
+
 await evaluate('openTrend("T_MOIST")')
 await wait(2500)
+
+const asked = await evaluate(`(() => {
+  const url = (window.__dlCalls || []).filter(u => /\\/live\\/chart\\?/.test(u)).pop() || '';
+  return { url, window_: /windowSeconds=7200(&|$)/.test(url), capped: /[?&]points=/.test(url) };
+})()`)
+check('the chart asks for the window on the buttons', asked.window_ === true, asked.url)
+check('and sends no row limit with it', asked.capped === false, asked.url)
 
 const chart = await evaluate(`(() => {
   const seg = document.getElementById('dlChartSeg');
