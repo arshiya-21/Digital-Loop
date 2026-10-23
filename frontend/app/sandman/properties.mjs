@@ -1171,13 +1171,22 @@ function showTheQuery(section) {
      * SandMan builds its own against the foundry's database, so this is the
      * query that read amounts to rather than the text it sends. Saying which
      * is the difference between showing somebody the query and inventing one.
+     *
+     * **Always the dropdowns' own statement**, even where a written one is
+     * driving the reading. It used to show the written statement here, under
+     * a tab labelled "From the dropdowns" and above the three dropdowns that
+     * had nothing to do with it — so the tab contradicted its own name and
+     * the table and column above it looked like they were being ignored.
+     * Which statement is in use is said in a line underneath; the written one
+     * lives in the tab where it is written.
      */
-    const fromDropdowns = driven
-      ? link.sql + '\n-- this reading runs your query, every poll.'
-      : statement
-        ? statement +
-
-          (connection ? '' : '\n-- SandMan runs the read; this is what it comes to.')
+    const fromDropdowns = statement
+      ? statement +
+        (driven
+          ? '\n-- not in use: this reading runs the statement under "Write your own".'
+          : connection ? '' : '\n-- SandMan runs the read; this is what it comes to.')
+      : driven
+        ? link.sql + '\n-- this reading runs your query, every poll.'
         : `SandMan reads the newest ${link.table}.${link.col} for this line.`
 
     const tell = (text, tone = '') => {

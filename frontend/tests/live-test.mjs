@@ -760,6 +760,39 @@ check('the dropdown opens directly under the heading, not below the readings',
  * sequenced. Choosing a database is the first thing asked, and each step
  * after it arrives when the one before has an answer.
  */
+/*
+ * "From the dropdowns" shows what the dropdowns make, whatever is driving it.
+ *
+ * A reading can be switched to a written statement, and this tab then showed
+ * that statement — under its own name, above the three dropdowns it had
+ * nothing to do with, which reads as the table and column being ignored. The
+ * written one belongs in the tab where it is written; this one says plainly
+ * that it is not the statement in use.
+ */
+const bothWays = await evaluate(`(() => {
+  const REG = ${peek}('REG');
+  const tag = REG?.T_MOIST;
+  if (!tag?.link) return { missing: true };
+
+  const before = tag.link.sql;
+  tag.link.sql = 'SELECT 42 AS answer, NOW() AS at';
+  renderProps();
+  const box = document.querySelector('.ix-card[data-tid="T_MOIST"] .dl-query-sql');
+  const shown = box?.textContent || '';
+
+  if (before === undefined) delete tag.link.sql; else tag.link.sql = before;
+  renderProps();
+  return {
+    mentionsTable: /preparedsand/.test(shown),
+    mentionsWritten: /SELECT 42/.test(shown),
+    saysNotInUse: /not in use/.test(shown),
+  };
+})()`)
+check('"From the dropdowns" shows the dropdowns\' own statement',
+  bothWays.mentionsTable === true && bothWays.mentionsWritten === false, bothWays)
+check('and says when a written statement is the one in use',
+  bothWays.saysNotInUse === true, bothWays)
+
 check('and the steps come one at a time — only the database to begin with',
   panel.stepsWhenOpened?.join(' ') === '1:shown 2:hidden 3:hidden 4:hidden',
   panel.stepsWhenOpened)
