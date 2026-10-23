@@ -1112,29 +1112,53 @@ check('and those are the records themselves',
 
 const span = await evaluate(`(() => {
   const seg = document.getElementById('trWin')
-  const nav = document.getElementById('dlNav')
   return {
     windows: [...(seg?.querySelectorAll('button') || [])].map(b => b.textContent.trim()),
     on: seg?.querySelector('button.on')?.textContent.trim(),
-    navigator: !!nav && getComputedStyle(nav).display !== 'none',
-    // What the strip says it is showing, out of what the button read.
-    showing: document.getElementById('dlNavNow')?.textContent.trim() || '',
+    // The strip that used to sit under the chart, and the stylesheet for it.
+    strip: !!document.getElementById('dlNav'),
+    stripStyles: [...document.styleSheets].some(sheet => {
+      try {
+        return [...sheet.cssRules].some(rule => /dl-nav/.test(rule.cssText || ''))
+      } catch { return false }
+    }),
   }
 })()`)
 check('on the same four windows as every other chart',
   span.windows.join(' ') === '2 h 4 h 8 h 1 day' && span.on === '2 h', span)
-check('with the rest of the records a drag away', span.navigator === true, span)
 /*
- * The read and the drawn span are two different numbers.
+ * No strip under the chart.
  *
- * The button says what was read — two hours, and the statement in Preview
- * data says exactly that and nothing else. The strip says what is on the
- * chart: half an hour of those records, which is what gives the handle
- * somewhere to slide to. Tying the two together is what left the navigator
- * with a handle the width of the strip.
+ * There was one — the whole run of records, small, with a draggable selection
+ * over it — and it cost a split between "what was read" and "what is drawn"
+ * that nothing else in the window wanted. The window buttons reach older
+ * records by widening, which is one idea instead of two. Asserted so it does
+ * not quietly come back with the next change to this panel.
  */
-check('and the chart opens on half an hour of them',
-  /^30 min · /.test(span.showing), span.showing)
+check('no range strip under the chart', span.strip === false, span)
+check('and no stylesheet left over for one', span.stripStyles === false, span)
+
+/*
+ * A window button is a different query, not a different crop.
+ *
+ * 8 h is not 2 h with more of the same rows drawn — it is a different WHERE.
+ * Cutting a wider window out of records already in hand would show whatever
+ * the first read happened to bring back and label it eight hours.
+ */
+const wider = await evaluate(`(async () => {
+  window.__dlCalls = [];
+  [...document.querySelectorAll('#trWin button')]
+    .find(b => b.textContent.trim() === '4 h')?.click();
+  await new Promise(r => setTimeout(r, 1200));
+  const url = (window.__dlCalls || []).filter(u => /\\/live\\/chart\\?/.test(u)).pop() || '';
+  // Back to the window the rest of this section expects.
+  [...document.querySelectorAll('#trWin button')]
+    .find(b => b.textContent.trim() === '2 h')?.click();
+  await new Promise(r => setTimeout(r, 1200));
+  return { url, window_: /windowSeconds=14400(&|$)/.test(url), capped: /[?&]points=/.test(url) };
+})()`)
+check('pressing 4 h reads four hours', wider.window_ === true, wider.url)
+check('and still sends no row limit', wider.capped === false, wider.url)
 
 const pc = await evaluate(`(() => {
   const button = [...document.querySelectorAll('#dlChartSeg button')].find(b => b.dataset.cv === 'pc');

@@ -786,8 +786,7 @@ let chartView = 'imr'
  *
  * A number had to be picked, and this one says: a sand line produces roughly a
  * reading a minute. It only decides how much of the run each window button
- * shows — 2 h is 120 records, a day is the lot — and the navigator reaches the
- * rest either way.
+ * shows — 2 h is 120 records, a day is the lot.
  */
 const ONE_HOUR_MS = 3_600_000
 const RECORDS_PER_HOUR = 60
@@ -812,20 +811,18 @@ function useRealChartData() {
       .filter(point => Number.isFinite(point.v))
 
     /*
-     * A window of the records, ending wherever the navigator is parked.
+     * A window of the records, ending at the newest one.
      *
      * A plant record arrives once a batch or once a shift, and the last one
      * may be hours old. Cutting from `Date.now()` would empty the chart
      * whenever the line was quiet, which reads as "no data" rather than "no
-     * data since lunchtime" — so the window ends at the newest record, or at
-     * the point the navigator below the chart has been dragged to.
+     * data since lunchtime" — so the window ends at the newest record there
+     * is.
      */
-    // What is drawn, not what was read — see `viewSpan`.
-    const window_ = viewSpan() * 1000
+    const window_ = Number(peek('TR')?.win) * 1000
     if (!points.length || !Number.isFinite(window_) || window_ <= 0) return points
 
-    const newest = points[points.length - 1].t
-    const end = viewport.id === id && Number.isFinite(viewport.end) ? viewport.end : newest
+    const end = points[points.length - 1].t
     const inside = points.filter(point => point.t > end - window_ && point.t <= end)
 
     /*
@@ -843,8 +840,7 @@ function useRealChartData() {
      * series — the last `window_` seconds' worth by count rather than by
      * clock, which is what an I-MR chart is really about: the last N
      * observations in the order they were taken. The window control still
-     * means something (a longer window shows more of them) and the navigator
-     * underneath still scrolls the whole run.
+     * means something — a longer window shows more of them.
      */
     if (inside.length >= 2) return inside
 
@@ -906,7 +902,7 @@ function hideMovingRange() {
  * The other end was just as wrong. Eight hours of batch records is two hundred
  * markers shoulder to shoulder: still offered, because a shift is a thing
  * people want to see, but not what a chart opens on. It opens on two hours,
- * and reaching the rest of the records is the navigator's job.
+ * and reaching the rest of them is what the wider buttons are for.
  */
 
 /** The four windows every chart offers: a run, half a shift, a shift, a day. */
@@ -923,30 +919,18 @@ const DEFAULT_WINDOW = 7_200
 /**
  * The window is the read: the chart asks for the span on the buttons.
  *
- * Reading a day at a time and cutting the window out of it here was tried,
- * because it gives the navigator a run to slide across and turns four window
- * buttons into one read. It was rejected: the statement in Preview data then
- * says `>= '21 Oct 17:03' … LIMIT 2000` under a chart labelled two hours, and
- * a statement that does not describe the chart above it is the thing this
- * whole path was fixed to stop.
+ * Reading a day at a time and cutting the window out of it here was tried —
+ * it turns four window buttons into one read, and it gave the strip that used
+ * to sit under the chart somewhere to slide to. It was rejected: the
+ * statement in Preview data then says `>= '21 Oct 17:03' … LIMIT 2000` under
+ * a chart labelled two hours, and a statement that does not describe the
+ * chart above it is the thing this whole path was fixed to stop. The strip is
+ * gone with it.
  *
  * So the window decides, and nothing else: 2 h opens, pressing 4 h / 8 h /
  * 1 day reads that span, and no row limit is sent — the window is what bounds
  * the read, which is exactly what the statement says.
  */
-
-/** The usual gap between two records, in seconds. */
-function spacingOf(points) {
-  if (points.length < 2) return 0
-  const gaps = []
-  for (let i = 1; i < points.length; i++) {
-    const gap = points[i].t - points[i - 1].t
-    if (gap > 0) gaps.push(gap)
-  }
-  if (!gaps.length) return 0
-  gaps.sort((a, b) => a - b)
-  return gaps[Math.floor(gaps.length / 2)] / 1000
-}
 
 /**
  * The same four windows on every chart, opening on two hours.
@@ -956,17 +940,9 @@ function spacingOf(points) {
  * — accurate, and four different charts to learn. One set everywhere is worth
  * more than a set fitted to each: a sparse reading now shows a flat stretch
  * and a point or two, which is the truth about that reading.
- *
- * The navigator underneath still moves the window across everything there is,
- * so a record from last month is two drags away rather than unreachable.
  */
 function windowsFor() {
   return { offered: HOURS, opens: DEFAULT_WINDOW }
-}
-
-/** The narrowest a grip may drag the window: still a few records wide. */
-function smallestWindow(points) {
-  return Math.max(60, Math.round(spacingOf(points) * 3) || 300)
 }
 
 /** Put the window back in range, whatever it was left on. */
@@ -993,7 +969,7 @@ function useDayWindows() {
    * Not the narrowest window that holds the records, which is what it used to
    * be: that made the chart open differently for every reading, so nobody
    * could tell a quiet line from a short history. Two hours is what a chart
-   * means now, and the buttons and the navigator move from there.
+   * means now, and the buttons move from there.
    */
   TR.win = opens
 
@@ -1008,8 +984,6 @@ function useDayWindows() {
       TR.win = Number(button.dataset.w)
       markWindowButtons()
       // A wider window is a wider read, not more of the records already here.
-      viewport.end = null
-      navSignature = ''
       window.drawTrend?.()
       readTheWindow(peek('trendTag'))
     }
@@ -1027,360 +1001,35 @@ function markWindowButtons() {
   }
 }
 
-/* ------------------------------------------- what is read, what is drawn ---*/
+/* ----------------------------------------- what the chart draws, and when ---*/
 
 /**
- * The window is read; half an hour of it is drawn.
+ * The window on the buttons is read, and all of it is drawn.
  *
- * These are two questions that were one for too long, and making them one
- * forced a choice between two things both of which were asked for: a
- * statement that describes the chart exactly, and a navigator with somewhere
- * to slide to. Tying the read to the drawn span gave the first and left the
- * handle filling the strip; reading a day and drawing two hours of it gave the
- * second and put `>= '21 Oct 17:13' … LIMIT 2000` under a chart labelled two
- * hours.
+ * There was a strip under the chart for a while — the whole run behind the
+ * window, with a half-hour selection you could drag across it. It is gone, and
+ * with it the split between "what was read" and "what is drawn": those are one
+ * number again. Pressing 2 h reads two hours and draws two hours, and the
+ * statement in Preview data is a description of the chart above it with
+ * nothing left over.
  *
- * Separated, both hold. The buttons above the chart say what is **read** —
- * `WHERE datetime >= (newest − 2 h)`, nothing else in the statement, which is
- * what Preview data shows. The strip underneath says what is **drawn**: half
- * an hour of those records, moved across the read by dragging, widened or
- * narrowed by its grips.
- *
- * Half an hour because a sand line writes a reading every two or three
- * minutes: that is a dozen or so points, far enough apart to read a drift off
- * and close enough together that the line is not a single flat stroke.
+ * What the strip bought was reaching records older than the window without
+ * widening it, and that is what the window buttons are for.
  */
-const DEFAULT_VIEW = 1_800
-
-/** The drawn span, as last left by a grip — see `viewSpan` for what applies. */
-let viewAsked = DEFAULT_VIEW
 
 /**
- * The span the chart draws, in seconds.
+ * Keep the chart's own touches applied on every redraw.
  *
- * Never wider than what was read: there is nothing out there to draw. A
- * narrower read than the drawn span is what happens on "2 h" after the grips
- * were widened on "1 day", and then the chart is simply the whole read.
+ * The studio redraws on hover, on every control and on each poll, and each of
+ * those rebuilds what these change.
  */
-function viewSpan() {
-  const read = Number(peek('TR')?.win) || DEFAULT_WINDOW
-  return Math.max(60, Math.min(viewAsked, read))
-}
-
-/* ------------------------------------------------------ the range navigator ---*/
-
-/**
- * Where the window sits in the records.
- *
- * `end` is the right-hand edge of the chart, in milliseconds. Null means the
- * newest record — which is where every chart opens, and where it goes back to
- * on "Latest".
- */
-const viewport = { id: null, end: null }
-
-/** The loaded records of one reading, as points. */
-function seriesPoints(id) {
-  const loaded = id && charts.get(id)
-  if (!loaded) return []
-  return (loaded.series || [])
-    .map(point => ({ t: momentOf(point), v: Number(point.value) }))
-    .filter(point => Number.isFinite(point.v) && Number.isFinite(point.t))
-    .sort((a, b) => a.t - b.t)
-}
-
-/** Keep the window inside the records, however it was dragged. */
-function clampEnd(end, first, last, window_) {
-  const earliest = Math.min(last, first + window_)
-  return Math.min(last, Math.max(earliest, end))
-}
-
-const HOUR = 3_600_000
-
-/** "45 min", "2 h", "1 h 20 m", "6 days" — the window, in words. */
-function spanWords(ms) {
-  const minutes = Math.max(1, Math.round(ms / 60_000))
-  if (minutes < 60) return `${minutes} min`
-
-  const hours = Math.floor(minutes / 60)
-  if (hours < 48) {
-    const rest = minutes % 60
-    return rest ? `${hours} h ${rest} m` : `${hours} h`
-  }
-
-  const days = Math.round(hours / 24)
-  return days < 14 ? `${days} days` : `${Math.round(days / 7)} weeks`
-}
-
-const clockOf = at =>
-  new Date(at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
-
-const dayOf = at =>
-  new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-
-/**
- * The strip under the chart: every record, and the part being shown.
- *
- * Built once per trend window and then kept in step with the chart. The chart
- * itself is the studio's canvas and is left alone — this only decides which
- * records it is handed, by moving `viewport.end`.
- */
-function navigator_() {
-  let strip = document.getElementById('dlNav')
-  if (strip) return strip
-
-  const chart = document.getElementById('trC')
-  if (!chart) return null
-
-  strip = document.createElement('div')
-  strip.id = 'dlNav'
-  strip.className = 'dl-nav'
-  strip.innerHTML = `
-    <div class="dl-nav-strip" id="dlNavStrip">
-      <canvas id="dlNavCv"></canvas>
-      <div class="dl-nav-dim" id="dlNavLeft"></div>
-      <div class="dl-nav-dim" id="dlNavRight"></div>
-      <div class="dl-nav-sel" id="dlNavSel">
-        <span class="dl-nav-grip" data-grip="from"></span>
-        <span class="dl-nav-grip" data-grip="to"></span>
-      </div>
-    </div>
-    <div class="dl-nav-foot">
-      <span id="dlNavFrom"></span>
-      <span class="dl-nav-now" id="dlNavNow"></span>
-      <span class="dl-nav-right"><button type="button" class="dl-nav-latest" id="dlNavLatest">Latest</button><span id="dlNavTo"></span></span>
-    </div>`
-  chart.insertAdjacentElement('afterend', strip)
-
-  strip.querySelector('#dlNavLatest').onclick = () => {
-    viewport.end = null
-    window.drawTrend?.()
-  }
-  bindDragging(strip.querySelector('#dlNavStrip'))
-  return strip
-}
-
-/**
- * Drag the window along the records, or drag an edge to resize it.
- *
- * Pointer events rather than mouse ones, so a tablet on the shop floor drags
- * the same way; the capture is what keeps the drag alive when the pointer
- * leaves the strip, which it does constantly near either end.
- */
-function bindDragging(strip) {
-  let drag = null
-
-  const span = () => {
-    const points = seriesPoints(viewport.id)
-    if (points.length < 2) return null
-    const first = points[0].t
-    const last = points[points.length - 1].t
-    return last > first ? { first, last, width: last - first } : null
-  }
-
-  const timeAt = (event, bounds) => {
-    const box = strip.getBoundingClientRect()
-    const across = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width))
-    return bounds.first + across * bounds.width
-  }
-
-  let frame = null
-  const redraw = () => {
-    if (frame) return
-    frame = requestAnimationFrame(() => {
-      frame = null
-      window.drawTrend?.()
-    })
-  }
-
-  strip.addEventListener('pointerdown', event => {
-    const bounds = span()
-    const TR = peek('TR')
-    if (!bounds || !TR) return
-
-    const window_ = viewSpan() * 1000
-    const end = clampEnd(
-      Number.isFinite(viewport.end) ? viewport.end : bounds.last,
-      bounds.first, bounds.last, window_,
-    )
-    const grip = event.target?.dataset?.grip
-    const at = timeAt(event, bounds)
-
-    if (grip) {
-      drag = { kind: grip, bounds, from: end - window_, to: end }
-    } else if (at >= end - window_ && at <= end) {
-      drag = { kind: 'pan', bounds, grab: end - at }
-    } else {
-      // A click on bare strip puts the middle of the window there, and goes
-      // on panning — the same gesture whether you aimed or not.
-      viewport.end = clampEnd(at + window_ / 2, bounds.first, bounds.last, window_)
-      drag = { kind: 'pan', bounds, grab: viewport.end - at }
-      redraw()
-    }
-
-    strip.setPointerCapture(event.pointerId)
-    event.preventDefault()
-  })
-
-  strip.addEventListener('pointermove', event => {
-    if (!drag) return
-    const TR = peek('TR')
-    if (!TR) return
-    const at = timeAt(event, drag.bounds)
-    const narrowest = smallestWindow(seriesPoints(viewport.id)) * 1000
-
-    /*
-     * A grip resizes what is drawn, and reads nothing.
-     *
-     * It used to move `TR.win`, which is the read — so widening the view by a
-     * centimetre was a query, through an SSH tunnel, on every pointermove.
-     * The records are already here; the grips choose how much of them to put
-     * on the chart. Reaching past what was read is what the buttons are for.
-     */
-    if (drag.kind === 'pan') {
-      viewport.end = clampEnd(at + drag.grab, drag.bounds.first, drag.bounds.last, viewSpan() * 1000)
-    } else if (drag.kind === 'to') {
-      const to = Math.max(drag.from + narrowest, Math.min(drag.bounds.last, at))
-      viewAsked = Math.round((to - drag.from) / 1000)
-      viewport.end = to
-    } else {
-      const from = Math.min(drag.to - narrowest, Math.max(drag.bounds.first, at))
-      viewAsked = Math.round((drag.to - from) / 1000)
-      viewport.end = drag.to
-    }
-
-    redraw()
-  })
-
-  const release = event => {
-    if (!drag) return
-    drag = null
-    if (strip.hasPointerCapture?.(event.pointerId)) strip.releasePointerCapture(event.pointerId)
-    window.drawTrend?.()
-  }
-  strip.addEventListener('pointerup', release)
-  strip.addEventListener('pointercancel', release)
-}
-
-/** What the strip was last drawn for, so a hover does not redraw it. */
-let navSignature = ''
-
-/**
- * Draw the strip and put the selection where the window is.
- *
- * Hidden when there is nothing to drag: fewer than two records, or a window
- * that already holds all of them. A navigator whose handle fills the whole
- * strip is furniture.
- */
-function syncNavigator(id) {
-  const points = seriesPoints(id)
-  const TR = peek('TR')
-  const existing = document.getElementById('dlNav')
-
-  if (!TR || points.length < 2 || !document.getElementById('trC')) {
-    existing?.classList.add('dl-hidden')
-    return
-  }
-
-  const first = points[0].t
-  const last = points[points.length - 1].t
-  const width = last - first
-  const window_ = viewSpan() * 1000
-  /*
-   * Hidden only when there is nothing to drag.
-   *
-   * That is: no spread in the records at all, or a drawn span that already
-   * covers every one of them — which happens when the grips are pulled out to
-   * the full width of the read. A handle filling the strip is furniture.
-   */
-  if (width <= 0 || width <= window_) {
-    existing?.classList.add('dl-hidden')
-    return
-  }
-
-  const strip = navigator_()
-  if (!strip) return
-  strip.classList.remove('dl-hidden')
-
-  const end = clampEnd(Number.isFinite(viewport.end) ? viewport.end : last, first, last, window_)
-  const from = end - window_
-  const left = ((from - first) / width) * 100
-  const across = (window_ / width) * 100
-
-  const canvas = document.getElementById('dlNavCv')
-  const signature = `${id}|${points.length}|${Math.round(canvas?.getBoundingClientRect().width || 0)}`
-  if (signature !== navSignature) {
-    navSignature = signature
-    drawStrip(canvas, points, first, width)
-  }
-
-  const selection = document.getElementById('dlNavSel')
-  selection.style.left = `${left}%`
-  selection.style.width = `${across}%`
-  document.getElementById('dlNavLeft').style.width = `${left}%`
-  document.getElementById('dlNavRight').style.width = `${Math.max(0, 100 - left - across)}%`
-
-  document.getElementById('dlNavFrom').textContent = `${dayOf(first)} ${clockOf(first)}`
-  document.getElementById('dlNavTo').textContent = `${dayOf(last)} ${clockOf(last)}`
-  document.getElementById('dlNavNow').textContent =
-    `${spanWords(window_)} · ${dayOf(from) === dayOf(end)
-      ? `${dayOf(from)} ${clockOf(from)} → ${clockOf(end)}`
-      : `${dayOf(from)} ${clockOf(from)} → ${dayOf(end)} ${clockOf(end)}`}`
-
-  const latest = document.getElementById('dlNavLatest')
-  latest.classList.toggle('dl-hidden', last - end < HOUR / 60)
-}
-
-/** Every record, small: the shape of the whole run behind the window. */
-function drawStrip(canvas, points, first, width) {
-  const surface = sized(canvas)
-  if (!surface) return
-  const { c, W, H } = surface
-  c.clearRect(0, 0, W, H)
-
-  const values = points.map(point => point.v)
-  let lo = Math.min(...values)
-  let hi = Math.max(...values)
-  if (hi - lo < 1e-9) {
-    lo -= 1
-    hi += 1
-  }
-  const pad = (hi - lo) * 0.15
-  lo -= pad
-  hi += pad
-
-  const x = at => ((at - first) / width) * W
-  const y = value => 5 + (1 - (value - lo) / (hi - lo)) * (H - 10)
-
-  c.beginPath()
-  c.moveTo(x(points[0].t), H)
-  for (const point of points) c.lineTo(x(point.t), y(point.v))
-  c.lineTo(x(points[points.length - 1].t), H)
-  c.closePath()
-  c.fillStyle = 'rgba(31,111,235,.12)'
-  c.fill()
-
-  c.beginPath()
-  points.forEach((point, i) => (i ? c.lineTo(x(point.t), y(point.v)) : c.moveTo(x(point.t), y(point.v))))
-  c.strokeStyle = 'rgba(31,111,235,.6)'
-  c.lineWidth = 1.2
-  c.stroke()
-}
-
-/**
- * Keep the strip in step with every redraw of the chart.
- *
- * The studio redraws on hover, on every control, and on each poll, and the
- * window may have moved in any of them. The signature above means a hover
- * costs two style writes rather than a repaint of the strip.
- */
-function keepNavigatorInStep() {
+function keepTheChartOurs() {
   const original = window.drawTrend
   if (typeof original !== 'function' || original.__dlLive) return
 
-  const replaced = function drawTrendThenTheStrip() {
+  const replaced = function drawTrendThenOurs() {
     const answer = original.apply(this, arguments)
     try {
-      syncNavigator(peek('trendTag'))
       hideViolations()
     } catch {
       /* The chart is drawn either way. */
@@ -1391,6 +1040,16 @@ function keepNavigatorInStep() {
   replaced.__dlLive = true
   replaced.original = original
   window.drawTrend = replaced
+}
+
+/** The loaded records of one reading, as points. */
+function seriesPoints(id) {
+  const loaded = id && charts.get(id)
+  if (!loaded) return []
+  return (loaded.series || [])
+    .map(point => ({ t: momentOf(point), v: Number(point.value) }))
+    .filter(point => Number.isFinite(point.v) && Number.isFinite(point.t))
+    .sort((a, b) => a.t - b.t)
 }
 
 /**
@@ -1784,12 +1443,6 @@ function loadChartsOnOpen() {
       return
     }
     chartView = 'imr'
-    // A chart opens on the newest records, wherever the last one was dragged.
-    viewport.id = id
-    viewport.end = null
-    navSignature = ''
-    // And on half an hour of them, however wide the last chart was dragged.
-    viewAsked = DEFAULT_VIEW
     original.call(this, id)
     hideMovingRange()
     useDayWindows()
@@ -2217,7 +1870,7 @@ async function previewData(id) {
 /** Swap between the studio's canvases and ours. */
 function showView(id) {
   const own = chartView === 'pc'
-  for (const node of document.querySelectorAll('.cc-title, #trC, #dlNav, #trM, #trStats, #trDist, #trRules')) {
+  for (const node of document.querySelectorAll('.cc-title, #trC, #trM, #trStats, #trDist, #trRules')) {
     node.classList.toggle('dl-hidden', own)
   }
 
@@ -2557,7 +2210,7 @@ export function install({ onDecimals } = {}) {
   useRealChartData()
   useARealSpread()
   readInBlue()
-  keepNavigatorInStep()
+  keepTheChartOurs()
   keepBlinksPainted()
   loadChartsOnOpen()
   // Before any chart opens, so the first one drawn is already a window wide.
