@@ -63,7 +63,7 @@ const TEXT = 'aaa_chart_text'
 const STAMPED = 'aaa_chart_stamped'
 
 const drop = async () => {
-  for (const table of [TYPED, TEXT, STAMPED]) await db.query(`DROP TABLE IF EXISTS ${table}`)
+  for (const table of [TYPED, TEXT, STAMPED, 'aaa_chart_spans']) await db.query(`DROP TABLE IF EXISTS ${table}`)
 }
 
 await drop()
@@ -164,6 +164,18 @@ check('so its records are the readings too',
  */
 check('a text date gets no plain date bound',
   !/`Date` >= '/.test(text.statement), text.statement)
+/*
+ * And it is genuinely windowed, not falling back to the whole table.
+ *
+ * The assertion above passed for a while because the statement had no WHERE
+ * at all: the pre-filter was being added to a text column, `'10-23-2026' >=
+ * '2026-10-23'` compared two strings and was false, the windowed read found
+ * nothing, and the fallback reported an unwindowed statement with a LIMIT on
+ * it. Both halves have to be checked or neither means anything.
+ */
+check('and is windowed on the parsed expression, not on the whole table',
+  /WHERE STR_TO_DATE\(CONCAT\(`Date`/.test(text.statement) &&
+  !/\bLIMIT\b/i.test(text.statement), text.statement)
 
 /* --------------------------------------------- one column that is the moment ---*/
 
@@ -172,6 +184,48 @@ check('a real datetime is windowed on itself, with nothing joined',
   /`taken_on` AS `datetime`/.test(stamped.statement) &&
   !/STR_TO_DATE/.test(stamped.statement), stamped.statement)
 check('and it holds the same ninety readings', stamped.length === MINUTES, stamped.length)
+
+/* ----------------------------------------- a text date is not a sortable one ---*/
+
+/*
+ * `10-23-2026` is a later day than `12-01-2025` and a smaller string.
+ *
+ * Finding the newest moment by comparing the date column is what makes a
+ * chart read fast, and it is only sound where the database knows the column
+ * is a date. On month-first text, `MAX` and `ORDER BY` both answer with
+ * whatever December the table holds — and the window then starts in a year
+ * with no rows after it, so the chart comes back empty on a table full of
+ * records. One attempt at this optimisation had exactly that bug, and the
+ * fixture above did not catch it: ninety minutes of rows all fall in one
+ * month, where string order and date order agree.
+ *
+ * So this one spans a December that is older than the newest row.
+ */
+const SPANS = 'aaa_chart_spans'
+await db.query(`DROP TABLE IF EXISTS ${SPANS}`)
+await db.query(`CREATE TABLE ${SPANS} (
+  pkey INT AUTO_INCREMENT PRIMARY KEY, reading DOUBLE,
+  \`Date\` VARCHAR(16), \`Time\` VARCHAR(16))`)
+
+// An older December, which sorts above everything as a string.
+await db.query(`INSERT INTO ${SPANS} (reading, \`Date\`, \`Time\`) VALUES (?,?,?)`,
+  [999, '12-01-2025', '23:59:59'])
+// And the real newest rows, within the window.
+for (let i = 2; i >= 0; i -= 1) {
+  const at = new Date(Date.now() - i * 60_000)
+  await db.query(`INSERT INTO ${SPANS} (reading, \`Date\`, \`Time\`) VALUES (?,?,?)`, [
+    50 + i,
+    `${two(at.getMonth() + 1)}-${two(at.getDate())}-${at.getFullYear()}`,
+    `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`,
+  ])
+}
+
+const spans = await read(SPANS)
+check('a month-first text date is not compared as a string',
+  spans.length === 3 && Math.abs(spans.at(-1).value - 50) < 1e-9,
+  { points: spans.length, values: spans.map(p => p.value) })
+check('so an older December does not become the newest moment',
+  !spans.some(point => Math.abs(point.value - 999) < 1e-9), spans.map(p => p.value))
 
 /* ------------------------------------------------------ the window moves ---*/
 
