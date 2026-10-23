@@ -199,6 +199,62 @@ TR.bands = true;`,
       });`,
   },
   {
+    name: 'one reading is a chart; nothing at all is not',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `    if (S.n < 2) {
+      c.fillStyle = mut;
+      c.fillText('Collecting data…', pl, H / 2);
+    } else {`,
+    replacement: `    /*
+     * One reading is a chart. Nothing at all is not.
+     *
+     * This drew "Collecting data…" below two points, which on a plant is
+     * wrong twice over: a lab result taken once a shift genuinely has one
+     * record in a two-hour window, and the message says the data is on its
+     * way when it has already arrived and is being withheld. The axis, the
+     * limits and the σ bands are all worth drawing around a single value —
+     * that is how somebody sees it is inside the specification.
+     */
+    if (!S.n) {
+      c.fillStyle = mut;
+      c.fillText('No records in this window', pl, H / 2);
+    } else {`,
+  },
+  {
+    name: 'a lone reading is centred, not pinned to the axis',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `      const n = S.n,
+        dx = (W - pl - pr) / Math.max(1, n - 1),
+        X = i => pl + i * dx,`,
+    replacement: `      /*
+       * A lone reading stands in the middle, not against the left edge.
+       *
+       * \`dx\` is the gap between points, and with one point there is no gap —
+       * \`Math.max(1, n - 1)\` keeps the arithmetic safe but puts the only
+       * marker at \`pl\`, half on the axis. Centred, it reads as the one
+       * measurement there is rather than as a chart that failed to draw.
+       */
+      const n = S.n,
+        dx = (W - pl - pr) / Math.max(1, n - 1),
+        X = i => (n < 2 ? pl + (W - pl - pr) / 2 : pl + i * dx),`,
+  },
+  {
+    name: 'a handful of readings are drawn as markers',
+    file: join('js', '12-tag-spec-charts.js'),
+    anchor: `        const z = zoneOf(v, S),
+          r = F[i] ? 4.2 : dx > 3 ? 2.2 : z ? 1.8 : 0;`,
+    replacement: `        // A chart of one or two readings has no line to follow, so the
+        // markers carry it and are drawn big enough to be the chart.
+        const z = zoneOf(v, S),
+          r = F[i] ? 4.2 : n < 3 ? 4 : dx > 3 ? 2.2 : z ? 1.8 : 0;`,
+  },
+  {
+    name: 'the value on a canvas label is its own element',
+    file: join('js', '04-canvas.js'),
+    anchor: `<tspan class="k">\${esc(o.k)}</tspan>\${o.k ? ' ' : ''}\${esc(o.txt)}</text>`,
+    replacement: `<tspan class="k">\${esc(o.k)}</tspan>\${o.k ? ' ' : ''}<tspan class="tv">\${esc(o.txt)}</tspan></text>`,
+  },
+  {
     name: 'base href, so assets resolve at any path depth',
     anchor: '<meta charset="utf-8">',
     replacement: `<meta charset="utf-8">

@@ -1136,6 +1136,47 @@ check('the panel says how many shift averages it was built from',
   /127 shift averages/.test(pc.title || ''), pc.title)
 
 /*
+ * One record is a chart.
+ *
+ * A lab result taken once a shift genuinely has a single record inside a
+ * two-hour window, and the chart used to answer "Collecting data…" — which
+ * says the reading is on its way when it has already arrived. Drawing around
+ * one value is how somebody sees it is inside the specification.
+ *
+ * Checked by handing the studio a one-point series and making sure the draw
+ * goes all the way through: the statistics are finite and nothing throws on
+ * the arithmetic that assumes a gap between points.
+ */
+const lonely = await evaluate(`(() => {
+  [...document.querySelectorAll('#dlChartSeg button')].find(b => b.dataset.cv === 'imr')?.click();
+  const original = window.ccData;
+  const tag = ${peek}('REG')?.T_MOIST;
+  try {
+    const one = ccStats([{ t: Date.now(), v: 3.4 }], tag);
+    window.ccData = () => [{ t: Date.now(), v: 3.4 }];
+    drawTrend();
+    const none = ccStats([], tag);
+    window.ccData = () => [];
+    drawTrend();
+    return {
+      points: one.n,
+      finite: Number.isFinite(one.cl) && Number.isFinite(one.sigma) && one.sigma > 0,
+      emptyPoints: none.n,
+      threw: null,
+    };
+  } catch (e) {
+    return { threw: String(e && e.message || e) };
+  } finally {
+    window.ccData = original;
+    drawTrend();
+  }
+})()`)
+check('a single record is drawn rather than called "collecting"',
+  lonely.points === 1 && lonely.finite === true && !lonely.threw, lonely)
+check('and an empty window still draws without throwing',
+  lonely.emptyPoints === 0 && !lonely.threw, lonely)
+
+/*
  * Sand health scores a line from readings. Until those are linked there is
  * nothing behind it, so on the published screen it would be a confident
  * number computed from dashes.

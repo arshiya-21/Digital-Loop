@@ -913,9 +913,36 @@ function datePair(table) {
    * database already calls a date does not have to be called one as well;
    * only a text column has to prove itself by its name.
    */
-  const date = columns.find(column => column.t === 'datetime' && !BOOKKEEPING.test(column.n)) ||
-    columns.find(column => column.t === 'varchar' && DATEISH.test(column.n))
-  const time = columns.find(column => column.t === 'varchar' && TIMEISH.test(column.n))
+  /*
+   * A column the plant calls `date` is the date half, ahead of any other.
+   *
+   * `additive` has `created_on`, `last_updated_on` and `timestamp` beside a
+   * `date` and a `time` column. Taking the first `datetime` picked
+   * `created_on`, which pairs with nothing — so the dropdown offered no
+   * combination at all on a table that plainly has one.
+   */
+  const named = test => columns.find(column =>
+    (column.t === 'datetime' || column.t === 'varchar') && test.test(column.n) &&
+    !BOOKKEEPING.test(column.n))
+
+  const date = named(DATEISH) ||
+    columns.find(column => column.t === 'datetime' && !BOOKKEEPING.test(column.n))
+
+  /*
+   * The time half may be a `time` column, not only text.
+   *
+   * The catalogue calls every temporal type `datetime` — `date`, `time` and
+   * `timestamp` all arrive under that one name — so requiring text here ruled
+   * out a database that stores the time of day in the type made for it. The
+   * server joins a real `time` column exactly as it joins a text one; see
+   * `stampFromParts`.
+   *
+   * Never the column already standing as the date half.
+   */
+  const time = columns.find(column =>
+    (column.t === 'datetime' || column.t === 'varchar') && TIMEISH.test(column.n) &&
+    !BOOKKEEPING.test(column.n) && column.n !== date?.n)
+
   return date && time ? { date: date.n, time: time.n } : null
 }
 
@@ -1187,9 +1214,15 @@ function showTheQuery(section) {
       rows.innerHTML = ''
       says.textContent = ''
 
-      // Adopting is for the tab where a statement is written; going back is
-      // offered wherever a statement is already driving the reading.
-      acts.hidden = !connection || (mode !== 'own' && !driven)
+      /*
+       * Both buttons live with the statement they are about.
+       *
+       * "Go back to Table and Column" used to appear on the dropdowns tab as
+       * well, which is the tab that *is* table and column — a button offering
+       * to take you where you already are, under a statement somebody had
+       * only come to read. It belongs beside the written query it undoes.
+       */
+      acts.hidden = !connection || mode !== 'own'
       adopt.hidden = mode !== 'own'
       drop.hidden = !driven
 
@@ -1217,7 +1250,18 @@ function showTheQuery(section) {
     for (const tab of box.querySelectorAll('[data-q]')) {
       tab.onclick = () => show(tab.dataset.q)
     }
-    what.onchange = () => show(box.dataset.mode || 'auto')
+    /*
+     * Choosing "For the chart" fetches it, rather than asking for a press.
+     *
+     * The statement is the server's — it is built out of what only that end
+     * knows — so the box has nothing to show until it has been asked. Showing
+     * "Press Read now" there made the dropdown a two-step answer to a
+     * question somebody had already asked by choosing it.
+     */
+    what.onchange = () => {
+      show(box.dataset.mode || 'auto')
+      if (what.value === 'chart' && !kept.chart) readTheChart()
+    }
 
     /**
      * The window the chart reads, so the statement shown is the chart's own.

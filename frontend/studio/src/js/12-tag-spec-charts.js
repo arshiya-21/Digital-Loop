@@ -846,9 +846,19 @@ function drawTrend() {
       pb = 40;
     c.clearRect(0, 0, W, H);
     c.font = '11px IBM Plex Mono,monospace';
-    if (S.n < 2) {
+    /*
+     * One reading is a chart. Nothing at all is not.
+     *
+     * This drew "Collecting data…" below two points, which on a plant is
+     * wrong twice over: a lab result taken once a shift genuinely has one
+     * record in a two-hour window, and the message says the data is on its
+     * way when it has already arrived and is being withheld. The axis, the
+     * limits and the σ bands are all worth drawing around a single value —
+     * that is how somebody sees it is inside the specification.
+     */
+    if (!S.n) {
       c.fillStyle = mut;
-      c.fillText('Collecting data…', pl, H / 2);
+      c.fillText('No records in this window', pl, H / 2);
     } else {
       /*
        * The axis reaches as far as what is being drawn, and no further.
@@ -864,9 +874,17 @@ function drawTrend() {
       const sp = hi - lo || 1;
       lo -= sp * 0.04;
       hi += sp * 0.04;
+      /*
+       * A lone reading stands in the middle, not against the left edge.
+       *
+       * `dx` is the gap between points, and with one point there is no gap —
+       * `Math.max(1, n - 1)` keeps the arithmetic safe but puts the only
+       * marker at `pl`, half on the axis. Centred, it reads as the one
+       * measurement there is rather than as a chart that failed to draw.
+       */
       const n = S.n,
         dx = (W - pl - pr) / Math.max(1, n - 1),
-        X = i => pl + i * dx,
+        X = i => (n < 2 ? pl + (W - pl - pr) / 2 : pl + i * dx),
         Y = v => pt + (1 - (v - lo) / (hi - lo)) * (H - pt - pb);
       $('#trC')._g = { pl, dx, n };
       const band = (a, b, col) => {
@@ -1003,8 +1021,10 @@ function drawTrend() {
       S.vs.forEach((v, i) => (i ? c.lineTo(X(i), Y(v)) : c.moveTo(X(i), Y(v))));
       c.stroke();
       S.vs.forEach((v, i) => {
+        // A chart of one or two readings has no line to follow, so the
+        // markers carry it and are drawn big enough to be the chart.
         const z = zoneOf(v, S),
-          r = F[i] ? 4.2 : dx > 3 ? 2.2 : z ? 1.8 : 0;
+          r = F[i] ? 4.2 : n < 3 ? 4 : dx > 3 ? 2.2 : z ? 1.8 : 0;
         if (!r) return;
         c.fillStyle = F[i] ? '#d93636' : PTC[z];
         c.beginPath();

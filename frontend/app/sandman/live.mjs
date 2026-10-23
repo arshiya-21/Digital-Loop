@@ -1539,10 +1539,22 @@ export function paintBlinks() {
     document.head.append(sheet)
   }
 
+  /*
+   * The value blinks, not the label it is written on.
+   *
+   * A canvas label reads `Coal dust actual 3.5`, and blinking the whole thing
+   * took the name of the reading off the screen every other second — on a
+   * drawing of ninety labels, where the name is how you know which one is
+   * flashing at you. The number is the part that is being watched.
+   *
+   * `.tv` is the value's own element, added to the studio's `tagsSVG`; the
+   * card in the panel has `.ix-val` for the same thing.
+   */
   sheet.textContent = blinking.length
     ? '@keyframes dl-blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: .2 } }\n' +
       blinking.map(([id, seconds]) =>
-        `.tagb[data-tag="${cssString(id)}"], .ix-card[data-tid="${cssString(id)}"] > summary ` +
+        `.tagb[data-tag="${cssString(id)}"] .tv, ` +
+        `.ix-card[data-tid="${cssString(id)}"] > summary .ix-val ` +
         `{ animation: dl-blink ${seconds}s steps(1, end) infinite }`).join('\n')
     : ''
 }
@@ -1687,6 +1699,31 @@ function hideTrendOnText() {
   for (const card of document.querySelectorAll('.ix-card[data-tid]')) {
     const button = card.querySelector('[data-ixa="trend"]')
     if (button) button.hidden = isTextReading(card.dataset.tid)
+  }
+}
+
+/**
+ * The windowed statement for a reading, read if it is not already in hand.
+ *
+ * Preview data opens on what the chart ran, and the chart may not have run
+ * yet — it is loaded when a trend opens, and the preview can be reached
+ * before that answer lands. Asking `/live/preview` instead is what used to
+ * fill the box with the badge's `… LIMIT 1`, which is a different query about
+ * a different question.
+ */
+async function fetchTheChartsStatement(id) {
+  if (!loopId || !isLinked(id)) return null
+
+  const seconds = Number(peek('TR')?.win) || DEFAULT_WINDOW
+  try {
+    const answer = await api.get(
+      `/live/chart?loopId=${encodeURIComponent(loopId)}&tag=${encodeURIComponent(id)}` +
+      `&windowSeconds=${seconds}`)
+    charts.set(id, answer)
+    return answer?.query || null
+  } catch (error) {
+    // A refusal carries the statement it refused on, which is the one wanted.
+    return error?.detail?.query || null
   }
 }
 
@@ -2107,11 +2144,21 @@ async function previewData(id) {
    * empty chart left them editing a statement that was never the one failing.
    *
    * It is carried on the chart's own answer, and on its refusal — which is
-   * exactly when it is wanted. Falling back to asking for it only happens
-   * where the chart has not been fetched at all.
+   * exactly when it is wanted.
+   *
+   * Where no chart has been read yet, the chart is read — it is **not** filled
+   * in from `/live/preview`, which answers for the badge. That fallback is how
+   * `SELECT \`coal_dust_actual\`, \`created_on\` FROM … ORDER BY \`created_on\`
+   * DESC LIMIT 1` came to be sitting in this box over a chart holding one
+   * record: the box showed the badge's query, somebody read `LIMIT 1` and
+   * quite rightly asked why a chart was being limited to a row.
    */
   const chartQuery = loaded?.query || loaded?.failedQuery || null
   if (chartQuery) sql.value = chartQuery
+  else fetchTheChartsStatement(id).then(found => {
+    // Only if nothing has been typed in the meantime.
+    if (found && !sql.value.trim()) sql.value = found
+  })
 
   const ask = async statement => {
     tell('Running…')
@@ -2121,7 +2168,6 @@ async function previewData(id) {
         source: link.src,
         ...(statement ? { sql: statement } : { table: link.table, column: link.col }),
       })
-      if (!statement && !chartQuery && answer.query) sql.value = answer.query
 
       if (answer.error) {
         tell(`${answer.via || 'The database'} refused it: ${answer.error}`, 'dl-stale')

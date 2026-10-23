@@ -1285,6 +1285,18 @@ function withStatement(points, sql, columns = null) {
 
 /** Column types that hold a moment. A bare `time` has no day and is no use. */
 const TEMPORAL = /^(datetime2|datetimeoffset|smalldatetime|datetime|timestamp|date)\b/i
+
+/**
+ * A type that holds a time of day and nothing else — MySQL's `TIME`.
+ *
+ * Deliberately not part of `TEMPORAL`, which answers "can this column place a
+ * row in history". A bare clock cannot: `14:39:12` with no day is the same
+ * instant every afternoon, so a chart ordered by it interleaves a fortnight.
+ * It has exactly one use, as the second half of a date-and-time pair, and
+ * this is how `stampFromParts` finds it without it leaking into the ordering
+ * and windowing decisions that `TEMPORAL` governs.
+ */
+const CLOCK_ONLY = /^time\b/i
 /** Columns a copying tool writes: real, but about the copy, not about the plant. */
 const BOOKKEEPING = /^_|_(ts|at)$|watermark|synced|etl|ingest/i
 
@@ -1387,8 +1399,6 @@ const stamps = new Map()
 async function stampFromParts(row, tag, known) {
   if (row.engine !== 'mysql' && row.engine !== 'mariadb') return null
 
-  const textual = known.filter(column => TEXTUAL.test(column.type))
-
   /*
    * The date half may be a `datetime` column, not only text.
    *
@@ -1428,15 +1438,42 @@ async function stampFromParts(row, tag, known) {
       column.name === tag.timeColumn && !BOOKKEEPING.test(column.name))
     : null
 
+  /*
+   * A column the plant calls `date` is the date half, ahead of any other.
+   *
+   * `additive` has `created_on`, `last_updated_on` and `timestamp` — all
+   * `datetime` — beside a `date` column and a `time` column that are what the
+   * plant actually writes the reading's moment into. Taking the first
+   * non-bookkeeping `datetime` picked `created_on`, found no `time` to pair
+   * with it (see below), and gave up on the merge for the one table that
+   * needed it.
+   */
   const date = named
     ? dateColumns.find(column => column.name === tag.timeColumn)
     : preferred ||
+      dateColumns.find(column => DATEISH.test(column.name)) ||
       dateColumns.find(column =>
-        TEMPORAL.test(column.type) && !BOOKKEEPING.test(column.name)) ||
-      dateColumns.find(column => DATEISH.test(column.name))
+        TEMPORAL.test(column.type) && !BOOKKEEPING.test(column.name))
+
+  /*
+   * The time half may be a `time` column, not only text.
+   *
+   * Both halves had to be text, which ruled out a database that stores the
+   * time of day in the type made for it. `CONCAT` renders a `TIME` as
+   * `14:39:12`, which is exactly what `%H:%i:%s` reads, so a real `time`
+   * column joins the same way a text one does — and a plant that typed its
+   * columns properly is the last one that should be refused.
+   *
+   * Never the column already standing as the date half: `Det + Det` is not a
+   * timestamp, and on a table whose one temporal column is called `time` that
+   * is what the two searches would otherwise both land on.
+   */
+  const timeCandidates = known.filter(column =>
+    TEXTUAL.test(column.type) || TEMPORAL.test(column.type) || CLOCK_ONLY.test(column.type))
   const time = named
-    ? textual.find(column => column.name === tag.timeColumn2)
-    : textual.find(column => TIMEISH.test(column.name))
+    ? timeCandidates.find(column => column.name === tag.timeColumn2)
+    : timeCandidates.find(column =>
+      TIMEISH.test(column.name) && column.name !== date?.name)
 
   const key = `${schemaKey(row)}\u0000${tag.table}\u0000${date?.name}\u0000${time?.name}`
   if (stamps.has(key)) return stamps.get(key)

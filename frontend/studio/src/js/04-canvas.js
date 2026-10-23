@@ -340,7 +340,7 @@ function tagsSVG(b) {
     const t = o.t,
       sv = tagSev(t.id),
       sel = TAGSEL === b.id + '|' + t.id;
-    s += `<g class="tagb${sel ? ' tsel' : ''}" data-tag="${esc(t.id)}" data-tb="${b.id}" transform="translate(${o.x},${o.y})"><rect class="bg" width="${o.w}" height="${o.h}" rx="3"/><rect width="3" height="${o.h}" rx="1.5" fill="${MODE === 'monitor' || E.inst ? sevC(sv) : '#94a3b8'}"/><text x="6" y="${o.h * 0.72}"><tspan class="k">${esc(o.k)}</tspan>${o.k ? ' ' : ''}${esc(o.txt)}</text><title>${esc(t.id)} · ${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of ${esc(b.name)} · double-click for the trend</title></g>`;
+    s += `<g class="tagb${sel ? ' tsel' : ''}" data-tag="${esc(t.id)}" data-tb="${b.id}" transform="translate(${o.x},${o.y})"><rect class="bg" width="${o.w}" height="${o.h}" rx="3"/><rect width="3" height="${o.h}" rx="1.5" fill="${MODE === 'monitor' || E.inst ? sevC(sv) : '#94a3b8'}"/><text x="6" y="${o.h * 0.72}"><tspan class="k">${esc(o.k)}</tspan>${o.k ? ' ' : ''}<tspan class="tv">${esc(o.txt)}</tspan></text><title>${esc(t.id)} · ${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of ${esc(b.name)} · double-click for the trend</title></g>`;
   });
   return s + '</g>';
 }
