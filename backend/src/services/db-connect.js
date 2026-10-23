@@ -1119,14 +1119,50 @@ export async function recentValues(row, tag, points = 200, windowSeconds = null)
    */
   let since = null
   if (windowed) {
-    const [newest] = await ask(row, async ({ query }) =>
-      query(`SELECT MAX(${stamp}) AS newest FROM ${dialect.quote(tag.table)}`, []))
+    /*
+     * The newest moment, found by the index rather than by reading the table.
+     *
+     * `MAX(STR_TO_DATE(CONCAT(DATE(date), ' ', time), …))` has to build that
+     * expression for every row in the table before it can take a maximum —
+     * no index can help, because the thing being maximised is not a column.
+     * Measured on 200,000 rows: that one line was most of a second, every
+     * time a chart opened and every time a window button was pressed.
+     *
+     * The same answer comes from the newest row, and the newest row is what
+     * an index on the date column is for. The expression is then built once,
+     * for that row, instead of two hundred thousand times.
+     */
+    const newestSql = pair
+      ? dialect.one(
+        `SELECT ${stamp} AS newest FROM ${dialect.quote(tag.table)} ` +
+        `ORDER BY ${dialect.quote(pair.date)} DESC, ${dialect.quote(pair.time)} DESC`)
+      : `SELECT MAX(${stamp}) AS newest FROM ${dialect.quote(tag.table)}`
+
+    const [newest] = await ask(row, async ({ query }) => query(newestSql, []))
 
     const latest = moment(newest?.newest)
     if (latest) {
       const started = new Date(Date.parse(latest) - window_ * 1000)
       since = `${started.getFullYear()}-${two(started.getMonth() + 1)}-${two(started.getDate())} ` +
         `${two(started.getHours())}:${two(started.getMinutes())}:${two(started.getSeconds())}`
+
+      /*
+       * A term the index can use, beside the one that is exact.
+       *
+       * `STR_TO_DATE(CONCAT(DATE(date), ' ', time), …) >= '2026-10-23 09:30'`
+       * is the right condition and an unusable one: the column is inside a
+       * function, so every row in the table is read and converted before any
+       * of them are ruled out. Two hours of a table holding a year took as
+       * long as reading the year.
+       *
+       * `date >= '2026-10-23'` says less and says it in a form an index on
+       * that column can answer. It never excludes a row the exact term would
+       * keep — a moment on or after 09:30 on the 23rd is on a date on or
+       * after the 23rd — so the pair is the exact condition with the scan
+       * taken out of it: the index narrows to a day or two, and the exact
+       * term chooses within them.
+       */
+      if (pair) terms.push(`${dialect.quote(pair.date)} >= '${since.slice(0, 10)}'`)
       terms.push(`${stamp} >= '${since}'`)
     }
   }
@@ -1390,6 +1426,14 @@ const TEMPORAL = /^(datetime2|datetimeoffset|smalldatetime|datetime|timestamp|da
  * and windowing decisions that `TEMPORAL` governs.
  */
 const CLOCK_ONLY = /^time\b/i
+
+/**
+ * A type that holds a day and no time of day — MySQL's `DATE`.
+ *
+ * `\b` is what keeps `datetime` out of this: there is no word boundary
+ * between "date" and "time", so only the bare type matches.
+ */
+const DATE_ONLY = /^date\b/i
 /** Columns a copying tool writes: real, but about the copy, not about the plant. */
 const BOOKKEEPING = /^_|_(ts|at)$|watermark|synced|etl|ingest/i
 
@@ -1594,6 +1638,26 @@ async function stampFromParts(row, tag, known) {
   const joined = format =>
     `STR_TO_DATE(CONCAT(${datePart}, ' ', ${dialect.quote(time.name)}), ` +
     `'${format} ${TIME_ORDER}')`
+
+  /*
+   * Two typed columns need no proving, so they are not read at all.
+   *
+   * The scan below exists because a *text* date can be written eight ways and
+   * only the data says which. A `DATE` column cannot: `DATE(col)` renders
+   * `2026-10-23` and nothing else, a `TIME` renders `14:39:12`, and the
+   * question the scan answers is already settled by the schema. It also
+   * cannot be carrying a time of day in its date half — a `DATE` has no time
+   * to carry — which is the other thing the scan checks.
+   *
+   * Measured on 200,000 rows: that proof was most of a second the first time
+   * any chart on the table opened, to establish something the column type had
+   * already stated.
+   */
+  if (DATE_ONLY.test(date.type) && CLOCK_ONLY.test(time.type)) {
+    const certain = { sql: joined('%Y-%m-%d'), date: date.name, time: time.name, order: '%Y-%m-%d' }
+    stamps.set(key, certain)
+    return certain
+  }
 
   /*
    * Every candidate in one question, not one question each.

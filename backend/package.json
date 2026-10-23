@@ -9,7 +9,7 @@
     "start": "node --env-file-if-exists=.env src/server.js",
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
     "check:layout": "node tests/layout-fit.mjs",
-    "test": "node --env-file-if-exists=.env tests/layout-fit.mjs && node --env-file-if-exists=.env tests/startup-test.mjs && node --env-file-if-exists=.env tests/poll-batching.mjs && node --env-file-if-exists=.env tests/api-test.mjs"
+    "test": "node --env-file-if-exists=.env tests/layout-fit.mjs && node --env-file-if-exists=.env tests/startup-test.mjs && node --env-file-if-exists=.env tests/poll-batching.mjs && node --env-file-if-exists=.env tests/chart-reads.mjs && node --env-file-if-exists=.env tests/api-test.mjs"
   },
   "dependencies": {
     "@sandman/layout-core": "file:packages/layout-core",
