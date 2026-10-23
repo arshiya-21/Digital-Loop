@@ -255,6 +255,147 @@ TR.bands = true;`,
     replacement: `<tspan class="k">\${esc(o.k)}</tspan>\${o.k ? ' ' : ''}<tspan class="tv">\${esc(o.txt)}</tspan></text>`,
   },
   {
+    name: 'an uploaded drawing keeps its own ids, classes and inherited paint',
+    file: join('js', '07-reuse.js'),
+    anchor: `function parseSvg(src) {
+  src = String(src || '');
+  const m = src.match(/<svg[^>]*>/i);
+  let vb = null,
+    inner = src;
+  if (m) {
+    const v = m[0].match(/viewBox\\s*=\\s*["']([^"']+)["']/i);
+    if (v) vb = v[1];
+    else {
+      const w = m[0].match(/\\swidth\\s*=\\s*["']?([\\d.]+)/i),
+        h = m[0].match(/\\sheight\\s*=\\s*["']?([\\d.]+)/i);
+      if (w && h) vb = \`0 0 \${w[1]} \${h[1]}\`;
+    }
+    inner = src.replace(/^[\\s\\S]*?<svg[^>]*>/i, '').replace(/<\\/svg>\\s*$/i, '');
+  }
+  return { vb: vb || '0 0 100 100', inner: sanitizeSvg(inner) };
+}`,
+    replacement: `/*
+ * An uploaded drawing keeps its own ids, classes and inherited paint.
+ *
+ * The root \`<svg>\` is dropped here — the canvas supplies its own, sized and
+ * placed — and the children are inlined into the page. That is three ways for
+ * an upload to come out looking unlike the file:
+ *
+ *   **ids are global.** Illustrator and Figma name their gradients, clips,
+ *   masks and filters \`a\`, \`b\`, \`SVGID_1_\`, \`clip0_1_2\`. Two uploads in one
+ *   loop both define \`#a\`; the second wins for both, so one machine is drawn
+ *   with another's gradient, or clipped to another's shape.
+ *
+ *   **class names are global too.** \`.st0 { fill:#fff }\` is what Illustrator
+ *   writes, every time, counting from zero. Two uploads and the colours swap.
+ *
+ *   **the root's paint is inherited.** \`<svg fill="#333">\` colours every child
+ *   that does not say otherwise. Dropping the root dropped that, and those
+ *   children fell back to black.
+ *
+ * So ids are renamed with the instance's own suffix and every reference to
+ * them is renamed with it, the stylesheet is confined to this drawing's own
+ * group, and whatever the root was passing down is passed down by that group.
+ */
+const SVG_INHERITS = [
+  'fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-width', 'stroke-opacity',
+  'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'stroke-miterlimit',
+  'color', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style',
+  'text-anchor', 'letter-spacing', 'shape-rendering', 'style',
+];
+
+/** Every \`id="…"\` the markup defines, in order of appearance. */
+function svgIds(markup) {
+  const found = new Set();
+  const pattern = /\\sid\\s*=\\s*["']([^"']+)["']/gi;
+  let hit;
+  while ((hit = pattern.exec(markup))) found.add(hit[1]);
+  return [...found];
+}
+
+/** \`#a\` → \`#a__u12\`, wherever it is written: id, url(), href, begin. */
+function renameIds(markup, suffix) {
+  for (const id of svgIds(markup)) {
+    // Escaped because an id may legally hold regex punctuation.
+    const safe = id.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+    const to = \`\${id}__\${suffix}\`;
+    markup = markup
+      .replace(new RegExp(\`(\\\\sid\\\\s*=\\\\s*["'])\${safe}(["'])\`, 'g'), \`$1\${to}$2\`)
+      .replace(new RegExp(\`url\\\\((["']?)#\${safe}\\\\1\\\\)\`, 'g'), \`url($1#\${to}$1)\`)
+      .replace(new RegExp(\`((?:xlink:)?href\\\\s*=\\\\s*["'])#\${safe}(["'])\`, 'g'), \`$1#\${to}$2\`)
+      .replace(new RegExp(\`(\\\\sbegin\\\\s*=\\\\s*["'])\${safe}\\\\.\`, 'g'), \`$1\${to}.\`);
+  }
+  return markup;
+}
+
+/**
+ * Confine a \`<style>\` block to one group, by putting that group in front of
+ * every selector in it.
+ *
+ * Renaming the classes instead would mean rewriting both the stylesheet and
+ * every \`class\` attribute, and getting either half wrong silently unpaints
+ * the drawing. An ancestor selector needs no attribute touched at all.
+ *
+ * At-rules are left exactly as they are: \`@keyframes\` names frames rather
+ * than elements, and prefixing those would break the animation it describes.
+ */
+function scopeSvgStyles(markup, scope) {
+  return markup.replace(/<style\\b[^>]*>([\\s\\S]*?)<\\/style>/gi, (whole, css) => {
+    if (/@(media|supports|keyframes|font-face|import)/i.test(css)) return whole;
+    const scoped = css.replace(/(^|\\})([^@{}]+)\\{/g, (_, close, selectors) =>
+      close + selectors.split(',').map(one => {
+        const trimmed = one.trim();
+        return trimmed ? \`.\${scope} \${trimmed}\` : one;
+      }).join(', ') + '{');
+    return whole.replace(css, scoped);
+  });
+}
+
+function parseSvg(src, uid) {
+  src = String(src || '');
+  const m = src.match(/<svg[^>]*>/i);
+  let vb = null,
+    inner = src,
+    inherited = '';
+  if (m) {
+    const v = m[0].match(/viewBox\\s*=\\s*["']([^"']+)["']/i);
+    if (v) vb = v[1];
+    else {
+      const w = m[0].match(/\\swidth\\s*=\\s*["']?([\\d.]+)/i),
+        h = m[0].match(/\\sheight\\s*=\\s*["']?([\\d.]+)/i);
+      if (w && h) vb = \`0 0 \${w[1]} \${h[1]}\`;
+    }
+    // What the root was passing down to its children, which they still need.
+    inherited = SVG_INHERITS.map(name => {
+      const got = m[0].match(new RegExp(\`\\\\s\${name}\\\\s*=\\\\s*["']([^"']*)["']\`, 'i'));
+      return got ? \` \${name}="\${esc(got[1])}"\` : '';
+    }).join('');
+    inner = src.replace(/^[\\s\\S]*?<svg[^>]*>/i, '').replace(/<\\/svg>\\s*$/i, '');
+  }
+
+  const suffix = \`u\${uid == null ? '0' : String(uid).replace(/[^A-Za-z0-9_-]/g, '')}\`;
+  const scope = \`svgs-\${suffix}\`;
+  let body = sanitizeSvg(inner);
+  body = renameIds(body, suffix);
+  body = scopeSvgStyles(body, scope);
+
+  return {
+    vb: vb || '0 0 100 100',
+    inner: \`<g class="\${scope}"\${inherited}>\${body}</g>\`,
+  };
+}`,
+  },
+  {
+    name: 'the drawing is namespaced by the instance that draws it',
+    file: join('js', '07-reuse.js'),
+    anchor: `    case 'svg': {
+      const P = parseSvg(d.svg);`,
+    replacement: `    case 'svg': {
+      // The instance's own id, so two placements of one drawing — and two
+      // different drawings — cannot define the same \`#a\`.
+      const P = parseSvg(d.svg, uid);`,
+  },
+  {
     name: 'base href, so assets resolve at any path depth',
     anchor: '<meta charset="utf-8">',
     replacement: `<meta charset="utf-8">
