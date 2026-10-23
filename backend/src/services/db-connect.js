@@ -680,8 +680,37 @@ export async function latestValues(row, wanted) {
   }
   if (!usable.length) return out
 
+  /*
+   * Readings on the same table are read together, in one statement.
+   *
+   * This asked for each reading on its own, in a loop, over one connection —
+   * so a loop with 128 readings sent 128 statements and waited for each
+   * before sending the next. Measured here: twenty readings on one table were
+   * twenty SELECTs on the wire. On a database beside the server that is a
+   * few milliseconds; through an SSH tunnel to a plant at 40 ms it is five
+   * seconds of a thirty-second poll spent on round trips, and the canvas
+   * fills a reading at a time while somebody watches.
+   *
+   * A reading is a column, a table, an ordering and an optional row filter.
+   * Everything but the column is shared by most of them — `additive` holds a
+   * dozen — so the ones that agree on the rest are one statement selecting a
+   * dozen columns, and the answer is pulled apart by alias afterwards.
+   *
+   * Grouped by exactly what the statement is made of, so a group cannot
+   * change the meaning of any reading in it: a different filter, a different
+   * ordering or a different table is a different group.
+   */
+  const groupKey = tag => [
+    tag.table, tag.keyColumn || '', tag.keyOp || '=', tag.keyValue ?? '', tag.time || '',
+  ].join('\u0000')
+
+  /* A statement names its columns, and a wide table could hold hundreds of
+     readings. Kept to a size no database objects to. */
+  const BATCH = 100
+
   await ask(row, async ({ query }) => {
-    for (const tag of usable) {
+    /** One reading, on its own — the path a written statement always takes. */
+    const readOne = async tag => {
       const filtered = !tag.sql && !!(tag.keyColumn && tag.keyValue)
       const select = tag.sql ? null : `SELECT ${dialect.quote(tag.column)} AS value` +
         (tag.time ? `, ${dialect.quote(tag.time)} AS at` : '')
@@ -719,6 +748,70 @@ export async function latestValues(row, wanted) {
         // is what somebody needs — and never the password, which is not
         // interpolated anywhere above.
         out.errors[tag.id] = String(error?.message || 'That column could not be read.').slice(0, 200)
+      }
+    }
+
+    /**
+     * Several readings off one table, in one statement.
+     *
+     * Each column is aliased by its position in the group rather than by its
+     * own name, because two readings may point at the same column and a
+     * column may be called `at` — both of which would make the row ambiguous
+     * to pull apart.
+     */
+    const readTogether = async group => {
+      const first = group[0]
+      const filtered = !!(first.keyColumn && first.keyValue)
+      const select = 'SELECT ' +
+        group.map((tag, at) => `${dialect.quote(tag.column)} AS v${at}`).join(', ') +
+        (first.time ? `, ${dialect.quote(first.time)} AS at` : '')
+      const from = ` FROM ${dialect.quote(first.table)}`
+      const where = filtered
+        ? ` WHERE ${dialect.quote(first.keyColumn)} ${comparison(first.keyOp)} ${dialect.param(1)}`
+        : ''
+      const order = first.time ? ` ORDER BY ${dialect.quote(first.time)} DESC` : ''
+
+      const rows = await query(
+        dialect.one(select + from + where + order), filtered ? [first.keyValue] : [])
+      const record = Array.isArray(rows) ? rows[0] : null
+
+      group.forEach((tag, at) => {
+        out.values[tag.id] = record
+          ? { value: readable(record[`v${at}`]), recordedAt: moment(record.at) }
+          : null
+        if (!record) {
+          out.errors[tag.id] = filtered
+            ? `No rows where "${tag.keyColumn}" = "${tag.keyValue}".`
+            : `"${tag.table}" has no rows.`
+        }
+      })
+    }
+
+    const groups = new Map()
+    for (const tag of usable) {
+      // A written statement answers for itself and nothing else.
+      if (tag.sql) { await readOne(tag); continue }
+      const key = groupKey(tag)
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(tag)
+    }
+
+    for (const group of groups.values()) {
+      for (let at = 0; at < group.length; at += BATCH) {
+        const slice = group.slice(at, at + BATCH)
+        if (slice.length === 1) { await readOne(slice[0]); continue }
+        try {
+          await readTogether(slice)
+        } catch {
+          /*
+           * One statement for a dozen readings fails as a dozen, so a single
+           * unreadable column would blank every reading beside it. Falling
+           * back to one at a time costs the round trips this exists to save,
+           * on the rare table where something is wrong — and each reading
+           * then gets its own answer or its own error, as before.
+           */
+          for (const tag of slice) await readOne(tag)
+        }
       }
     }
   })
