@@ -931,6 +931,11 @@ async function boot() {
      * applied in the publish view only, and leaves the drawing itself alone.
      */
     installPublishView({ save: saveToServer })
+    /*
+     * The Fault alarm picker saves the same way the Publish view buttons do:
+     * the choice goes onto the loop (DOC.mon) and this writes it to the database.
+     */
+    window.dlPersistLoop = saveToServer
 
     /*
      * The databases a reading may be linked to: the foundry's own, from the

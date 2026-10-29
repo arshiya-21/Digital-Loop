@@ -110,8 +110,17 @@ function mpTags() {
    * "Fault alarm" that leaves out the reading in alarm is answering the wrong
    * question.
    */
-  const alarming = [...new Set(Object.values(ALERTS).map(a => a.tagId))]
-    .filter(id => id && REG[id] && !picked.includes(id) && mpWorstToday(id) > 0);
+  /*
+   * ...unless somebody has chosen. An explicit selection — including an empty
+   * one — is the person's decision and is honoured exactly: unticking the
+   * bentonite level and saving must take it off the panel, and it must not be
+   * ticked again next time the picker opens. The alarm itself is still listed
+   * in the Alarms section above; this is only the Monitored parameters list.
+   */
+  const alarming = Array.isArray(c.tags)
+    ? []
+    : [...new Set(Object.values(ALERTS).map(a => a.tagId))]
+        .filter(id => id && REG[id] && !picked.includes(id) && mpWorstToday(id) > 0);
 
   const shown = picked.concat(alarming);
   const worst = new Map(shown.map(id => [id, mpWorstToday(id)]));
@@ -329,7 +338,8 @@ function mpLocate(id) {
 /* ---------- picker ---------- */
 function mpPicker() {
   const all = Object.keys(REG).sort((a, b) => (mpOwner(a) + a).localeCompare(mpOwner(b) + b));
-  let sel = mpTags().slice();
+  // What was saved (or the suggested set if nothing was) — never the alarm auto-joins.
+  let sel = (Array.isArray(mpCfg().tags) ? mpCfg().tags : mpSuggested()).filter(id => REG[id]);
   const eqs = [...new Set(all.map(mpOwner).filter(Boolean))].sort();
   openModal(
     `<h3>Monitored parameters</h3><div class="note">Choose the readings shown in the Publish view's live panel. Search by tag, description or equipment, tick the ones to monitor and order them on the right. Keep it to the parameters that matter on the shop floor — about 10 to 20 reads best on a TV.</div>
@@ -410,10 +420,29 @@ function mpPicker() {
   $('#mpkClr').onclick = () => ((sel = []), rows(), side());
   $('#mpkSug').onclick = () => ((sel = mpSuggested()), rows(), side());
   $('#mpkCancel').onclick = closeModal;
-  $('#mpkOk').onclick = () => {
+  $('#mpkOk').onclick = async () => {
+    const ok = $('#mpkOk');
     pushUndo();
     mpCfg().tags = sel.slice();
     save();
+    /*
+     * Straight to the database, the way the Publish view buttons are saved:
+     * the choice is on the loop (DOC.mon) and the loop is written with it.
+     * The studio's own save() is a no-op in this app. If the write fails the
+     * dialog stays open so nothing is lost.
+     */
+    if (typeof window.dlPersistLoop === 'function') {
+      ok.disabled = true;
+      ok.textContent = 'Saving…';
+      try {
+        await window.dlPersistLoop();
+      } catch (e) {
+        ok.disabled = false;
+        ok.textContent = 'Save';
+        toast('Could not save the monitored parameters: ' + (e && e.message ? e.message : e));
+        return;
+      }
+    }
     closeModal();
     mpRender(true);
     toast(`Fault alarm panel: ${sel.length} monitored parameter${sel.length === 1 ? '' : 's'}`);

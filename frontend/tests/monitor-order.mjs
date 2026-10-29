@@ -72,9 +72,9 @@ function lift(name) {
  * case "passes" by returning nothing at all.
  */
 const order = new Function(`
-  return function (REG, ALERTS, picked) {
+  return function (REG, ALERTS, picked, explicit) {
     const chosen = picked || Object.keys(REG);
-    const mpCfg = () => ({ tags: chosen });
+    const mpCfg = () => ({ tags: explicit ? chosen : null });
     const mpSuggested = () => chosen;
     ${lift('mpWorstToday')}
     ${lift('mpTags')}
@@ -183,6 +183,23 @@ check('but a quiet reading that was not picked stays off it',
 check("and yesterday's alarm does not drag it back on",
   order(WITH_BEN, { k: { tagId: 'BEN', sev: 3, t: yesterday(22) } }, ['A', 'B']),
   ['A', 'B'])
+
+/*
+ * Unticking in the picker and saving is a decision, not a suggestion. The
+ * panel kept showing the bentonite level because an alarm on it dragged it
+ * back on, and the picker reopened with it ticked.
+ */
+check('a reading the person unticked stays off the panel even while in alarm',
+  order(WITH_BEN, { k: { tagId: 'BEN', sev: 2, t: today(9), active: true } }, ['A', 'B'], true),
+  ['A', 'B'])
+
+check('saving an empty selection leaves the panel empty',
+  order(WITH_BEN, { k: { tagId: 'BEN', sev: 2, t: today(9), active: true } }, [], true),
+  [])
+
+check('an alarm still raises a chosen reading to the top',
+  order(WITH_BEN, { k: { tagId: 'B', sev: 2, t: today(9), active: true } }, ['A', 'B'], true),
+  ['B', 'A'])
 
 check('an alarm on a reading that is not in the loop is ignored',
   order(PICKED, { k: { tagId: 'GHOST', sev: 3, t: today(9), active: true } }, ['A', 'B']),
