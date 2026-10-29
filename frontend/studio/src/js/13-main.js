@@ -11,6 +11,21 @@ function toast(m) {
   clearTimeout(toastT);
   toastT = setTimeout(() => t.classList.remove('on'), 2400);
 }
+/* Acknowledge banner: top of the page, so it is seen in the Publish view where the bottom toast is hidden behind the bar */
+let ackNoticeT;
+function ackNotice(msg) {
+  let n = document.getElementById('ackNotice');
+  if (!n) {
+    n = document.createElement('div');
+    n.id = 'ackNotice';
+    n.setAttribute('role', 'status');
+    document.body.appendChild(n);
+  }
+  n.textContent = '\u2713 ' + msg;
+  n.classList.add('on');
+  clearTimeout(ackNoticeT);
+  ackNoticeT = setTimeout(() => n.classList.remove('on'), 3000);
+}
 setInterval(() => {
   $('#clk').textContent = hms(new Date());
   if (RP) return;
@@ -41,8 +56,29 @@ setInterval(() => {
     renderOvl();
   }
   if (SEL && SEL.t === 'b' && PTAB === 'alerts' && ALV !== window._pALV) {
-    window._pALV = ALV;
-    renderProps();
+    /*
+     * Do not rebuild the Properties panel while somebody is typing in it.
+     * Rebuilding replaces every input, so the Custom rules form (Value, Message ...)
+     * was emptied each time an alarm changed. While a field in the panel has focus we
+     * wait (window._pALV stays old, so it redraws on the next tick after they leave it).
+     */
+    const ae = document.activeElement;
+    const typing = !!(ae && ae.closest && ae.closest('#props') && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName));
+    if (!typing) {
+      window._pALV = ALV;
+      // keep anything already entered in the rule form across the redraw
+      const ruleIds = ['rTag', 'rOp', 'rVal', 'rSev', 'rDel', 'rMsg'];
+      const kept = {};
+      ruleIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) kept[id] = el.value;
+      });
+      renderProps();
+      ruleIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && kept[id] !== undefined) el.value = kept[id];
+      });
+    }
   }
 }, 1000);
 

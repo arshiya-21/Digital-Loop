@@ -11,6 +11,7 @@ import * as dbForm from './db-form.mjs'
 import * as tableVisibility from './table-visibility.mjs'
 import * as processChecks from './process-checks.mjs'
 import * as sops from './sops.mjs'
+import { installPublishView } from './publish-view.mjs'
 import { ApiError } from './api.mjs'
 
 /**
@@ -921,6 +922,15 @@ async function boot() {
      * process-checks.mjs. It also switches on alarms from the tag limits.
      */
     processChecks.install()
+
+    /*
+     * The per-item hide / alias overlay for the publish view.
+     *
+     * A "Publish view" button in the empty slot of the View ribbon, next to
+     * Maintenance; see publish-view.mjs. The overlay is stored on the loop,
+     * applied in the publish view only, and leaves the drawing itself alone.
+     */
+    installPublishView({ save: saveToServer })
 
     /*
      * The databases a reading may be linked to: the foundry's own, from the

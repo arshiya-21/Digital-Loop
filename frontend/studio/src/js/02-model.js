@@ -549,6 +549,7 @@ function ack(k) {
   if (!a) return;
   a.acked = true;
   logEv(`Acknowledged: ${a.where} — ${a.msg}`);
+  if (typeof ackNotice === 'function') ackNotice('Alarm acknowledged — ' + a.where);
   if (!a.active) delete ALERTS[k];
   ALV++;
   renderDock(true);
@@ -560,6 +561,7 @@ function ackAll() {
     if (!ALERTS[k].active) delete ALERTS[k];
   });
   logEv('All alerts acknowledged');
+  if (typeof ackNotice === 'function') ackNotice('All alarms acknowledged');
   ALV++;
   renderDock(true);
   renderHeader();

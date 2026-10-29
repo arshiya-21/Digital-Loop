@@ -70,7 +70,7 @@ body.present.mpon .mpanel { display: flex; }
 .mp-sp .mp-band { fill: rgba(31, 157, 85, 0.09); }
 .mpl0 { stroke: #1f6feb; } .mpl1 { stroke: #c99a00; } .mpl2 { stroke: #ec7a15; } .mpl3 { stroke: #d93636; }
 /* locate ring on the drawing */
-.mp-ring { fill: none; stroke: #1f6feb; stroke-width: 4; pointer-events: none; animation: mpRing 1s ease-in-out infinite; }
+.mp-ring { fill: none; stroke: #e11d2e; stroke-width: 4; pointer-events: none; animation: mpRing 1s ease-in-out infinite; }
 @keyframes mpRing { 50% { stroke-opacity: 0.25; stroke-width: 8; } }
 /* publish bar button */
 .pbar .p9 { background: #e9eef5; color: #0e2d5c; border-color: #b8c4d6; }
@@ -96,3 +96,12 @@ body.present.mpon .mpanel { display: flex; }
 /* v9.47 — a line drawn from an inlet to an outlet: its moving sand runs the real way */
 .live .stream.rev path.fl, .live .stream.rev .fx { animation-direction: reverse; }
 .mp-sd { margin-left: 6px; font-size: 12px; }
+
+/* acknowledge banner (top of the page) */
+#ackNotice { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 50%; transform: translate(-50%, -14px);
+  background: #1f9d55; color: #fff; font: 700 14px var(--cond, inherit); padding: 10px 20px; border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); z-index: 400; opacity: 0; pointer-events: none; transition: 0.2s; max-width: 90vw; }
+#ackNotice.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* Locate button: red while pressed */
+.mp-b[data-loc]:active { background: #e11d2e; color: #fff; border-color: #e11d2e; }

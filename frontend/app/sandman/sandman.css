@@ -1250,3 +1250,94 @@ body.present .dl-empty {
 }
 
 .dl-blink-secs small { color: var(--muted); }
+
+/* ---------------------------------------------------- Publish view picker ---
+ *
+ * The dialog opened by the View ribbon's "Publish view" button. One row per
+ * equipment item, each with a Show tick and an alias field — see
+ * publish-view.mjs. The chrome mirrors the studio's own tables (ix-* and the
+ * SQL preview panel) so it looks at home rather than bolted on.
+ */
+.dlpv-dlg h3 { margin: 0 0 6px; }
+.dlpv-dlg .note { margin: 0 0 10px; }
+
+.dlpv-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.dlpv-tools input[type="search"] {
+  flex: 0 0 320px;
+  max-width: 60%;
+  padding: 5px 8px;
+}
+
+.dlpv-count {
+  color: var(--muted, #64748b);
+  font-size: 12px;
+}
+
+.dlpv-tbl {
+  max-height: 56vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.dlpv-tbl table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dlpv-tbl thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel2, #f3f6fb);
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  z-index: 1;
+}
+
+.dlpv-tbl tbody td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.dlpv-tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dlpv-chk {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dlpv-id {
+  color: var(--muted, #64748b);
+  font-size: 11.5px;
+}
+
+.dlpv-alias {
+  width: 100%;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+/* The "Always on" chip on #pExit, which may not be hidden. */
+.dlpv-locked {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 11.5px;
+  color: var(--muted, #64748b);
+  background: var(--panel2, #f3f6fb);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
