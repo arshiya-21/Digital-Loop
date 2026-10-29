@@ -204,8 +204,62 @@ function lend(key, entryOrPromise) {
 
 /* ------------------------------------------------------------- the engines ---*/
 
-async function askMysql(row, where, question) {
-  const connection = await mysql.createConnection({
+/**
+ * One pool of MySQL connections per registered database, kept open.
+ *
+ * Every read used to open a connection and close it again. Beside the server
+ * that is a millisecond; through an SSH tunnel to a plant it is a TCP connect
+ * and a multi-step handshake — greeting, authentication, acknowledgement —
+ * before a single byte of the query is sent, and then the whole thing is torn
+ * down so the next read can do it again. At a 40 ms round trip that is a
+ * fifth of a second of pure introduction on every poll and every chart.
+ *
+ * A pool holds the connections open and hands one out, so the handshake
+ * happens once and the reads that follow are the query and nothing else. It
+ * also queues: two reads arriving together get a connection each rather than
+ * fighting over one, which a single kept-alive connection could not do.
+ *
+ * Keyed on everything that decides where it connects and as whom, with
+ * `updated_at` in it — so editing a connection is answered by a new pool
+ * rather than by the old one still pointing at the old host.
+ */
+const pools = new Map()
+
+const poolKey = row => [
+  row.id, row.username, row.database_name, row.use_tls ? 'tls' : '', row.updated_at || '',
+].join('\u0000')
+
+/** The pools are closed when a connection is edited or removed. */
+export async function forgetPools(id = null) {
+  for (const [key, pool] of [...pools]) {
+    if (id && !key.startsWith(`${id}\u0000`)) continue
+    pools.delete(key)
+    await pool.end().catch(() => {})
+  }
+}
+
+function poolFor(row, where) {
+  /*
+   * The tunnel's local port is in the key as well.
+   *
+   * A tunnel that drops and is reopened comes back on a different local port,
+   * and a pool still pointing at the old one would hand out connections to a
+   * port nothing is listening on. Keying on it means a new tunnel is a new
+   * pool, and the old one is closed below.
+   */
+  const key = `${poolKey(row)}\u0000${where.host}:${where.port}`
+  const held = pools.get(key)
+  if (held) return held
+
+  // A re-pointed connection leaves its old pool behind; close it.
+  for (const [old, pool] of [...pools]) {
+    if (old.startsWith(`${row.id}\u0000`)) {
+      pools.delete(old)
+      pool.end().catch(() => {})
+    }
+  }
+
+  const pool = mysql.createPool({
     host: where.host,
     port: where.port,
     user: row.username,
@@ -213,28 +267,51 @@ async function askMysql(row, where, question) {
     database: row.database_name,
     connectTimeout: CONNECT_TIMEOUT_MS,
     /*
-     * Dates as they are written, not as this server would reinterpret them.
-     *
-     * A plant's `datetime` column carries no timezone. Without this the driver
-     * hands back a JS `Date` read in *this* process's timezone, and turning
-     * that into ISO shifts it: `2026-10-22 00:00:00` in the table came out as
-     * `2026-10-21T18:30:00.000Z` on screen — the same instant, the wrong day,
-     * and a day that disagrees with what Workbench shows for the same row.
-     *
-     * Read as a string, it stays the moment the plant recorded.
+     * Small on purpose. These are a plant's own database connections and this
+     * service is one of several things using it; four is enough for a poll
+     * and a chart at the same time without holding a handful open per loop.
      */
+    connectionLimit: 4,
+    maxIdle: 2,
+    idleTimeout: 60_000,
+    waitForConnections: true,
+    queueLimit: 32,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10_000,
     dateStrings: true,
-    // Metadata only, so there is nothing here that needs several statements.
     multipleStatements: false,
     ...(row.use_tls ? { ssl: { rejectUnauthorized: false } } : {}),
   })
+  pools.set(key, pool)
+  return pool
+}
+
+async function askMysql(row, where, question) {
+  const pool = poolFor(row, where)
+  const connection = await pool.getConnection()
+
+  /*
+   * A connection that may be in an odd state is thrown away, not handed on.
+   *
+   * This matters only because the connection is now reused. A read that
+   * failed part-way, or a `ROLLBACK` that did not land, leaves a connection
+   * that may still be inside a transaction — and the next caller would
+   * inherit it silently, which is the one thing pooling must not cost. One
+   * handshake is cheaper than a reader seeing another reader's transaction.
+   */
+  let spoiled = false
   try {
     return await question({
       query: async (sql, values) =>
         (await connection.query({ sql, timeout: QUERY_TIMEOUT_MS, values: values || [] }))[0],
+      discard: () => { spoiled = true },
     })
+  } catch (error) {
+    spoiled = true
+    throw error
   } finally {
-    await connection.end().catch(() => {})
+    if (spoiled) connection.destroy()
+    else connection.release()
   }
 }
 
@@ -575,7 +652,7 @@ export async function runQuery(row, sql, limit = 200) {
     postgres: 'BEGIN READ ONLY',
   }[row.engine]
 
-  return await ask(row, async ({ query }) => {
+  return await ask(row, async ({ query, discard }) => {
     if (readOnly) await query(readOnly, [])
     try {
       const rows = await query(statement, [])
@@ -590,7 +667,13 @@ export async function runQuery(row, sql, limit = 200) {
         truncated: list.length > kept.length,
       }
     } finally {
-      if (readOnly) await query('ROLLBACK', []).catch(() => {})
+      /*
+       * A rollback that did not land leaves the connection in a transaction,
+       * and the connection is reused now — so it is discarded rather than
+       * returned to the pool. The read itself has already answered; this is
+       * only about what the next caller is handed.
+       */
+      if (readOnly) await query('ROLLBACK', []).catch(() => discard?.())
     }
   })
 }
@@ -621,15 +704,33 @@ export function readStatement(engine, tag) {
    */
   const filtered = !!(tag.keyColumn && tag.keyValue)
   const named = dialect.quote(String(tag.named || tag.id || tag.column))
-  const moment = tag.timeColumn && tag.timeColumn2
-    ? `${dialect.quote(tag.timeColumn)} + ${dialect.quote(tag.timeColumn2)}`
+
+  /*
+   * A date and a time read as one moment, not added together.
+   *
+   * This wrote `` `date` + `time` ``, which in MySQL is arithmetic: both
+   * sides are coerced to numbers and summed, so `2026-10-28` + `23:59:23`
+   * is a number that is not a date and not an error either. Ordering by it
+   * is ordering by nonsense.
+   *
+   * `CONCAT` joins them the way the chart does — see `stampFromParts` — and
+   * the ordering is on the two columns themselves, which an index can
+   * answer and which does not depend on the join parsing.
+   */
+  const pair = tag.timeColumn && tag.timeColumn2
+  const moment = pair
+    ? (engine === 'postgres'
+      ? `${dialect.quote(tag.timeColumn)} || ' ' || ${dialect.quote(tag.timeColumn2)}`
+      : `CONCAT(DATE(${dialect.quote(tag.timeColumn)}), ' ', ${dialect.quote(tag.timeColumn2)})`)
     : (tag.timeColumn ? dialect.quote(tag.timeColumn) : null)
 
   const select = `SELECT ${dialect.quote(tag.column)} AS ${named}` +
     (moment ? `, ${moment} AS ${dialect.quote('datetime')}` : '')
   const from = ` FROM ${dialect.quote(tag.table)}`
   const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(1)}` : ''
-  const order = moment ? ` ORDER BY ${dialect.quote('datetime')} DESC` : ''
+  const order = pair
+    ? ` ORDER BY ${dialect.quote(tag.timeColumn)} DESC, ${dialect.quote(tag.timeColumn2)} DESC`
+    : (moment ? ` ORDER BY ${dialect.quote('datetime')} DESC` : '')
 
   return {
     sql: dialect.one(select + from + where + order),
@@ -647,6 +748,9 @@ export async function latestValues(row, wanted) {
   // One schema for the whole batch, and usually a remembered one — see
   // `schemaFor`. A poll of twenty readings is one schema read at most.
   const tables = await tablesFor(row, wanted)
+  // The same schema read, by type — for deciding whether a "Newest by" pair
+  // is two columns the database can compare as dates. See `paired` below.
+  const types = typesByTable((await schemaFor(row)).schema)
 
   const usable = []
   for (const tag of wanted) {
@@ -676,7 +780,29 @@ export async function latestValues(row, wanted) {
     // newest row is whatever the database returns first, which is still a
     // reading, and saying so in an error would blank a working one.
     const time = tag.timeColumn && columns.has(tag.timeColumn) ? tag.timeColumn : null
-    usable.push({ ...tag, time })
+
+    /*
+     * The second half of a date-and-time pair, so the badge and the chart
+     * agree about which row is newest.
+     *
+     * "Newest by" can name a merged date and time — `date + time` on the
+     * `additive` table — and this read used only the first half. `ORDER BY
+     * \`date\` DESC LIMIT 1` finds the newest *day* and then whichever row of
+     * that day the engine feels like, while the chart orders by the two read
+     * as one moment and finds the actual newest. Two different rows for one
+     * reading: the chart drew thirty-nine records and the value beside it was
+     * blank, because the row the badge landed on had nothing in that column.
+     *
+     * Only where the database compares the halves as dates. On text columns
+     * `'10-23-2026' < '12-01-2025'` as strings, so ordering by them is worse
+     * than ordering by neither — the same trap as `MAX` on a text date, and
+     * there the merged expression is the chart's job rather than this one's.
+     */
+    const second = tag.timeColumn2 && columns.has(tag.timeColumn2) ? tag.timeColumn2 : null
+    const typeOf = name => (types.get(tag.table) || []).find(c => c.name === name)?.type || ''
+    const paired = time && second && TEMPORAL.test(typeOf(time)) ? second : null
+
+    usable.push({ ...tag, time, paired })
   }
   if (!usable.length) return out
 
@@ -700,8 +826,39 @@ export async function latestValues(row, wanted) {
    * change the meaning of any reading in it: a different filter, a different
    * ordering or a different table is a different group.
    */
+  /**
+   * What "newest" means for a reading, as SQL.
+   *
+   * One column, or two read as one moment where "Newest by" named a pair —
+   * see `paired`. Both halves are ordered on, so it is the newest day and
+   * then the newest time within it, which is the row the chart calls newest
+   * too. The two disagreeing is what left a full chart beside a blank value.
+   */
+  const newestBy = tag => {
+    if (!tag.time) return ''
+    const first = `${dialect.quote(tag.time)} DESC`
+    return tag.paired ? `${first}, ${dialect.quote(tag.paired)} DESC` : first
+  }
+
+  /**
+   * The moment reported beside the value.
+   *
+   * A date half on its own is midnight, so a reading ordered by a pair would
+   * say "Recorded 00:00" beside a value taken at ten to midnight. The halves
+   * are joined for the answer exactly as the chart joins them.
+   */
+  const momentOf = tag => {
+    if (!tag.time) return ''
+    if (!tag.paired) return `, ${dialect.quote(tag.time)} AS at`
+    const joined = row.engine === 'postgres'
+      ? `${dialect.quote(tag.time)} || ' ' || ${dialect.quote(tag.paired)}`
+      : `CONCAT(DATE(${dialect.quote(tag.time)}), ' ', ${dialect.quote(tag.paired)})`
+    return `, ${joined} AS at`
+  }
+
   const groupKey = tag => [
-    tag.table, tag.keyColumn || '', tag.keyOp || '=', tag.keyValue ?? '', tag.time || '',
+    tag.table, tag.keyColumn || '', tag.keyOp || '=', tag.keyValue ?? '',
+    tag.time || '', tag.paired || '',
   ].join('\u0000')
 
   /* A statement names its columns, and a wide table could hold hundreds of
@@ -712,11 +869,10 @@ export async function latestValues(row, wanted) {
     /** One reading, on its own — the path a written statement always takes. */
     const readOne = async tag => {
       const filtered = !tag.sql && !!(tag.keyColumn && tag.keyValue)
-      const select = tag.sql ? null : `SELECT ${dialect.quote(tag.column)} AS value` +
-        (tag.time ? `, ${dialect.quote(tag.time)} AS at` : '')
+      const select = tag.sql ? null : `SELECT ${dialect.quote(tag.column)} AS value` + momentOf(tag)
       const from = tag.sql ? '' : ` FROM ${dialect.quote(tag.table)}`
       const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(1)}` : ''
-      const order = tag.time ? ` ORDER BY ${dialect.quote(tag.time)} DESC` : ''
+      const order = tag.time ? ` ORDER BY ${newestBy(tag)}` : ''
 
       try {
         /*
@@ -764,12 +920,12 @@ export async function latestValues(row, wanted) {
       const filtered = !!(first.keyColumn && first.keyValue)
       const select = 'SELECT ' +
         group.map((tag, at) => `${dialect.quote(tag.column)} AS v${at}`).join(', ') +
-        (first.time ? `, ${dialect.quote(first.time)} AS at` : '')
+        momentOf(first)
       const from = ` FROM ${dialect.quote(first.table)}`
       const where = filtered
         ? ` WHERE ${dialect.quote(first.keyColumn)} ${comparison(first.keyOp)} ${dialect.param(1)}`
         : ''
-      const order = first.time ? ` ORDER BY ${dialect.quote(first.time)} DESC` : ''
+      const order = first.time ? ` ORDER BY ${newestBy(first)}` : ''
 
       const rows = await query(
         dialect.one(select + from + where + order), filtered ? [first.keyValue] : [])
@@ -824,10 +980,17 @@ export async function latestValues(row, wanted) {
  *
  * A windowed statement carries no limit at all — the window is the bound, and
  * it is the one on the buttons above the chart. This is for the reads that
- * have no window: a table with no clock, and the fallback that runs when a
- * window turns out to be empty.
+ * have no window: a table with no clock, the fallback that runs when a window
+ * turns out to be empty, and the trend window's own read.
+ *
+ * The trend asks for the newest two thousand records and cuts its 2 h / 4 h /
+ * 8 h / 1 day out of them in the browser, so one read serves all four buttons
+ * instead of a round trip to the plant for each. Two thousand is what makes a
+ * day's worth reachable on a reading written every half-minute; a slower
+ * reading simply reaches further back, and each button still cuts an exact
+ * span out of whatever came.
  */
-const MAX_POINTS = 500
+const MAX_POINTS = 2000
 
 /**
  * The recent records of one reading, oldest last, for its chart.

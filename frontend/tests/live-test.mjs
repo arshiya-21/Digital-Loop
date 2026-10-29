@@ -1052,10 +1052,19 @@ await wait(2500)
 
 const asked = await evaluate(`(() => {
   const url = (window.__dlCalls || []).filter(u => /\\/live\\/chart\\?/.test(u)).pop() || '';
-  return { url, window_: /windowSeconds=7200(&|$)/.test(url), capped: /[?&]points=/.test(url) };
+  return { url, records: /[?&]points=2000(&|$)/.test(url), windowed: /windowSeconds=/.test(url) };
 })()`)
-check('the chart asks for the window on the buttons', asked.window_ === true, asked.url)
-check('and sends no row limit with it', asked.capped === false, asked.url)
+/*
+ * One read for all four buttons.
+ *
+ * The window used to be the query — the tidier statement, and four round
+ * trips to the plant to look at one shift four ways. On a database down an
+ * SSH tunnel that is four scans and four waits for an answer the first read
+ * already contained. The newest two thousand records come back instead and
+ * every window is cut out of them in the browser.
+ */
+check('the chart asks for the newest two thousand records', asked.records === true, asked.url)
+check('and does not ask for a time window', asked.windowed === false, asked.url)
 
 const chart = await evaluate(`(() => {
   const seg = document.getElementById('dlChartSeg');
@@ -1139,26 +1148,37 @@ check('no range strip under the chart', span.strip === false, span)
 check('and no stylesheet left over for one', span.stripStyles === false, span)
 
 /*
- * A window button is a different query, not a different crop.
+ * A window button is a crop, not another read.
  *
- * 8 h is not 2 h with more of the same rows drawn — it is a different WHERE.
- * Cutting a wider window out of records already in hand would show whatever
- * the first read happened to bring back and label it eight hours.
+ * The two thousand records in hand already reach further back than the
+ * widest button, so 4 h is cut out of them rather than fetched. Asserted
+ * because the saving is the whole point of reading two thousand: if a button
+ * starts reading again, the cost comes back and nothing on screen says so.
  */
 const wider = await evaluate(`(async () => {
   window.__dlCalls = [];
+  const span = () => {
+    const pts = typeof ccData === 'function' ? ccData() : [];
+    return pts.length > 1 ? (pts[pts.length - 1].t - pts[0].t) / 3600000 : 0;
+  };
   [...document.querySelectorAll('#trWin button')]
     .find(b => b.textContent.trim() === '4 h')?.click();
   await new Promise(r => setTimeout(r, 1200));
-  const url = (window.__dlCalls || []).filter(u => /\\/live\\/chart\\?/.test(u)).pop() || '';
+  const read = (window.__dlCalls || []).filter(u => /\\/live\\/chart\\?/.test(u)).length;
+  const four = span();
   // Back to the window the rest of this section expects.
   [...document.querySelectorAll('#trWin button')]
     .find(b => b.textContent.trim() === '2 h')?.click();
   await new Promise(r => setTimeout(r, 1200));
-  return { url, window_: /windowSeconds=14400(&|$)/.test(url), capped: /[?&]points=/.test(url) };
+  return { read, four, two: span() };
 })()`)
-check('pressing 4 h reads four hours', wider.window_ === true, wider.url)
-check('and still sends no row limit', wider.capped === false, wider.url)
+check('pressing a window button reads nothing', wider.read === 0, wider)
+/*
+ * The fixture's records are a day apart, so neither window separates them and
+ * both fall back to the by-count path — see `ccDataFromPlantRecords`. What
+ * matters here is that 4 h is not narrower than 2 h.
+ */
+check('and the wider button is not a narrower chart', wider.four >= wider.two, wider)
 
 const pc = await evaluate(`(() => {
   const button = [...document.querySelectorAll('#dlChartSeg button')].find(b => b.dataset.cv === 'pc');
@@ -1238,19 +1258,50 @@ check('and an empty window still draws without throwing',
  * nothing behind it, so on the published screen it would be a confident
  * number computed from dashes.
  */
-const bar = await evaluate(`(() => {
+const bar = await evaluate(`(async () => {
   setPresent(true);
+  // pTraceSync runs on a one-second interval; give it one so the label under
+  // test is the one it paints rather than the markup's own.
+  await new Promise(r => setTimeout(r, 1200));
   const shi = document.getElementById('pSHI');
+  const trace = document.getElementById('pTrace');
   return {
     shown: [...document.querySelectorAll('#pbar button')]
       .filter(b => getComputedStyle(b).display !== 'none').map(b => b.textContent.trim()),
     sandHealthVisible: shi ? getComputedStyle(shi).display !== 'none' : false,
+    trace: trace ? { text: trace.textContent.trim(), off: trace.disabled } : null,
   };
 })()`)
 
 check('Sand health is not in the published view',
   bar.sandHealthVisible === false &&
   !(bar.shown || []).some(t => /Sand health/i.test(t)), bar.shown)
+
+/*
+ * Three controls that act on a plant this studio does not act on.
+ *
+ * System diagnosis opens the studio's own simulated diagnostics; Silence
+ * alarm and Fault reset write to a control system. The loop reads a plant
+ * database and writes nothing back, so all three were buttons in the colours
+ * that say "act now" with nothing on the other end — the ones somebody
+ * reaches for in the minute that matters.
+ */
+check('System diagnosis, Silence alarm and Fault reset are not offered',
+  !(bar.shown || []).some(t => /System diagnosis|Silence alarm|Fault reset/i.test(t)), bar.shown)
+/*
+ * Fault alarm stays: it lists what the readings themselves are saying.
+ */
+check('and Fault alarm still is, because it reports rather than acts',
+  (bar.shown || []).some(t => /Fault alarm/i.test(t)), bar.shown)
+/*
+ * Traceability is still being built. It says so and cannot be pressed —
+ * removed, it would read as something broken rather than as something on the
+ * way. The label is repainted every second by `pTraceSync`, so this is the
+ * one it settles on rather than the one in the markup.
+ */
+check('Traceability says it is under development',
+  /under development/i.test(bar.trace?.text || ''), bar.trace)
+check('and cannot be pressed while it is', bar.trace?.off === true, bar.trace)
 
 console.log('\nTHE WRITTEN PROCEDURE — from its tables, not from the drawing')
 

@@ -1334,8 +1334,53 @@ const EQ = {
     ports: [],
     tags: [],
     draw: (w, h, st, b) => {
+      /*
+       * The legend lists what this loop actually uses.
+       *
+       * It used to print the same twelve entries on every drawing — eight
+       * instrument symbols and four line types — whatever was on the canvas.
+       * On a loop with no valves and no air line that is four entries
+       * explaining symbols nobody can find, and the two line colours that
+       * *are* on the drawing have to be hunted for among them. A legend that
+       * does not match its drawing is worse than none: it is read as the key
+       * to the drawing, so every wrong entry is a thing to go looking for.
+       *
+       * So the instruments are the ones placed, and the line types are the
+       * ones drawn. A legend somebody has set a list on by hand (`props.items`,
+       * added in v9.0) is still theirs and is left exactly alone.
+       *
+       * The canned list stays as the fallback for an empty canvas, where
+       * deriving would leave a blank strip that reads as broken.
+       */
+      const SYMBOL = {
+        analyzer: ['A', 'Analyzer / sensor point'],
+        motor: ['M', 'Motor'],
+        valve: ['V', 'Valve'],
+        ctrlValve: ['CV', 'Control valve'],
+        flowTx: ['FT', 'Flow transmitter'],
+        levelTx: ['LT', 'Level transmitter'],
+        tempSensor: ['TE', 'Temperature sensor'],
+        speedMon: ['RPM', 'Speed monitor'],
+      };
+      const inUse = () => {
+        if (typeof DOC === 'undefined' || !DOC) return [];
+        const blocks = DOC.blocks || [],
+          streams = DOC.streams || [];
+        const out = [];
+        // Instruments first, in the order the legend has always listed them.
+        for (const type of Object.keys(SYMBOL)) {
+          if (blocks.some(x => x.type === type)) out.push(SYMBOL[type]);
+        }
+        // Then the line types actually drawn, in KIND's own order so the
+        // colours read down the legend the same way on every loop.
+        const drawn = new Set(streams.map(s => s.kind).filter(Boolean));
+        for (const k of Object.keys(KIND)) if (drawn.has(k)) out.push([k, '']);
+        return out;
+      };
       // v9.0 — a legend can carry its own list (props.items): ['#rrggbb', 'label'] draws a line in that colour
-      const items = (b && b.props && Array.isArray(b.props.items) && b.props.items.length && b.props.items) || [
+      const derived = inUse();
+      const items = (b && b.props && Array.isArray(b.props.items) && b.props.items.length && b.props.items) ||
+        (derived.length ? derived : [
         ['A', 'Analyzer / sensor point'],
         ['M', 'Motor'],
         ['V', 'Valve'],
@@ -1348,7 +1393,7 @@ const EQ = {
         ['add', ''],
         ['sand', ''],
         ['air', ''],
-      ];
+      ]);
       // v5.0 — larger labels: each entry gets the width its label needs (short entries give room to long ones),
       // and the font size is the largest that fits the legend's width (9 px minimum = the old size, 13 px maximum)
       const split = l => l.replace(' / ', '/\n').replace(' transmitter', '\ntransmitter').replace(' sensor', '\nsensor').replace(' monitor', '\nmonitor').replace(' line', '\nline').replace(' valve', '\nvalve').split('\n');

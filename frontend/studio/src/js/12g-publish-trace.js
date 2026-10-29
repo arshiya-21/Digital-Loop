@@ -6,9 +6,23 @@
 function pTraceSync() {
   const b = $('#pTrace');
   if (!b) return;
-  b.classList.toggle('on', !!RP);
-  b.textContent = RP ? '● Back to live' : 'Traceability';
-  b.title = RP ? 'Leave traceability and go back to live values' : 'Traceability — look back at a past shift (read-only)';
+  /*
+   * Traceability is still being built, so the button says so and does nothing.
+   *
+   * It replays a past shift out of the recorded history, and the part of it
+   * that reads this plant's history is not finished — so the control is on
+   * the bar and the thing behind it is not there yet. It stays rather than
+   * being taken off, because it is coming: a control that vanishes reads as
+   * something broken, where this is something on the way.
+   *
+   * Written here rather than over the top of it, because this function runs
+   * on a one-second interval and would paint the old label back.
+   */
+  b.classList.remove('on');
+  b.classList.add('dl-under-development');
+  b.disabled = true;
+  b.textContent = 'Traceability · under development';
+  b.title = 'Traceability is under development and is not available yet.';
 }
 $('#pTrace').onclick = () => {
   if (RP) exitReplay();

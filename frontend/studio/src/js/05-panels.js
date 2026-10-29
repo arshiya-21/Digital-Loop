@@ -340,6 +340,8 @@ function renderProps() {
   if (!E.widget) tabs.push(['alerts', 'Alerts']);
   if (traceKind(b)) tabs.push(['trace', 'Traceability']);
   if (b.tags.some(t => REG[t.id]?.role === 'bent')) tabs.push(['presc', 'Prescription']);
+  // Maintenance, where the module is loaded — see 22-maintenance.js.
+  if (!E.widget && typeof mntTab === 'function') tabs.push(['mnt', 'Maintenance']);
   if (!tabs.some(t => t[0] === PTAB)) PTAB = tabs[0][0];
   P.innerHTML = `<div class="ph"><div class="ttl">${palIcon(b.type, 'ic')}<div style="flex:1;min-width:0"><input class="nm" value="${esc(b.name)}" aria-label="Name"><small>${esc(E.n)} · ${CATS[E.cat]}</small></div></div>
   ${st ? `<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="st-pill" data-stp="${b.id}" style="background:${STC[st]}">${st}</span><span class="note">Health <b data-bsevt="${b.id}">${SEVN[blkSev(b)]}</b></span><button class="sb" id="pRun" style="margin-left:auto">${b.props.oos ? 'Start' : 'Stop'} (simulated)</button></div>` : ''}</div>
@@ -624,6 +626,10 @@ function renderProps() {
           changed();
         }),
     );
+  } else if (PTAB === 'mnt') {
+    // The machine's plans, work history and health — see 22-maintenance.js.
+    T.innerHTML = mntTab(b);
+    bindMntTab(b, T);
   } else if (PTAB === 'presc') {
     const p = PRESC[b.props.group] || PRESC['Brake Disc'];
     const rows = [
@@ -1096,6 +1102,34 @@ function renderHeader() {
     'blink',
     Object.values(ALERTS).some(x => !x.acked && x.sev >= 2),
   );
+  /*
+   * The live panel's own button carries the same count, and flashes the same.
+   *
+   * `#pMon` is inserted by the live monitor and nothing kept it in step, so it
+   * sat on the Publish bar reading "🔔 Fault alarm" with no number on it while
+   * the alarm list behind it filled up — the one button an operator is meant
+   * to read at a glance, saying nothing.
+   */
+  const pm = $('#pMon');
+  if (pm) {
+    const t = `🔔 Fault alarm (${nw})`;
+    if (pm.textContent !== t) pm.textContent = t;
+    pm.title = pa.title;
+    /*
+     * Red while anything is in alarm; flashing while anything is unanswered.
+     *
+     * These are two different facts and the studio only carries one of them.
+     * `blink` is set for an unacknowledged *warning or worse*, so a line
+     * sitting on an acknowledged warning and an unacknowledged advisory had
+     * a quiet green button — the panel open, two alarms listed, and the one
+     * control on the bar saying all is well.
+     *
+     * `dl-alarm` is the first fact: something is in alarm at all, whatever
+     * its severity and whoever has seen it. `blink` stays the second.
+     */
+    pm.classList.toggle('dl-alarm', a.length > 0);
+    pm.classList.toggle('blink', Object.values(ALERTS).some(x => !x.acked && x.active));
+  }
 }
 function renderStatus() {
   const c = completeness(),

@@ -82,6 +82,25 @@ const records = new Map()
 
 /** True when the last poll could not reach SandMan. */
 let stale = false
+
+/**
+ * Whether *this* reading is a last-known one, rather than the whole loop.
+ *
+ * `stale` means SandMan did not answer, and it arrives as one flag for the
+ * loop — but a loop holds readings from two places. A reading on a database
+ * registered here is read by this service directly and knows nothing about
+ * SandMan, so when SandMan is down it is still live and still correct.
+ *
+ * Marking those stale too put "Last known reading — SandMan is not answering"
+ * under a bentonite value that its own database had just answered for in
+ * under a second. The reading was fine; the label was about something else
+ * entirely, and it is the kind of label that sends somebody to check a
+ * database that was never involved.
+ *
+ * `conn_…` on the link is how a reading says this service does the reading.
+ */
+const staleFor = id =>
+  stale && !/^conn_/.test(String((REG() || {})[id]?.link?.src || ''))
 /** Why the readings are not live, when they are not. */
 let reason = ''
 
@@ -284,6 +303,22 @@ async function pollOnce() {
    * from stale, is a change worth showing even when no value moved.
    */
   if (changed || stale !== wasStale) refreshChrome()
+
+  /*
+   * An open chart follows the plant, instead of being a photograph.
+   *
+   * The records behind a trend are read once, when it opens, and the window
+   * is drawn from them for as long as it stays open — so a chart left on a
+   * screen stops at the minute it was opened while the value above it goes
+   * on moving. On a shop floor that is worse than no chart: it reads as the
+   * process having gone flat.
+   *
+   * Re-read on the poll that found something new, and only then. A poll that
+   * finds the same record it had last time has nothing to add to the chart
+   * either, and this is a query against the plant's database.
+   */
+  const open = changed ? peek('trendTag') : null
+  if (open && charts.has(open)) readTheWindow(open)
 }
 
 /**
@@ -553,7 +588,7 @@ function recordText(id) {
     ? `${record.date}${record.time ? ' ' + record.time : ''}`
     : (record.recordedAt || '').replace('T', ' ')
   const shift = record.shift ? ` · shift ${record.shift}` : ''
-  const prefix = stale ? 'Last reading ' : 'Recorded '
+  const prefix = staleFor(id) ? 'Last reading ' : 'Recorded '
   return when ? `${prefix}${when}${shift}` : ''
 }
 
@@ -574,7 +609,7 @@ function markChips() {
       const title = recordText(id)
       const attr = title ? ` title="${title.replaceAll('"', '&quot;')}"` : ''
       if (problems.has(id)) return `<span class="ix-chip err"${attr}>Not read</span>`
-      if (stale) return `<span class="ix-chip stale"${attr}><i></i>Stale</span>`
+      if (staleFor(id)) return `<span class="ix-chip stale"${attr}><i></i>Stale</span>`
       if (!records.has(id)) return `<span class="ix-chip wait"${attr}>Reading…</span>`
       if (!records.get(id)) return `<span class="ix-chip wait"${attr}>No record</span>`
       return `<span class="ix-chip live"${attr}><i></i>Live</span>`
@@ -654,7 +689,7 @@ function decorate() {
     if (!isLinked(id)) continue
     const text = recordText(id)
     if (text) el.title = text
-    el.classList.toggle('dl-stale', stale)
+    el.classList.toggle('dl-stale', staleFor(id))
   }
 
   /*
@@ -983,9 +1018,12 @@ function useDayWindows() {
     button.onclick = () => {
       TR.win = Number(button.dataset.w)
       markWindowButtons()
-      // A wider window is a wider read, not more of the records already here.
+      /*
+       * A redraw, not a read. The two thousand records in hand already reach
+       * further back than the widest button, so every window is cut from them
+       * — see `CHART_RECORDS`.
+       */
       window.drawTrend?.()
-      readTheWindow(peek('trendTag'))
     }
   }
 
@@ -1040,6 +1078,53 @@ function keepTheChartOurs() {
   replaced.__dlLive = true
   replaced.original = original
   window.drawTrend = replaced
+}
+
+/**
+ * Fetch the records behind the live panel's readings, once per opening.
+ *
+ * The sparkline wants a run of values and the poll only supplies one point
+ * per *new* record, so a panel opened at the start of a shift draws nothing
+ * beside readings that are plainly live. The same records the trend window
+ * reads answer it, so they are read once when the panel opens and kept.
+ *
+ * One read per reading on the panel, and only for readings that have none in
+ * hand — a dozen round trips at most, once, rather than a dozen every second.
+ * The panel is capped at twelve readings, which is what bounds this.
+ */
+let panelSeeded = new Set()
+
+async function seedPanelHistory() {
+  const monitor = window.mpTags
+  if (typeof monitor !== 'function' || !loopId) return
+
+  let wanted = []
+  try {
+    wanted = monitor()
+  } catch {
+    return
+  }
+
+  for (const id of wanted) {
+    if (panelSeeded.has(id) || charts.has(id) || !isLinked(id)) continue
+    panelSeeded.add(id)
+    // Not awaited in turn: a dozen readings would otherwise be a dozen waits
+    // end to end, and each one only has to land before the next repaint.
+    // The window is named rather than read off `TR`, which is still the
+    // studio's five minutes until a trend has been opened.
+    readTheWindow(id)
+  }
+}
+
+/** Follow the panel in and out, and read its records when it opens. */
+function watchThePanel() {
+  let wasOpen = false
+  new MutationObserver(() => {
+    const open = document.body.classList.contains('mpon')
+    if (open && !wasOpen) seedPanelHistory()
+    if (!open) panelSeeded = new Set()
+    wasOpen = open
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] })
 }
 
 /** The loaded records of one reading, as points. */
@@ -1362,7 +1447,7 @@ function hideTrendOnText() {
 }
 
 /**
- * The windowed statement for a reading, read if it is not already in hand.
+ * The statement behind a reading's chart, read if it is not already in hand.
  *
  * Preview data opens on what the chart ran, and the chart may not have run
  * yet — it is loaded when a trend opens, and the preview can be reached
@@ -1373,11 +1458,10 @@ function hideTrendOnText() {
 async function fetchTheChartsStatement(id) {
   if (!loopId || !isLinked(id)) return null
 
-  const seconds = Number(peek('TR')?.win) || DEFAULT_WINDOW
   try {
     const answer = await api.get(
       `/live/chart?loopId=${encodeURIComponent(loopId)}&tag=${encodeURIComponent(id)}` +
-      `&windowSeconds=${seconds}`)
+      `&points=${CHART_RECORDS}`)
     charts.set(id, answer)
     return answer?.query || null
   } catch (error) {
@@ -1401,12 +1485,30 @@ async function fetchTheChartsStatement(id) {
  * would snap the window back to two hours — which is the button that was just
  * pressed being undone.
  */
+/**
+ * The newest records a chart may need, in one read.
+ *
+ * Two thousand of them, with no time bound, and every window button cuts its
+ * own span out of what came back — see `ccDataFromPlantRecords`, which cuts
+ * from the newest record rather than from the clock.
+ *
+ * One read instead of four. The window used to be the query, which is the
+ * tidier statement and four round trips to the plant to look at one shift
+ * four ways; on a database down an SSH tunnel that is four scans and four
+ * waits for an answer the first read already contained.
+ *
+ * What it costs is that the statement says `LIMIT 2000` rather than a span,
+ * so the two hours on the chart are cut here and not by the database. Preview
+ * data says so rather than leaving somebody to work it out from a statement
+ * that does not mention hours.
+ */
+const CHART_RECORDS = 2000
+
 function readTheWindow(id, { settle = false } = {}) {
   if (!loopId || !isLinked(id)) return
 
-  const seconds = Number(peek('TR')?.win) || DEFAULT_WINDOW
   api.get(`/live/chart?loopId=${encodeURIComponent(loopId)}&tag=${encodeURIComponent(id)}` +
-    `&windowSeconds=${seconds}`)
+    `&points=${CHART_RECORDS}`)
     .then(answer => {
       charts.set(id, answer)
       if (peek('trendTag') !== id) return
@@ -1639,11 +1741,12 @@ async function previewData(id) {
      */
     `<div id="dlQueryBox" style="max-height:72vh;overflow:auto">
  <h3>Preview data — ${escapeHtml(id)}</h3>
- <div class="note">The statement these records came from. Edit it and press Run to try another — the reading itself is not changed.</div>
+ <div class="note">The statement these records came from — the newest ${CHART_RECORDS} of them. The chart cuts its 2 h / 4 h / 8 h / 1 day out of these, back from the newest record rather than from the clock.</div>
  <textarea id="dlQuerySql" class="mono" rows="4" spellcheck="false"
    style="width:100%;margin-top:10px" placeholder="Loading the statement…"></textarea>
  <div class="mact" style="justify-content:flex-start;margin-top:8px;gap:8px">
    <button type="button" class="ib pri" id="dlQueryRun">Run</button>
+   <button type="button" class="ib" id="dlQueryUse" title="Save this statement on the reading and draw the chart from it">Use for this reading</button>
    <button type="button" class="ib" id="dlQueryCopy">Download as CSV</button>
    <label class="note" style="margin-left:12px">Decimals
      <select id="dlQueryDp" style="margin-left:4px">
@@ -1863,6 +1966,62 @@ async function previewData(id) {
   }
 
   document.getElementById('dlQueryRun').onclick = () => ask(sql.value.trim())
+
+  /*
+   * Keep this statement, and draw the chart from it.
+   *
+   * Run answers "what does this give me"; this answers "then read it from
+   * now on". They are deliberately two buttons: editing a statement to look
+   * at something is the common case, and a reading that silently changed
+   * what it reads because somebody tried a query is a reading nobody can
+   * trust afterwards.
+   *
+   * It is checked before it is kept — a statement that returns nothing is
+   * not something to leave a reading pointed at — and the chart is re-read
+   * through the ordinary path, so what appears is what the reading will show
+   * on every poll from here, not a preview of it.
+   */
+  document.getElementById('dlQueryUse').onclick = async () => {
+    const statement = sql.value.trim()
+    if (!statement) { tell('Write a statement first.', 'dl-stale'); return }
+
+    const reg = REG() || {}
+    const tagNow = reg[id]
+    if (!tagNow?.link) { tell('This reading has no data link to change.', 'dl-stale'); return }
+
+    tell('Checking it…')
+    try {
+      const answer = await api.post('/live/preview', { loopId: loop, source: link.src, sql: statement })
+      const record = answer?.value
+      const value = record && typeof record === 'object' ? record.value : record
+      if (value === null || value === undefined) {
+        tell(`${answer?.error || 'That statement returned nothing'} — the reading is unchanged.`, 'dl-stale')
+        return
+      }
+
+      tagNow.link.sql = statement
+      // A written statement names its own columns; the table and column it
+      // used to read are no longer what this reading is.
+      delete tagNow.link.table
+      delete tagNow.link.col
+      /*
+       * The studio's own save, which this integration points at the server —
+       * see `persistToServer` in properties.mjs. Called directly rather than
+       * through that module's debounced `persist`, because importing it here
+       * would close a cycle: properties.mjs already imports from this file.
+       */
+      window.save?.()
+
+      // Drawn again through the reading's own path, so the chart is what the
+      // poll will show rather than a preview of it.
+      charts.delete(id)
+      readTheWindow(id)
+      tell('Saved. This reading runs your statement from now on, and the chart is drawn from it.')
+    } catch (error) {
+      tell(`${error.message} — the reading is unchanged.`, 'dl-stale')
+    }
+  }
+
   // Opens by showing what the chart itself ran.
   ask(null)
 }
@@ -2201,6 +2360,22 @@ export function install({ onDecimals } = {}) {
    * own variables. `window.dlLive()` prints them.
    */
   window.dlLive = status
+
+  /*
+   * The recent records of a reading, for the live panel's sparkline.
+   *
+   * `VAL[id].h` only grows when the plant writes a *new* record — see
+   * `writeRecord`, which drops a repeat of the one it already has. A reading
+   * the plant stamps every few minutes therefore has one point for the first
+   * few minutes of a shift and no line beside it, which is the state the
+   * bentonite readings were in: a live value and an empty box.
+   *
+   * The records are already fetched for the trend, so they are lent to the
+   * panel rather than polled for again. `seedPanelHistory` is what puts them
+   * in hand; this is only the seam the panel reads them through.
+   */
+  window.dlHistory = id => seriesPoints(id)
+  watchThePanel()
 
   showNothingWithoutData()
   hideSourceManagement()

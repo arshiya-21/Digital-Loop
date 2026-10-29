@@ -451,6 +451,222 @@ body.dl-no-loop #pbar > .pfit {
 }
 
 /*
+ * Three controls that act on a plant this studio does not act on.
+ *
+ * System diagnosis opens the studio's own simulated diagnostics; Silence
+ * alarm and Fault reset write to a control system. Here the loop reads a
+ * plant database and writes nothing back to it, so all three were buttons
+ * an operator could press, in the colours that say "act now", with nothing
+ * on the other end. A control that cannot do its job is worse than no
+ * control: it is the one somebody reaches for in the minute that matters.
+ *
+ * Fault alarm stays — it lists what the readings themselves are saying, and
+ * that is real.
+ */
+#pbar > #pDiag,
+#pbar > #pSound,
+#pbar > #pReset {
+  display: none !important;
+}
+
+/*
+ * Maintenance is what was asked for; Machine QR came with it.
+ *
+ * The maintenance module reads a machine's card URL and QR out of
+ * `21-machine-cards.js` — `mcUrl`, `mcQr`, `mcOpen`, `mcBase`, `mcEquip` —
+ * so that module has to be loaded for Maintenance to work at all. Loading it
+ * also hangs a "Machine QR" button on the Publish bar and the View ribbon,
+ * which prints a sticker sheet nobody has asked for yet.
+ *
+ * Hidden rather than torn out: the module stays, so every maintenance screen
+ * that shows a machine's QR still draws it, and the button comes back by
+ * deleting four lines when somebody wants sticker printing.
+ *
+ * The button only, never the group it sits in: Maintenance is inserted
+ * beside it, inside the same "Shop floor" group, so hiding the group would
+ * take Maintenance with it.
+ */
+#pbar > #pQR,
+.rpanel[data-rp="view"] #vQR {
+  display: none !important;
+}
+
+/*
+ * One Fault alarm button, not two.
+ *
+ * `#pAlarm` opens the old overlay across the drawing; `#pMon` opens the live
+ * panel that replaced it — alarms worst-first and the readings being watched,
+ * beside the loop rather than over it. Both are labelled "🔔 Fault alarm", so
+ * leaving both on the bar is two identical buttons doing different things.
+ *
+ * The overlay itself is kept: the dock's Alerts tab still opens it, and it is
+ * the only view that lists alarms in Design mode.
+ */
+#pbar > #pAlarm {
+  display: none !important;
+}
+
+/* ------------------------------------------------- the Fault alarm panel ---
+ *
+ * Changes to the live monitor that belong to this plant rather than to the
+ * studio, kept here so a studio drop cannot take them away.
+ */
+
+/*
+ * The Fault alarm button is an alarm button: red, and pulsing, while
+ * something is waiting to be acknowledged.
+ *
+ * The studio paints it quiet grey, or green while the panel is open — the
+ * colours of a toggle, which is what it is to the studio. It is not that to
+ * an operator: it is the thing that has to catch an eye from across the shop
+ * floor, and green over two unacknowledged alarms says the opposite of what
+ * is true. Red the moment anything is unacknowledged, whether the panel is
+ * open or not, and back to the studio's own colours once it has been seen.
+ *
+ * `pulse` is the studio's own keyframe, the one the old Fault alarm button
+ * used, so this flashes at the rhythm the rest of the bar already does.
+ */
+.pbar .p9.dl-alarm,
+.pbar .p9.on.dl-alarm {
+  background: #d93636;
+  color: #fff;
+  border-color: #b91c1c;
+}
+
+/*
+ * And it pulses while anything is unanswered — slowly.
+ *
+ * The studio's `pulse` runs at one second, which beside the alarm cards
+ * flashing at the same rate makes the whole corner of the screen strobe. Two
+ * and a half seconds reads as "look here" rather than as a fault in the
+ * display, and is what the eye can sit beside for a shift.
+ */
+.pbar .p9.dl-alarm.blink,
+.pbar .p9.on.dl-alarm.blink {
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+/*
+ * Room for more than one alarm, without spilling over the next heading.
+ *
+ * The alarm list is sized to its contents under a ceiling, so one alarm left
+ * a band of white and the second arrived in a scroller. Raising the ceiling
+ * is the fix; a `min-height` on the list inside it was not — that forces the
+ * list past the ceiling its own section is holding, and the overflow lands on
+ * top of "MONITORED PARAMETERS", which is exactly what it did.
+ *
+ * `overflow: hidden` on the section is the guard: whatever the list wants,
+ * the section is what the panel laid out, and nothing escapes it.
+ */
+body.mpon .mp-als {
+  max-height: 58%;
+  overflow: hidden;
+}
+
+/*
+ * Tighter parameter rows, so more of them fit.
+ *
+ * The value is set in 19px with a 92px minimum beside a 30px sparkline, which
+ * is a row nearly fifty pixels tall — six readings fill a panel on a laptop.
+ * These are read from across a shop floor, so the number stays large; the
+ * room comes from the padding and the gap instead.
+ */
+body.mpon .mp-p {
+  padding: 4px 9px;
+}
+
+body.mpon .mp-list {
+  gap: 4px;
+}
+
+body.mpon .mp-p1 span {
+  font-size: 11.5px;
+}
+
+/*
+ * A flashing alarm flashes in its own colour.
+ *
+ * The studio flashes criticals only, in red. Every unacknowledged alarm
+ * flashes here — see `mpRender` — and a warning borrowing a critical's red
+ * would be the panel overstating what it knows. Amber for a warning, yellow
+ * for an advisory, red kept for critical.
+ */
+/*
+ * Slower than the studio's one second.
+ *
+ * At one second a panel holding two or three unacknowledged alarms strobes,
+ * and an operator looks away from it — which is the opposite of what a
+ * flashing alarm is for. Two and a half seconds is still plainly moving and
+ * can be worked beside.
+ */
+.mp-a.flash {
+  animation-duration: 2.5s;
+}
+
+.mp-a.flash .mp-chip {
+  animation-duration: 2.5s;
+}
+
+.mp-a.mps2.flash {
+  animation: dlFlashWarn 2.5s steps(1) infinite;
+}
+
+.mp-a.mps1.flash {
+  animation: dlFlashAdvisory 2.5s steps(1) infinite;
+}
+
+@keyframes dlFlashWarn {
+  0% { background: #ec7a15; color: #fff; border-color: #c2620f; }
+  50% { background: #fff8f0; color: inherit; border-color: #f7c79b; }
+}
+
+@keyframes dlFlashAdvisory {
+  0% { background: #c99a00; color: #fff; border-color: #a37d00; }
+  50% { background: #fffdf2; color: inherit; border-color: #ecd98a; }
+}
+
+.mp-a.mps2.flash .mp-chip {
+  animation: dlChipWarn 1s steps(1) infinite;
+}
+
+.mp-a.mps1.flash .mp-chip {
+  animation: dlChipAdvisory 1s steps(1) infinite;
+}
+
+@keyframes dlChipWarn {
+  0% { background: #fff; color: #ec7a15; }
+  50% { background: #ec7a15; color: #fff; }
+}
+
+@keyframes dlChipAdvisory {
+  0% { background: #fff; color: #c99a00; }
+  50% { background: #c99a00; color: #fff; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pbar .p9.blink,
+  .mp-a.mps2.flash,
+  .mp-a.mps1.flash,
+  .mp-a.mps2.flash .mp-chip,
+  .mp-a.mps1.flash .mp-chip {
+    animation: none;
+  }
+}
+
+/*
+ * A control that is on the way, said plainly — see `pTraceSync`.
+ *
+ * Greyed and unpressable rather than removed: Traceability is being built,
+ * and a button that disappears reads as something broken where this is
+ * something coming.
+ */
+#pbar > .dl-under-development {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+/*
  * "This is a preview", in the view that looks exactly like the real thing.
  *
  * Only in the publish view, and only for an administrator whose open loop is

@@ -1328,6 +1328,8 @@ function showTheQuery(section) {
                   ? { keyColumn: link.keyCol, keyValue: link.keyVal, keyOp: link.keyOp || '=' }
                   : {}),
                 ...(link.tcol ? { timeColumn: link.tcol } : {}),
+                // Both halves, or the preview orders by the day alone.
+                ...(link.tcol2 ? { timeColumn2: link.tcol2 } : {}),
               }),
         })
 

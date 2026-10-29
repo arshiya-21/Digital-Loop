@@ -396,6 +396,149 @@ function parseSvg(src, uid) {
       const P = parseSvg(d.svg, uid);`,
   },
   {
+    name: 'Traceability says it is under development, and stays unpressable',
+    file: join('js', '12g-publish-trace.js'),
+    anchor: `  b.classList.toggle('on', !!RP);
+  b.textContent = RP ? '● Back to live' : 'Traceability';
+  b.title = RP ? 'Leave traceability and go back to live values' : 'Traceability — look back at a past shift (read-only)';`,
+    replacement: `  /*
+   * Traceability is still being built, so the button says so and does nothing.
+   *
+   * It replays a past shift out of the recorded history, and the part of it
+   * that reads this plant's history is not finished — so the control is on
+   * the bar and the thing behind it is not there yet. It stays rather than
+   * being taken off, because it is coming: a control that vanishes reads as
+   * something broken, where this is something on the way.
+   *
+   * Written here rather than over the top of it, because this function runs
+   * on a one-second interval and would paint the old label back.
+   */
+  b.classList.remove('on');
+  b.classList.add('dl-under-development');
+  b.disabled = true;
+  b.textContent = 'Traceability · under development';
+  b.title = 'Traceability is under development and is not available yet.';`,
+  },
+  {
+    name: 'the live panel button carries the alarm count',
+    file: join('js', '05-panels.js'),
+    anchor: `  pa.classList.toggle(
+    'blink',
+    Object.values(ALERTS).some(x => !x.acked && x.sev >= 2),
+  );
+}`,
+    replacement: `  pa.classList.toggle(
+    'blink',
+    Object.values(ALERTS).some(x => !x.acked && x.sev >= 2),
+  );
+  /*
+   * The live panel's own button carries the same count, and flashes the same.
+   *
+   * \`#pMon\` is inserted by the live monitor and nothing kept it in step, so it
+   * sat on the Publish bar reading "🔔 Fault alarm" with no number on it while
+   * the alarm list behind it filled up — the one button an operator is meant
+   * to read at a glance, saying nothing.
+   */
+  const pm = $('#pMon');
+  if (pm) {
+    const t = \`🔔 Fault alarm (\${nw})\`;
+    if (pm.textContent !== t) pm.textContent = t;
+    pm.title = pa.title;
+    /*
+     * Red while anything is in alarm; flashing while anything is unanswered.
+     *
+     * These are two different facts and the studio only carries one of them.
+     * \`blink\` is set for an unacknowledged *warning or worse*, so a line
+     * sitting on an acknowledged warning and an unacknowledged advisory had
+     * a quiet green button — the panel open, two alarms listed, and the one
+     * control on the bar saying all is well.
+     *
+     * \`dl-alarm\` is the first fact: something is in alarm at all, whatever
+     * its severity and whoever has seen it. \`blink\` stays the second.
+     */
+    pm.classList.toggle('dl-alarm', a.length > 0);
+    pm.classList.toggle('blink', Object.values(ALERTS).some(x => !x.acked && x.active));
+  }
+}`,
+  },
+  {
+    name: 'a Maintenance tab on every machine',
+    file: join('js', '05-panels.js'),
+    anchor: `  if (b.tags.some(t => REG[t.id]?.role === 'bent')) tabs.push(['presc', 'Prescription']);`,
+    replacement: `  if (b.tags.some(t => REG[t.id]?.role === 'bent')) tabs.push(['presc', 'Prescription']);
+  // Maintenance, where the module is loaded — see 22-maintenance.js.
+  if (!E.widget && typeof mntTab === 'function') tabs.push(['mnt', 'Maintenance']);`,
+  },
+  {
+    name: 'the Maintenance tab renders the machine',
+    file: join('js', '05-panels.js'),
+    anchor: `  } else if (PTAB === 'presc') {`,
+    replacement: `  } else if (PTAB === 'mnt') {
+    // The machine's plans, work history and health — see 22-maintenance.js.
+    T.innerHTML = mntTab(b);
+    bindMntTab(b, T);
+  } else if (PTAB === 'presc') {`,
+  },
+  {
+    name: 'no label tooltip in the publish view',
+    file: join('js', '04-canvas.js'),
+    anchor: `<title>\${esc(t.id)} · \${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of \${esc(b.name)} · double-click for the trend</title></g>\`;`,
+    replacement: `\${PRESENT ? '' : \`<title>\${esc(t.id)} · \${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of \${esc(b.name)} · double-click for the trend</title>\`}</g>\`;`,
+  },
+  {
+    name: 'the legend lists what the loop uses',
+    file: join('js', '01-equipment-library.js'),
+    anchor: `      // v9.0 — a legend can carry its own list (props.items): ['#rrggbb', 'label'] draws a line in that colour
+      const items = (b && b.props && Array.isArray(b.props.items) && b.props.items.length && b.props.items) || [`,
+    replacement: `      /*
+       * The legend lists what this loop actually uses.
+       *
+       * It used to print the same twelve entries on every drawing — eight
+       * instrument symbols and four line types — whatever was on the canvas.
+       * On a loop with no valves and no air line that is four entries
+       * explaining symbols nobody can find, and the two line colours that
+       * *are* on the drawing have to be hunted for among them. A legend that
+       * does not match its drawing is worse than none: it is read as the key
+       * to the drawing, so every wrong entry is a thing to go looking for.
+       *
+       * So the instruments are the ones placed, and the line types are the
+       * ones drawn. A legend somebody has set a list on by hand (\`props.items\`,
+       * added in v9.0) is still theirs and is left exactly alone.
+       *
+       * The canned list stays as the fallback for an empty canvas, where
+       * deriving would leave a blank strip that reads as broken.
+       */
+      const SYMBOL = {
+        analyzer: ['A', 'Analyzer / sensor point'],
+        motor: ['M', 'Motor'],
+        valve: ['V', 'Valve'],
+        ctrlValve: ['CV', 'Control valve'],
+        flowTx: ['FT', 'Flow transmitter'],
+        levelTx: ['LT', 'Level transmitter'],
+        tempSensor: ['TE', 'Temperature sensor'],
+        speedMon: ['RPM', 'Speed monitor'],
+      };
+      const inUse = () => {
+        if (typeof DOC === 'undefined' || !DOC) return [];
+        const blocks = DOC.blocks || [],
+          streams = DOC.streams || [];
+        const out = [];
+        // Instruments first, in the order the legend has always listed them.
+        for (const type of Object.keys(SYMBOL)) {
+          if (blocks.some(x => x.type === type)) out.push(SYMBOL[type]);
+        }
+        // Then the line types actually drawn, in KIND's own order so the
+        // colours read down the legend the same way on every loop.
+        const drawn = new Set(streams.map(s => s.kind).filter(Boolean));
+        for (const k of Object.keys(KIND)) if (drawn.has(k)) out.push([k, '']);
+        return out;
+      };
+      // v9.0 — a legend can carry its own list (props.items): ['#rrggbb', 'label'] draws a line in that colour
+      const derived = inUse();
+      const items = (b && b.props && Array.isArray(b.props.items) && b.props.items.length && b.props.items) ||
+        (derived.length ? derived : [`,
+  },
+  {
     name: 'base href, so assets resolve at any path depth',
     anchor: '<meta charset="utf-8">',
     replacement: `<meta charset="utf-8">
@@ -487,6 +630,90 @@ function parseSvg(src, uid) {
 const normalise = text => text.replaceAll('\r\n', '\n')
 
 /*
+ * Files that are ours, living inside the studio's own source tree.
+ *
+ * A drop replaces `src/` wholesale, and these are not in it — so a drop
+ * deletes them, the build still succeeds, and the feature is simply gone. It
+ * happened once already on a trial drop of v9.53: `12h-sop-files.js` and its
+ * stylesheet vanished while `backend/src/routes/sopFiles.js` went on serving
+ * the API behind a screen nobody could reach any more.
+ *
+ * A patch cannot protect them, because a patch needs an anchor and these have
+ * no upstream text to anchor to. So they are listed, and their absence is
+ * reported as loudly as a missing anchor: restore them from git before
+ * building, or the build is a build of something smaller than the repo.
+ */
+const OURS = [
+  { file: join('js', '12h-sop-files.js'), must: 'sopFiles' },
+  { file: join('css', 'zz-sop-files.css'), must: '.sf-card' },
+  /*
+   * The live monitor is upstream's module, taken once and maintained here —
+   * the ordering by what went wrong today, the set it opens on, the flash on
+   * every unacknowledged alarm, and the picker's "reading from the plant".
+   * A later drop would bring upstream's own copy of this file and overwrite
+   * every one of them, so its presence is not enough: these markers say the
+   * changes are still in it.
+   */
+  { file: join('js', '20-live-monitor.js'), must: 'mpWorstToday' },
+  { file: join('js', '20-live-monitor.js'), must: 'mpkLive' },
+  { file: join('js', '20-live-monitor.js'), must: "!a.acked && a.active ? ' flash'" },
+  { file: join('js', '20-live-monitor.js'), must: 'window.dlHistory' },
+  { file: join('js', '20-live-monitor.js'), must: 'Scaled to the readings, not to the limits' },
+  { file: join('css', 'zz-live-monitor.css'), must: '.mpanel' },
+  /*
+   * The maintenance module, taken from v9.53 and maintained here: the
+   * machine's plans and work history, asset health, the alert rules that
+   * raise a due job, the QR cards, and the generator they are drawn with.
+   *
+   * The QR library lives in `src/vendor/` upstream and is built into a
+   * separate `vendor.js`. It sits in `src/js/` here instead, where the name
+   * it already has sorts it before the module that needs it — one file in a
+   * folder the build already reads, rather than a build and a copy step that
+   * would have to be re-applied on every drop.
+   */
+  { file: join('js', '20-qrcode-generator.js'), must: 'qrcode' },
+  { file: join('js', '21-machine-cards.js'), must: 'mcQrSheet' },
+  { file: join('js', '22-maintenance.js'), must: 'mntWindow' },
+  { file: join('js', '23-asset-health.js'), must: 'mntHealth' },
+  { file: join('js', '24-mnt-alert-rules.js'), must: 'mntCheck' },
+  { file: join('css', 'zz-maintenance.css'), must: '.mnt-hd' },
+  { file: join('css', 'zz-machine-cards.css'), must: '.mc-h' },
+]
+
+function checkOurs() {
+  const gone = []
+  const gutted = []
+  for (const { file, must } of OURS) {
+    const path = join(HERE, 'src', file)
+    if (!existsSync(path)) {
+      if (!gone.includes(file)) gone.push(file)
+      continue
+    }
+    if (!readFileSync(path, 'utf8').includes(must)) gutted.push({ file, must })
+  }
+
+  if (!gone.length && !gutted.length) {
+    if (check) console.log(`  = ${OURS.length} marks of ours are in place`)
+    return
+  }
+
+  if (gone.length) {
+    console.error('\n  ! files of ours are missing from src/ — a drop has deleted them:')
+    for (const file of gone) console.error(`      src/${file.replaceAll('\\', '/')}`)
+  }
+  if (gutted.length) {
+    console.error('\n  ! files of ours are there but our changes are not — a drop has overwritten them:')
+    for (const { file, must } of gutted) {
+      console.error(`      src/${file.replaceAll('\\', '/')} no longer holds  ${must}`)
+    }
+  }
+  const files = [...new Set([...gone, ...gutted.map(g => g.file)])]
+  console.error('\n    git checkout -- ' +
+    files.map(file => `frontend/studio/src/${file.replaceAll('\\', '/')}`).join(' ') + '\n')
+  process.exit(1)
+}
+
+/*
  * A patch may name a file; without one it is the page template.
  *
  * Everything here used to be a change to `index.template.html`, so the file
@@ -496,6 +723,7 @@ const normalise = text => text.replaceAll('\r\n', '\n')
  * not declared here is a change that disappears without a word.
  */
 function applyPatches({ quiet } = {}) {
+  checkOurs()
   const byFile = new Map()
   for (const patch of PATCHES) {
     const file = patch.file ? join(HERE, 'src', patch.file) : TEMPLATE

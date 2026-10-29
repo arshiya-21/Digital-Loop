@@ -23,7 +23,7 @@
  */
 import mysql from 'mysql2/promise'
 import { seal, sealingAvailable } from '../src/services/secrets.js'
-import { recentValues } from '../src/services/db-connect.js'
+import { recentValues, readStatement } from '../src/services/db-connect.js'
 
 let passed = 0
 let failed = 0
@@ -228,6 +228,99 @@ check('so an older December does not become the newest moment',
   !spans.some(point => Math.abs(point.value - 999) < 1e-9), spans.map(p => p.value))
 
 /* ------------------------------------------------------ the window moves ---*/
+
+/* ------------------------------- a line that stopped days ago ---*/
+
+/*
+ * The window is measured from the newest record, never from the clock.
+ *
+ * This plant's tables are written by a transfer rather than live: at midnight
+ * the day's rows land, and until then the newest record can be hours or days
+ * behind the wall clock. `NOW() - 2 hours` against that is an empty chart on
+ * a table full of readings — and worse on this plant, where the database
+ * session reported 09:55 UTC while the newest row said 15:16 in local time,
+ * so "the last two hours" returned seven and a half.
+ *
+ * Anchored to `MAX(stamp)` there is nothing to get wrong: on a line that is
+ * producing it is the last two hours and it moves as rows arrive; on one that
+ * stopped on Friday it is the last two hours of Friday, which is the more
+ * useful of the two answers anyway.
+ */
+const STOPPED = 'aaa_chart_stopped'
+await db.query(`DROP TABLE IF EXISTS ${STOPPED}`)
+await db.query(`CREATE TABLE ${STOPPED} (
+  pkey INT AUTO_INCREMENT PRIMARY KEY, reading DOUBLE, taken_on DATETIME, INDEX i (taken_on))`)
+
+/* Twenty-four hours of records a minute apart, ending three days ago. */
+const stoppedAt = new Date(Date.now() - 3 * 24 * 3600_000)
+stoppedAt.setHours(3, 0, 0, 0)
+for (let i = 24 * 60 - 1; i >= 0; i -= 1) {
+  const at = new Date(stoppedAt.getTime() - i * 60_000)
+  await db.query(`INSERT INTO ${STOPPED} (reading, taken_on) VALUES (?,?)`, [
+    10 + i / 100,
+    `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ` +
+    `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`,
+  ])
+}
+
+/** The hours between the first and last point of a series. */
+const spanHours = series => series.length > 1
+  ? (Date.parse(series.at(-1).recordedAt) - Date.parse(series[0].recordedAt)) / 3600_000
+  : 0
+
+const windows = [['2 h', 7200, 2], ['4 h', 14400, 4], ['8 h', 28800, 8], ['1 day', 86400, 24]]
+for (const [label, seconds, hours] of windows) {
+  const series = await read(STOPPED, seconds)
+  const span = spanHours(series)
+  check(`${label} of a line that stopped three days ago is ${label} of its own last records`,
+    series.length > 1 && Math.abs(span - hours) < 0.05,
+    { points: series.length, span: span.toFixed(2), from: series[0]?.recordedAt, to: series.at(-1)?.recordedAt })
+}
+
+const stoppedRead = await read(STOPPED, 7200)
+check('and the bound in the statement is the newest record, not the clock',
+  new RegExp(`\`taken_on\` >= '${stoppedAt.getFullYear()}-`).test(stoppedRead.statement) &&
+  !/NOW\(\)/.test(stoppedRead.statement), stoppedRead.statement)
+
+await db.query(`DROP TABLE IF EXISTS ${STOPPED}`)
+
+/* ------------------- the statement shown beside the reading ---*/
+
+/*
+ * `readStatement` is what Read now runs and what the card shows. It had no
+ * test, which is how it came to join a date and a time with `+`.
+ *
+ * In MySQL `` `date` + `time` `` is arithmetic: both sides are coerced to
+ * numbers and summed, so `2026-10-28` plus `23:59:23` is a number that is
+ * neither a date nor an error. Ordering by it orders by nonsense — and the
+ * reading answered `19 · recorded 2026-10-28T00:00:00` beside a chart drawn
+ * from the real newest moment.
+ */
+const paired = readStatement('mysql', {
+  id: 'BEN.ACTUAL',
+  table: 'additive',
+  column: 'bentonite_actual',
+  timeColumn: 'date',
+  timeColumn2: 'time',
+})
+
+check('a date and a time are joined, never added',
+  !/`date`\s*\+\s*`time`/.test(paired.sql) &&
+  /CONCAT\(DATE\(`date`\), ' ', `time`\)/.test(paired.sql), paired.sql)
+
+check('and the ordering uses both halves, newest day then newest time',
+  /ORDER BY `date` DESC, `time` DESC/.test(paired.sql), paired.sql)
+
+const single = readStatement('mysql', {
+  id: 'R', table: 't', column: 'c', timeColumn: 'taken_on',
+})
+check('one timestamp column is ordered on as it always was',
+  /`taken_on` AS `datetime`/.test(single.sql) &&
+  /ORDER BY `datetime` DESC/.test(single.sql), single.sql)
+
+const noClock = readStatement('mysql', { id: 'R', table: 't', column: 'c' })
+check('and a table with no clock gets no ORDER BY at all',
+  !/ORDER BY/.test(noClock.sql), noClock.sql)
 
 const narrow = await read(TYPED, 1800)
 check('a narrower window asks for less and gets less',

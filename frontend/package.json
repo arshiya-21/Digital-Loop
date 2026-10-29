@@ -8,7 +8,7 @@
     "dev": "node studio/patch.mjs --watch",
     "build": "node studio/patch.mjs",
     "check": "node studio/patch.mjs --check",
-    "test": "node tests/studio-test.mjs && node tests/live-test.mjs",
+    "test": "node tests/legend-items.mjs && node tests/monitor-order.mjs && node tests/studio-test.mjs && node tests/live-test.mjs",
     "test:studio": "node tests/studio-test.mjs",
     "test:live": "node tests/live-test.mjs"
   },

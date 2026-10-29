@@ -166,6 +166,99 @@ check('a filtered reading keeps its own filter',
   Number(answer.values.F0?.value) === 904 && Number(answer.values.F1?.value) === 905,
   { F0: answer.values.F0?.value, F1: answer.values.F1?.value })
 
+/* --------------------- the badge and the chart agree about "newest" ---*/
+
+/*
+ * A reading whose "Newest by" is a merged date and time.
+ *
+ * This read used only the first half of the pair, so `ORDER BY \`date\` DESC
+ * LIMIT 1` found the newest *day* and then whichever row of that day the
+ * engine felt like — while the chart ordered by the two read as one moment
+ * and found the actual newest. Two different rows for one reading.
+ *
+ * On the plant that showed as a chart with thirty-nine records beside a
+ * value that was blank, because the row the badge landed on had nothing in
+ * that column. The fixture below is that shape exactly: the last row of the
+ * day carries the reading, an earlier one of the same day is empty.
+ */
+const PAIRED = 'aaa_poll_paired'
+await db.query(`DROP TABLE IF EXISTS ${PAIRED}`)
+await db.query(`CREATE TABLE ${PAIRED} (
+  pkey INT AUTO_INCREMENT PRIMARY KEY, bentonite_actual DOUBLE,
+  \`date\` DATE, \`time\` TIME)`)
+
+/*
+ * Inserted newest-first, so a database returning rows in storage order hands
+ * back the empty one — which is what made this show up at all.
+ */
+await db.query(`INSERT INTO ${PAIRED} (bentonite_actual, \`date\`, \`time\`) VALUES
+  (NULL, '2026-10-28', '08:00:00'),
+  (17.5, '2026-10-28', '12:00:00'),
+  (18.5, '2026-10-28', '23:59:23'),
+  (99.9, '2026-10-27', '23:59:59')`)
+
+const pairedReading = {
+  id: 'P',
+  table: PAIRED,
+  column: 'bentonite_actual',
+  timeColumn: 'date',
+  timeColumn2: 'time',
+}
+
+const paired = await latestValues(connection, [pairedReading])
+check('a reading ordered by a date and a time finds the newest moment',
+  Math.abs(Number(paired.values.P?.value) - 18.5) < 1e-9,
+  { got: paired.values.P?.value, want: 18.5, error: paired.errors.P })
+
+/*
+ * And it reports the moment, not midnight. A date half on its own would say
+ * "Recorded 00:00" beside a value taken at ten to midnight.
+ */
+check('and reports the time of day with it',
+  /23:59:23/.test(String(paired.values.P?.recordedAt || '')),
+  paired.values.P?.recordedAt)
+
+await db.query(`DROP TABLE IF EXISTS ${PAIRED}`)
+
+/* ------------------------------- the connection is kept, not remade ---*/
+
+/*
+ * Reads reuse a connection instead of opening one each time.
+ *
+ * Every read used to connect and disconnect. Beside the server that is a few
+ * milliseconds; through an SSH tunnel to a plant it is a TCP connect and a
+ * multi-step handshake before a byte of the query is sent, on every poll and
+ * every chart — and then torn down so the next read can do it again.
+ *
+ * Counted rather than timed, because a count is the same on every machine:
+ * MySQL's `Connections` status is how many times anything has connected, so
+ * a run of reads that adds none to it is a run that reused what it had.
+ */
+const connections = async () => {
+  const [[status]] = await db.query("SHOW GLOBAL STATUS LIKE 'Connections'")
+  return Number(status.Value)
+}
+
+// One read first, so the pool is open — the first read does pay a handshake.
+await latestValues(connection, readings)
+
+const openedBefore = await connections()
+for (let i = 0; i < 5; i += 1) await latestValues(connection, readings)
+// Less the two `SHOW GLOBAL STATUS` calls, which are this test's own.
+const opened = (await connections()) - openedBefore - 1
+
+check(`five more polls open no new connections (opened ${opened})`, opened <= 0, opened)
+
+/*
+ * And the values are still right after all that reuse — a connection handed
+ * on in a bad state would show up here as the wrong numbers rather than as
+ * an error.
+ */
+const reused = await latestValues(connection, readings)
+const stillWrong = Object.entries(expected).filter(([id, want]) =>
+  Math.abs(Number(reused.values[id]?.value) - want) > 1e-9)
+check('and a reused connection still answers correctly', stillWrong.length === 0, stillWrong)
+
 await drop()
 await db.end()
 

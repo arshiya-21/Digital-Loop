@@ -5,7 +5,7 @@ import { badRequest, notFound, unprocessable } from '../utils/errors.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { seal, sealingAvailable } from '../services/secrets.js'
 import { generateTunnelKeyPair } from '../services/ssh-keys.js'
-import { testConnection, introspect, runQuery } from '../services/db-connect.js'
+import { testConnection, introspect, runQuery, forgetPools } from '../services/db-connect.js'
 
 /**
  * `/api/v1/connections` — plant databases somebody registered.
@@ -384,6 +384,16 @@ connections.patch('/:id', async ({ user, params, body }) => {
     `UPDATE db_connection SET ${columns.map(c => `${c} = ?`).join(', ')}, updated_at = ? WHERE id = ?`
   ).run(...columns.map(c => fields[c]), now(), existing.id)
 
+  /*
+   * The kept-open connections to the old settings are closed.
+   *
+   * Reads are served from a pool now — see `poolFor` — so a connection
+   * re-pointed at another host, or given a new password, would otherwise go
+   * on being read through connections opened under the old ones until they
+   * timed out. The next read opens a pool against what was just saved.
+   */
+  await forgetPools(existing.id)
+
   await audit(user.id, 'connection.update', 'connection', existing.id, {
     // Which fields changed, never their values: `password` here means a
     // password was replaced, not what it was replaced with.
@@ -404,6 +414,8 @@ connections.delete('/:id', async ({ user, params }) => {
    * connection nobody can see, kept until the table is read by hand.
    */
   await db.prepare('DELETE FROM table_filter WHERE scope = ?').run(`conn:${existing.id}`)
+  // And the connections held open to it, which nothing will read again.
+  await forgetPools(existing.id)
   await audit(user.id, 'connection.delete', 'connection', existing.id, { label: existing.label })
   return noContent()
 })

@@ -225,6 +225,17 @@ live.post('/preview', async ({ user, body }) => {
       if (body.keyOp) tag.keyOp = String(body.keyOp)
     }
     if (body?.timeColumn) tag.timeColumn = String(body.timeColumn)
+    /*
+     * Both halves of a "Newest by" pair, or the statement is not the one the
+     * reading runs.
+     *
+     * Only the first half was passed, so a reading set to `date + time` was
+     * previewed with `ORDER BY \`date\` DESC LIMIT 1` — the newest day, and
+     * whichever row of it the engine returned. On the plant that answered
+     * `19 · recorded 2026-10-28T00:00:00` beside a chart drawn from the
+     * actual newest moment.
+     */
+    if (body?.timeColumn2) tag.timeColumn2 = String(body.timeColumn2)
   }
 
   // SandMan reads a table and a column. A statement is ours to run, against a
