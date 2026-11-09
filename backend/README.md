@@ -347,3 +347,33 @@ leaking to operators, and seven SVG upload attacks.
 
 The suite is idempotent — it asserts against the records it creates rather than
 absolute counts, so it can run repeatedly against the same database.
+
+---
+
+## Machine QR codes and maintenance
+
+Every piece of equipment gets a QR code **when it is drawn**. The studio mints
+the token (so the sticker can be printed at once), the server confirms it when
+the loop is saved, and it never changes. The sticker opens `/m/<token>` — a
+phone page of its own (`frontend/app/machine.html`) that needs no SandMan
+session.
+
+| Endpoint | Auth | Purpose |
+|---|---|---|
+| `GET /m/:token` | none | the responsive machine page |
+| `GET /api/v1/m/:token` | token | the machine's card: readings, alarms, maintenance, SOP |
+| `POST /api/v1/m/:token/request` | token | report a fault (name required) |
+| `POST /api/v1/m/:token/work` | token + team PIN | log work, close a service request |
+| `PUT /api/v1/equipment/:loopId` | admin | register equipment, confirm QR tokens |
+| `GET /api/v1/equipment?loopId=` | viewer | the register and tokens |
+| `GET/PUT /api/v1/maintenance` | viewer | plans, work log, assets, spares, team |
+
+Maintenance is stored in `mnt_*` tables, not inside the drawing. Rules that keep
+a phone and a desktop from overwriting each other: the work log is never
+deleted (cancel with a reason), a plan's "last done" only moves forward, stock
+is settled by revision, and work-order numbers are issued by the server.
+
+Settings: `DL_PUBLIC_URL` (address phones open, if different from the one
+engineers use) and `DL_CARD_REQUIRE_LOGIN=1` (also require a SandMan session).
+The machine endpoints are rate-limited and PINs lock for 10 minutes after 5
+misses. The PIN is the studio's own convenience lock, **not** a login.

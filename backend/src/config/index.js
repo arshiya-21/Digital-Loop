@@ -70,6 +70,25 @@ export const config = {
     return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
   })(),
 
+  /**
+   * The address phones should open for a machine's QR code.
+   *
+   * The server cannot know its own public address — it sits behind SandMan's
+   * proxy — so the studio uses the address it was opened at unless this says
+   * otherwise. Set it when the address people reach the plant at differs from
+   * the address engineers use, e.g. `https://plant.example.com/sandman/digitalloop`.
+   */
+  publicUrl: String(process.env.DL_PUBLIC_URL || '').trim().replace(/\/+$/, ''),
+
+  /**
+   * Machine pages (the QR code destinations) are open to anybody holding the
+   * token by default. Set `DL_CARD_REQUIRE_LOGIN=1` to also require a SandMan
+   * session, at the cost of operators having to be signed in on their phones.
+   */
+  machineCards: {
+    requireLogin: process.env.DL_CARD_REQUIRE_LOGIN === '1',
+  },
+
   paths: {
     root: ROOT,
     /**

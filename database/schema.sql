@@ -437,3 +437,242 @@ CREATE TABLE IF NOT EXISTS db_connection (
   -- which the API validates against and the studio builds its form from, so
   -- there is one of it.
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * ============================================================================
+ * EQUIPMENT CARDS AND MAINTENANCE
+ * ============================================================================
+ *
+ * Until now maintenance lived inside the drawing, in `design_version.layout`
+ * as `DOC.maint`. That stored it, and made it unusable for the one thing it is
+ * for: a technician standing at a machine with a phone. A design version is
+ * immutable and only an administrator can save one, so a job logged on the shop
+ * floor had nowhere to go, and two people logging work at once were two copies
+ * of a document racing for one version number.
+ *
+ * These tables are the maintenance record. The studio reads them when a loop is
+ * opened and writes them as work is logged, the phone page writes them
+ * directly, and the drawing keeps no copy that anybody has to keep in step.
+ *
+ * Every table is keyed by the loop (`design_id`) and the equipment's id inside
+ * it (`equip_key`, the studio's block id), never by the machine's name: a
+ * machine may be renamed, and its history must stay with it.
+ *
+ * Each record keeps its full studio form in `doc` as JSON beside the columns
+ * somebody will want to filter and total on. The columns answer the questions
+ * (what is overdue, what did this machine cost this quarter) and `doc` makes
+ * the round trip lossless, so a field the studio gains later is stored without
+ * a migration rather than being silently dropped.
+ */
+
+/*
+ * One row per piece of equipment, and the QR code that opens its page.
+ *
+ * `qr_token` is minted when the equipment is created and never changes while
+ * the machine exists, so a sticker printed on day one is still right years
+ * later. It is random and unguessable (the QR is the credential for the phone
+ * page), and UNIQUE across every loop so one sticker can only ever mean one
+ * machine. `retired_at` is set when the equipment is taken off the drawing:
+ * the row stays, so an old sticker says "this machine was removed" instead of
+ * quietly opening something else.
+ */
+CREATE TABLE IF NOT EXISTS equipment_card (
+  id           VARCHAR(40)   NOT NULL,
+  design_id    VARCHAR(40)   NOT NULL,
+  equip_key    VARCHAR(80)   NOT NULL,
+  tag          VARCHAR(160)  NOT NULL,
+  equip_type   VARCHAR(80)   NOT NULL,
+  description  VARCHAR(300)  NULL,
+  qr_token     VARCHAR(64)   NOT NULL,
+  created_at   VARCHAR(40)   NOT NULL,
+  updated_at   VARCHAR(40)   NOT NULL,
+  retired_at   VARCHAR(40)   NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY card_token (qr_token),
+  UNIQUE KEY card_per_equipment (design_id, equip_key),
+  KEY card_by_tag (design_id, tag),
+  CONSTRAINT card_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * The last value read for each linked reading.
+ *
+ * The phone page cannot ask SandMan for a reading, because it has no SandMan
+ * session. What it can honestly show is the last real value the studio or the
+ * publish view fetched, with the time it was read. Never a simulated number:
+ * rows are written only from a successful live read.
+ */
+CREATE TABLE IF NOT EXISTS tag_reading (
+  design_id    VARCHAR(40)   NOT NULL,
+  tag_id       VARCHAR(160)  NOT NULL,
+  num_value    DOUBLE        NULL,
+  text_value   VARCHAR(200)  NULL,
+  recorded_at  VARCHAR(60)   NULL,
+  read_at      VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, tag_id),
+  CONSTRAINT reading_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* The asset register: what the machine is. One row per machine. */
+CREATE TABLE IF NOT EXISTS mnt_asset (
+  design_id     VARCHAR(40)   NOT NULL,
+  equip_key     VARCHAR(80)   NOT NULL,
+  make          VARCHAR(160)  NULL,
+  model         VARCHAR(160)  NULL,
+  serial_no     VARCHAR(160)  NULL,
+  installed_on  VARCHAR(40)   NULL,
+  power_kw      DOUBLE        NULL,
+  criticality   VARCHAR(4)    NULL,
+  supplier      VARCHAR(200)  NULL,
+  phone         VARCHAR(60)   NULL,
+  location      VARCHAR(200)  NULL,
+  warranty_to   VARCHAR(40)   NULL,
+  doc           TEXT          NOT NULL,
+  updated_by    VARCHAR(160)  NULL,
+  updated_at    VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, equip_key),
+  CONSTRAINT asset_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * A planned task: preventive maintenance, an inspection or an overhaul, due
+ * every N days and/or N running hours, whichever comes first.
+ *
+ * `last_done` and `last_hours` only ever move forward. A studio that has been
+ * open since the morning must not wind back a task somebody logged from the
+ * shop floor in the afternoon, and "the later date wins" is the whole rule.
+ */
+CREATE TABLE IF NOT EXISTS mnt_plan (
+  id              VARCHAR(40)   NOT NULL,
+  design_id       VARCHAR(40)   NOT NULL,
+  equip_key       VARCHAR(80)   NOT NULL,
+  task            VARCHAR(300)  NOT NULL,
+  kind            VARCHAR(12)   NOT NULL,
+  every_days      INT           NULL,
+  every_hours     INT           NULL,
+  safety_critical TINYINT(1)    NOT NULL DEFAULT 0,
+  paused          TINYINT(1)    NOT NULL DEFAULT 0,
+  responsible     VARCHAR(160)  NULL,
+  last_done       VARCHAR(40)   NULL,
+  last_hours      DOUBLE        NULL,
+  doc             TEXT          NOT NULL,
+  updated_at      VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, id),
+  KEY plan_by_equipment (design_id, equip_key),
+  KEY plan_by_due (design_id, last_done),
+  CONSTRAINT plan_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * The work log: every job done and every service request raised.
+ *
+ * Entries are never deleted. A wrong entry is cancelled with a reason and stays
+ * in the record, because an audit asks what was written and who corrected it.
+ * `wo_no` is the work-order number, unique within a loop and issued by the
+ * server (`mnt_counter`) so a phone and a desktop can never hand out the same
+ * one.
+ *
+ * `origin` says where it was written: the studio, or a phone that scanned the
+ * machine's QR. `rev` counts changes, so a stale copy cannot overwrite a newer
+ * one.
+ */
+CREATE TABLE IF NOT EXISTS mnt_work (
+  id            VARCHAR(40)   NOT NULL,
+  design_id     VARCHAR(40)   NOT NULL,
+  equip_key     VARCHAR(80)   NOT NULL,
+  wo_no         VARCHAR(40)   NULL,
+  kind          VARCHAR(12)   NOT NULL,
+  task          VARCHAR(500)  NOT NULL,
+  done_at       VARCHAR(40)   NOT NULL,
+  done_by       VARCHAR(160)  NULL,
+  status        VARCHAR(12)   NOT NULL,
+  priority      VARCHAR(4)    NULL,
+  assigned_to   VARCHAR(160)  NULL,
+  stops_line    TINYINT(1)    NOT NULL DEFAULT 0,
+  running_hours DOUBLE        NULL,
+  downtime_min  DOUBLE        NULL,
+  labour_hours  DOUBLE        NULL,
+  total_cost    DOUBLE        NULL,
+  plan_id       VARCHAR(40)   NULL,
+  closes_id     VARCHAR(40)   NULL,
+  cancelled_at  VARCHAR(40)   NULL,
+  cancelled_by  VARCHAR(160)  NULL,
+  cancel_reason VARCHAR(500)  NULL,
+  origin        VARCHAR(10)   NOT NULL DEFAULT 'studio',
+  doc           LONGTEXT      NOT NULL,
+  rev           INT           NOT NULL DEFAULT 1,
+  created_at    VARCHAR(40)   NOT NULL,
+  updated_at    VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, id),
+  UNIQUE KEY work_number (design_id, wo_no),
+  KEY work_by_equipment (design_id, equip_key, done_at),
+  KEY work_open (design_id, kind, status),
+  CONSTRAINT work_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* The spare-parts store. `rev` moves whenever the server changes the stock. */
+CREATE TABLE IF NOT EXISTS mnt_part (
+  id          VARCHAR(40)   NOT NULL,
+  design_id   VARCHAR(40)   NOT NULL,
+  part_no     VARCHAR(80)   NULL,
+  name        VARCHAR(200)  NOT NULL,
+  unit        VARCHAR(20)   NULL,
+  unit_cost   DOUBLE        NULL,
+  stock       DOUBLE        NOT NULL DEFAULT 0,
+  min_stock   DOUBLE        NULL,
+  for_machines VARCHAR(300) NULL,
+  doc         TEXT          NOT NULL,
+  rev         INT           NOT NULL DEFAULT 1,
+  updated_at  VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, id),
+  CONSTRAINT part_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * The maintenance team, and the PIN that lets one of them log work.
+ *
+ * `pin_hash` is the studio's own lock, carried over unchanged so existing teams
+ * keep working. It is a convenience lock, NOT a login: SandMan accounts are the
+ * real identity. Failed attempts are counted here so the phone page cannot be
+ * used to try every four-digit PIN.
+ */
+CREATE TABLE IF NOT EXISTS mnt_member (
+  id           VARCHAR(40)   NOT NULL,
+  design_id    VARCHAR(40)   NOT NULL,
+  name         VARCHAR(160)  NOT NULL,
+  role         VARCHAR(160)  NULL,
+  rank_key     VARCHAR(20)   NULL,
+  phone        VARCHAR(60)   NULL,
+  email        VARCHAR(200)  NULL,
+  pin_hash     VARCHAR(64)   NULL,
+  failed_pins  INT           NOT NULL DEFAULT 0,
+  locked_until VARCHAR(40)   NULL,
+  doc          TEXT          NOT NULL,
+  updated_at   VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, id),
+  CONSTRAINT member_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * Settings and counters for one loop's maintenance: the hour-meter tag chosen
+ * for each machine, warning leads, labour rate, and the work-order sequence.
+ * `wo_seq` is advanced inside the transaction that inserts the work order, so
+ * two writers never receive the same number.
+ */
+CREATE TABLE IF NOT EXISTS mnt_setting (
+  design_id   VARCHAR(40)   NOT NULL,
+  cfg         TEXT          NOT NULL,
+  meters      TEXT          NOT NULL,
+  wo_seq      INT           NOT NULL DEFAULT 0,
+  updated_at  VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id),
+  CONSTRAINT setting_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

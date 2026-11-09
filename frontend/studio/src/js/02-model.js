@@ -678,6 +678,8 @@ function addBlock(type, x, y, o = {}) {
     props: Object.assign({ desc: '', oos: false }, JSON.parse(JSON.stringify(E.props || {})), o.props || {}),
     rules: [],
   };
+  // v9.53 — every machine gets its QR token the moment it is drawn, so the sticker can be printed straight away
+  if (typeof mcWantsCard === 'function' && mcWantsCard(type)) b.qr = mcNewToken();
   if (o.w) b.w = o.w;
   if (o.h) b.h = o.h;
   if (o.bind) {
@@ -844,6 +846,9 @@ function saveNow() {
   try {
     localStorage.setItem(LS, snap());
     save.failed = false;
+    try {
+      document.dispatchEvent(new Event('dl:docsaved')); // v9.53 — the server layer sends maintenance / equipment changes
+    } catch (e2) {}
   } catch (e) {
     // v6.2: never lose work silently — tell the user once when the browser refuses to store the flowsheet
     if (!save.failed) {

@@ -185,124 +185,6 @@ function mntAddSuggested(onlyMissing, demo) {
   });
   return n;
 }
-function mntDemo() {
-  const M = mntDoc();
-  if (!M.team.length)
-    M.team = [
-      { id: mntId('t'), name: 'Ravi Kumar', role: 'Maintenance in-charge', rk: 'incharge', phone: '+91 90000 00001', email: 'ravi@demo-foundry.example', pin: mntHash('1234') },
-      { id: mntId('t'), name: 'Suresh', role: 'Fitter', rk: 'tech', phone: '+91 90000 00002', pin: mntHash('1111') },
-      { id: mntId('t'), name: 'Anand', role: 'Electrician', rk: 'tech', phone: '+91 90000 00003', pin: mntHash('2222') },
-      { id: mntId('t'), name: 'Prakash', role: 'Production head', rk: 'prod', phone: '+91 90000 00004', email: 'prakash@demo-foundry.example', pin: mntHash('3333') },
-      { id: mntId('t'), name: 'Meena', role: 'Store keeper', rk: 'store', email: 'stores@demo-foundry.example', pin: mntHash('4444') },
-    ];
-  if (!M.plans.length) mntAddSuggested(false, true);
-  const eq = mntEquip(),
-    by = n => eq.find(b => b.name === n) || eq[0];
-  const ago = (d, h) => mntIso(new Date(Date.now() - d * 864e5 - (h || 0) * 36e5));
-  // spare parts store (demo prices)
-  if (!M.parts.length) {
-    const P = [
-      ['GR-EP2', 'Grease EP2', 'kg', 260, 18, 10, 'All machines'],
-      ['OIL-G220', 'Gear oil ISO VG 220', 'L', 210, 40, 20, 'MX-1, gearboxes'],
-      ['OIL-H46', 'Hydraulic oil ISO VG 46', 'L', 180, 60, 40, 'DISA-1/2/3'],
-      ['MX-PB', 'Muller plough blade', 'pc', 4800, 2, 2, 'MX-1'],
-      ['MX-SC', 'Muller scraper', 'pc', 3200, 4, 2, 'MX-1'],
-      ['BE-BK', 'Elevator bucket', 'pc', 1350, 12, 6, 'BE-1'],
-      ['BE-BLT', 'Bucket bolt set', 'set', 160, 40, 20, 'BE-1'],
-      ['DS-HF', 'Hydraulic filter element', 'pc', 3900, 1, 2, 'DISA-1/2/3'],
-      ['CD-NZ', 'Spray nozzle', 'pc', 650, 14, 6, 'CD-1'],
-      ['PS-MS', 'Screen mesh panel', 'pc', 9500, 2, 1, 'PS-1'],
-      ['CV-ID', 'Conveyor idler', 'pc', 2200, 8, 4, 'Belt conveyors'],
-      ['BRG-22216', 'Spherical roller bearing 22216', 'pc', 7400, 3, 2, 'CD-1, BE-1'],
-    ];
-    M.parts = P.map(([no, name, unit, cost, stock, min, f]) => ({ id: mntId('s'), no, name, unit, cost, stock, min, for: f }));
-  }
-  const pt = no => M.parts.find(p => p.no === no);
-  const use = (no, qty) => {
-    const p = pt(no);
-    return p ? { id: p.id, name: p.name, no: p.no, unit: p.unit, qty, cost: p.cost } : null;
-  };
-  // asset register (demo)
-  const A = {
-    'MX-1': { make: 'Demo Foundry Equipment', model: 'Muller 2000 L', serial: 'MX-19-0457', year: '2019', power: '110', crit: 'A', supplier: 'Demo Engineering Services', phone: '+91 44 0000 0000', notes: 'Batch 2.0 t, gearbox 1:28, oil VG 220' },
-    'BE-1': { make: 'Demo Conveyors', model: 'Belt bucket elevator 18 m', serial: 'BE-20-118', year: '2020', power: '22', crit: 'A', supplier: 'Demo Conveyors', phone: '+91 44 0000 0001' },
-    'CD-1': { make: 'Demo Thermal', model: 'Cooling drum 2.4 × 9 m', serial: 'CD-21-033', year: '2021', power: '45', crit: 'A', warranty: mntIso(new Date(Date.now() + 21 * 864e5)).slice(0, 10) },
-    'DISA-1': { make: 'DISA', model: 'Vertical moulding line', serial: 'D1-2018-221', year: '2018', power: '75', crit: 'B' },
-    'DISA-2': { make: 'DISA', model: 'Vertical moulding line', serial: 'D2-2019-305', year: '2019', power: '75', crit: 'B' },
-    'DISA-3': { make: 'DISA', model: 'Vertical moulding line', serial: 'D3-2022-412', year: '2022', power: '75', crit: 'B' },
-    'IF-1': { make: 'Demo Induction', model: '3 t coreless furnace', serial: 'IF-17-009', year: '2017', power: '1500', crit: 'A' },
-    'PS-1': { make: 'Demo Screens', model: 'Polygon sieve 1.2 m', year: '2020', power: '7.5', crit: 'B' },
-    'SO-2': { make: 'Demo Vibro', model: 'Flaskless shakeout', year: '2019', power: '2 × 11', crit: 'B' },
-  };
-  Object.entries(A).forEach(([n, a]) => {
-    const b = eq.find(x => x.name === n);
-    if (b && !M.assets[b.id]) M.assets[b.id] = a;
-  });
-  if (!M.log.length) {
-    const rate = M.cfg.rate;
-    const add = (n, kind, task, d, who, o) => {
-      const b = by(n);
-      const e = Object.assign({ id: mntId('w'), blk: b.id, kind, task, date: ago(d, o && o.h), by: who, status: kind === 'breakdown' ? 'closed' : 'done', down: 0, labHrs: 0, rate, pused: [], other: 0, notes: '' }, o || {});
-      e.pused = (e.pused || []).filter(Boolean);
-      delete e.h;
-      const p = M.plans.find(x => x.blk === b.id && x.task === task);
-      if (p && kind !== 'breakdown' && kind !== 'repair') {
-        e.plan = p.id;
-        if (mntDate(e.date) > mntDate(p.last || '1970-01-01')) p.last = e.date.slice(0, 10);
-        if (e.hours != null) p.lastH = e.hours;
-      }
-      e.cost = Math.round(mntCostOf(e).tot);
-      M.log.push(e);
-      return e;
-    };
-    // routine greasing / checks over the last six months
-    for (let m = 0; m < 6; m++) {
-      add('MX-1', 'pm', 'Grease main bearings', 6 + m * 30, 'Suresh', { hours: 18420 - m * 480, labHrs: 1, pused: [use('GR-EP2', 0.5)] });
-      add('BE-1', 'pm', 'Head and boot pulley bearings grease', 10 + m * 30, 'Suresh', { labHrs: 1.5, pused: [use('GR-EP2', 0.4)] });
-      add('CD-1', 'pm', 'Water spray nozzles clean', 9 + m * 30, 'Suresh', { labHrs: 2, down: 20, pused: m % 2 ? [use('CD-NZ', 2)] : [], notes: m ? '' : '3 nozzles blocked' });
-      add(['DISA-1', 'DISA-2', 'DISA-3'][m % 3], 'pm', 'Hydraulic oil level, leaks and filter', 20 + m * 30, 'Ravi Kumar', { hours: 22150 - m * 600, labHrs: 2, down: 30, pused: m % 2 ? [] : [use('DS-HF', 1), use('OIL-H46', 10)] });
-    }
-    add('MX-1', 'insp', 'Check ploughs, scrapers and wheels for wear', 5, 'Suresh', { hours: 18436, labHrs: 0.5, notes: 'Plough 2 worn ~60%' });
-    add('MX-1', 'pm', 'Replace / adjust plough and scraper blades', 64, 'Suresh', { labHrs: 6, down: 180, pused: [use('MX-PB', 2), use('MX-SC', 2)] });
-    add('PS-1', 'pm', 'Mesh replacement', 75, 'Suresh', { labHrs: 4, down: 120, pused: [use('PS-MS', 1)] });
-    add('P-19', 'insp', 'Belt, idlers and scraper check', 3, 'Anand', { labHrs: 0.5, notes: 'OK' });
-    add('Additive PLC', 'pm', 'Backup of program and settings', 40, 'Anand', { labHrs: 1 });
-    // breakdowns closed by repairs
-    const bd = (n, task, d, who, rep, prio) => {
-      const w = add(n, 'breakdown', task, d, who, { stop: true, prio: prio || 'P2', hist: [{ t: ago(d), by: who, st: 'open', note: 'Reported' }] });
-      const r = add(n, 'repair', rep.task, d, rep.by, Object.assign({ h: -2 }, rep));
-      r.wo = w.id;
-      w.closed = r.date;
-      w.closedBy = r.id;
-    };
-    bd('BE-1', 'Bucket elevator tripped — belt slipping', 12, 'Anand', { task: 'Belt re-tensioned, 2 buckets replaced', by: 'Suresh', hours: 9310, down: 95, labHrs: 6, pused: [use('BE-BK', 2), use('BE-BLT', 8)], notes: 'Root cause: tension not checked', fail: { p: 'Mechanical', c: 'Loose / not tightened', a: 'Adjusted / aligned' } }, 'P1');
-    bd('CD-1', 'Cooling drum trunnion bearing noise and heat', 52, 'Anand', { task: 'Trunnion bearing replaced', by: 'Suresh', down: 260, labHrs: 12, pused: [use('BRG-22216', 1), use('GR-EP2', 1)], other: 18000, notes: 'Crane hire + service engineer', fail: { p: 'Mechanical', c: 'Lack of lubrication', a: 'Replaced' } });
-    bd('DISA-2', 'Hydraulic hose burst at swing plate', 97, 'Ravi Kumar', { task: 'Hose replaced, oil topped up', by: 'Ravi Kumar', down: 75, labHrs: 3, pused: [use('OIL-H46', 25)], other: 4500, fail: { p: 'Hydraulic', c: 'Wear and tear', a: 'Replaced' } });
-    bd('P-5', 'Conveyor belt running off', 130, 'Anand', { task: 'Idlers replaced and belt trained', by: 'Suresh', down: 55, labHrs: 4, pused: [use('CV-ID', 2)], fail: { p: 'Mechanical', c: 'Misalignment', a: 'Replaced' } }, 'P3');
-    // one service request still open
-    M.log.push({ id: mntId('w'), blk: by('SO-2').id, kind: 'breakdown', task: 'Abnormal noise from vibro-motor, high vibration', date: ago(0, 3), by: 'Anand', stop: false, status: 'assigned', prio: 'P3', assign: 'Suresh', notes: 'Running — check at next stop', hist: [{ t: ago(0, 3), by: 'Anand', st: 'open', note: 'Reported' }, { t: ago(0, 2), by: 'Ravi Kumar', st: 'assigned', assign: 'Suresh', note: 'Check at the lunch stop' }] });
-    // work-order numbers in date order
-    M.seq = 0;
-    M.log
-      .slice()
-      .sort((a, c) => mntDate(a.date) - mntDate(c.date))
-      .forEach(e => (e.no = mntWoNo(e.date)));    // each plan's "last done" is its latest logged job
-    M.plans.forEach(p => {
-      const L = M.log.filter(e => e.plan === p.id);
-      if (!L.length) return;
-      const last = L.reduce((x, e) => (mntDate(e.date) > mntDate(x.date) ? e : x));
-      p.last = last.date.slice(0, 10);
-      p.lastH = last.hours != null ? last.hours : null;
-    });
-  }
-  M.cfg.budget = M.cfg.budget || 1500000;
-  M.cfg.demo = true;
-  // v9.53 — full life-cycle history for every machine, condition triggers, standard alert rules
-  if (typeof mntDemoLife === 'function') mntDemoLife();
-  if (typeof mntDemoConds === 'function') mntDemoConds();
-  if (typeof mntRules === 'function') mntRules();
-}
-
 /* ---------- alerts ---------- */
 const MNT_NOTIFIED = new Set();
 function mntCheckV952() { // replaced by the rules-based mntCheck in 24-mnt-alert-rules.js
@@ -472,7 +354,7 @@ function mntRender() {
     W.innerHTML = `<h3>🔧 Maintenance</h3>
  <div class="mnt-empty"><p>Plan preventive maintenance, inspections and overhauls for <b>every machine</b> in this loop, log every job, and get alerts before work is due.</p>
  <div class="mnt-types"><div><b>Preventive maintenance</b><span>Planned, on a schedule — greasing, oil, blades, filters</span></div><div><b>Corrective maintenance</b><span>Repair after a breakdown or service request — restores the machine and closes the request</span></div><div><b>Overhaul</b><span>Major periodic rebuild — liners, gearbox, relining</span></div><div><b>Inspection</b><span>Quick checks — wear, leaks, nozzles, lining</span></div></div>
- <div class="mact" style="justify-content:flex-start"><button class="ib pri" id="mntSug">Start with suggested plans for all ${mntEquip().length} machines</button><button class="ib" id="mntDemoB">Try it with demo data</button></div>
+ <div class="mact" style="justify-content:flex-start"><button class="ib pri" id="mntSug">Start with suggested plans for all ${mntEquip().length} machines</button></div>
  <div class="note">Suggested plans use typical green-sand foundry practice for each machine type; edit any task, interval or responsibility afterwards. Counting starts from today.</div></div>`;
     $('#mntSug').onclick = () => {
       const n = mntAddSuggested(false, false);
@@ -480,14 +362,6 @@ function mntRender() {
       mntCheck();
       toast(`${n} maintenance tasks added`);
       MNT_TAB = 'plans';
-      mntRender();
-    };
-    $('#mntDemoB').onclick = () => {
-      mntDemo();
-      save();
-      mntCheck();
-      toast('Demo maintenance data added (team PINs: Ravi 1234 · Suresh 1111 · Anand 2222)');
-      MNT_TAB = 'due';
       mntRender();
     };
     return;
@@ -692,7 +566,7 @@ function mntTabSet(body) {
     c = M.cfg;
   const hasN = typeof Notification !== 'undefined';
   body.innerHTML = `<div class="mnt-cols"><div>
-  <h5 class="mnt-h5">Maintenance team</h5><div class="note">Only these people can log work or report a problem. Each has a PIN. ${c.demo ? '<b>Demo PINs: Ravi 1234 · Suresh 1111 · Anand 2222 · Prakash 3333 · Meena 4444.</b>' : ''}</div>
+  <h5 class="mnt-h5">Maintenance team</h5><div class="note">Only these people can log work or report a problem. Each has a PIN.</div>
   <table class="mnt-t"><tbody>${M.team.map(t => `<tr><td><b>${esc(t.name)}</b><div class="note">${esc(t.role || '')}</div></td><td>${esc(typeof MNT_ROLES === 'object' ? MNT_ROLES[mntRoleOf(t)] : '')}</td><td class="note">${esc([t.phone, t.email].filter(Boolean).join(' · ') || 'no contact')}</td><td class="note">PIN set</td><td style="text-align:right"><button class="lb" data-tpin="${t.id}">Change PIN</button><button class="lb" data-trm="${t.id}" style="color:var(--crit)">Remove</button></td></tr>`).join('') || '<tr><td class="note">No team members yet — add one to start logging.</td></tr>'}</tbody></table>
   <div class="mnt-g3"><div class="fld"><label>Name</label><input id="tmN"></div><div class="fld"><label>Job title</label><input id="tmR" placeholder="Fitter / Electrician / In-charge"></div><div class="fld"><label>Receives alerts as</label><select id="tmK">${Object.entries(typeof MNT_ROLES === 'object' ? MNT_ROLES : {}).map(([k, v]) => `<option value="${k}" ${k === 'tech' ? 'selected' : ''}>${v}</option>`).join('')}</select></div><span></span>
    <div class="fld"><label>WhatsApp / mobile</label><input id="tmPh" placeholder="+91 98xxxxxxxx"></div><div class="fld"><label>Email</label><input id="tmE" placeholder="name@plant.com"></div><div class="fld"><label>PIN (4–6 digits)</label><input id="tmP" type="password" inputmode="numeric" maxlength="6"></div><button class="ib pri" id="tmAdd">Add</button></div>
@@ -1356,13 +1230,15 @@ function mntForm(opts, host) {
 function mntQrBlock(b) {
   const u = mcUrl(b),
     based = DOC.plant && DOC.plant.cardBase;
-  return `<div class="mnt-qr"><div class="mnt-qr-c">${typeof mcQr === 'function' ? mcQr(u, 3) : ''}</div><div class="mnt-qr-t"><b>Machine QR — ${esc(b.name)}</b><div class="note">Scan on the shop floor: live readings, alarms, maintenance due, open requests, last work and SOP — with Log work / Service request.</div><div class="mono mnt-qr-u">${esc(u)}</div>${based ? '' : '<div class="mnt-warn">Set the address the phones open (View › Machine QR) before printing — this file’s own address works only on this computer.</div>'}<div class="mnt-qr-b"><button class="sb" data-qrp="${b.id}">🖨 Print sticker</button><button class="sb" data-qro="${b.id}">Open card</button></div></div></div>`;
+  return `<div class="mnt-qr"><div class="mnt-qr-c">${typeof mcQr === 'function' ? mcQr(u, 3) : ''}</div><div class="mnt-qr-t"><b>Machine QR — ${esc(b.name)}</b><div class="note">Scan on the shop floor: live readings, alarms, maintenance due, open requests, last work and SOP — with Log work / Service request.</div><div class="mono mnt-qr-u">${esc(u)}</div>${based || window.DL_CARD_BASE ? '' : '<div class="mnt-warn">Set the address the phones open (View › Machine QR) before printing — this file’s own address works only on this computer.</div>'}<div class="mnt-qr-b"><button class="sb" data-qrp="${b.id}">🖨 Print sticker</button><button class="sb" data-qro="${b.id}">Open card</button></div></div></div>`;
 }
 function mntBindQr(root) {
   root.querySelectorAll('[data-qrp]').forEach(x => (x.onclick = () => mntPrintStickers([B(x.dataset.qrp)])));
   root.querySelectorAll('[data-qro]').forEach(
     x =>
       (x.onclick = () => {
+        // v9.53 — with the server, "Open card" opens exactly what a phone gets when it scans the sticker
+        if (window.DL_CARD_BASE) return window.open(mcUrl(B(x.dataset.qro)), '_blank', 'noopener');
         closeModal();
         mcOpen(B(x.dataset.qro).name);
       }),
@@ -1557,6 +1433,18 @@ function mntCardSheet(b, kind) {
   if (lp && !$('#pMnt')) {
     lp.insertAdjacentHTML('afterend', '<button class="p10 p-mnt" id="pMnt" title="Maintenance — plans, work log and due alerts for every machine" aria-label="Maintenance">🔧<span class="p10t"> Maintenance</span></button>');
     $('#pMnt').onclick = () => mntWindow();
+  }
+  // Make sure the QR-cards button sits beside Maintenance (immediately to its left), even if the Fault-alarm/Monitor anchor was absent when 21-machine-cards wired itself.
+  const mb = $('#pMnt');
+  if (mb) {
+    let qr = $('#pQR');
+    if (!qr) {
+      mb.insertAdjacentHTML('beforebegin', '<button class="p10" id="pQR" title="Print one QR sticker per machine — scanning it opens the machine\'s live card" aria-label="QR cards">▦<span class="p10t"> QR cards</span></button>');
+      qr = $('#pQR');
+      if (typeof mcQrSheet === 'function') qr.onclick = mcQrSheet;
+    } else if (qr.nextElementSibling !== mb) {
+      mb.insertAdjacentElement('beforebegin', qr);
+    }
   }
   const vq = $('#vQR');
   if (vq && !$('#vMnt')) {

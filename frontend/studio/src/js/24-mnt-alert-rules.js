@@ -303,18 +303,3 @@ function mntTabRules(body) {
   $$('#mntBody [data-coff]').forEach(x => (x.onclick = () => { const c = M.conds.find(q => q.id === x.dataset.coff); c.off = !c.off; redraw(); }));
   $$('#mntBody [data-crm]').forEach(x => (x.onclick = () => { if (!confirmInline(x, 'Remove?')) return; M.conds = M.conds.filter(q => q.id !== x.dataset.crm); redraw(); }));
 }
-/* demo condition triggers on readings that exist in the demo loop */
-function mntDemoConds() {
-  mntRules();
-  const M = mntDoc();
-  if (M.conds.length) return;
-  const add = (n, re, op, v, mins, prio, task) => {
-    const b = mntEquip().find(x => x.name === n);
-    const t = b && b.tags.find(t => REG[t.id] && re.test(t.id));
-    if (t) M.conds.push({ id: mntId('c'), blk: b.id, tag: t.id, op, val: v, mins, prio, task });
-  };
-  add('SO-3', /VIBRATION/i, '>', 8, 2, 'P2', 'Shakeout vibration high — check springs, motors, mounting bolts');
-  add('MX-1', /MOTOR_CURRENT/i, '>', 28, 10, 'P3', 'Muller motor current high — check blades / overload');
-  add('CD-1', /OUTLET/i, '>', 45, 15, 'P2', 'Sand outlet temperature high — check spray nozzles and water flow');
-  add('BE-1', /SPEED/i, '<', 1.2, 2, 'P1', 'Bucket elevator slowing — belt slip');
-}

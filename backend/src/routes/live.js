@@ -5,7 +5,7 @@ import { visibleLayout, linkedTags, externalTags } from '../services/live-tags.j
 import { cachedValues } from '../services/live-cache.js'
 import { readValues, readChart } from '../services/sandman.js'
 import { latestValues, recentValues, readStatement } from '../services/db-connect.js'
-import { db } from '../config/db.js'
+import { db, now } from '../config/db.js'
 import { badRequest, notFound, unprocessable } from '../utils/errors.js'
 
 /**
@@ -30,6 +30,43 @@ import { badRequest, notFound, unprocessable } from '../utils/errors.js'
  */
 
 export const live = createRouter()
+
+/**
+ * Remember the last real value of every reading, for the machine page.
+ *
+ * A phone that scans a QR code has no SandMan session and cannot ask for a
+ * reading, so the most it can honestly show is the last one somebody's studio
+ * or publish view did read. This stores it — only real values from a live read,
+ * never a simulated one — and never lets a failure here touch the response
+ * the studio is waiting for.
+ *
+ * Written at most every 20 seconds per loop: a wall screen polling every few
+ * seconds should not be an INSERT per tag per poll.
+ */
+const lastStored = new Map()
+function rememberReadings(loopId, values) {
+  const t = Date.now()
+  if (t - (lastStored.get(loopId) || 0) < 20_000) return
+  lastStored.set(loopId, t)
+
+  const stamp = now()
+  const rows = []
+  for (const [tag, v] of Object.entries(values || {})) {
+    if (!v || v.value === null || v.value === undefined) continue
+    const n = typeof v.value === 'number' ? v.value : Number(v.value)
+    const isNum = Number.isFinite(n) && String(v.value).trim() !== ''
+    rows.push([loopId, String(tag).slice(0, 160), isNum ? n : null, isNum ? null : String(v.value).slice(0, 200),
+      v.recordedAt ? String(v.recordedAt).slice(0, 60) : null, stamp])
+  }
+  if (!rows.length) return
+
+  Promise.all(rows.map(r => db.prepare(
+    `INSERT INTO tag_reading (design_id, tag_id, num_value, text_value, recorded_at, read_at)
+     VALUES (?,?,?,?,?,?)
+     ON DUPLICATE KEY UPDATE num_value = VALUES(num_value), text_value = VALUES(text_value),
+       recorded_at = VALUES(recorded_at), read_at = VALUES(read_at)`
+  ).run(...r))).catch(error => console.error(`   !  last readings not stored  ${error.message}`))
+}
 
 /**
  * The loop, the line and the readings the caller may ask about.
@@ -153,12 +190,15 @@ live.get('/values', async ({ user, query, req }) => {
   req.logNote = `${tags.length}+${registeredCount} tags` +
     (fromSandMan.stale ? ', stale' : fromSandMan.cached ? ', cached' : ', read')
 
+  const merged = { ...(fromSandMan.values || {}), ...fromRegistered.values }
+  if (!fromSandMan.stale) rememberReadings(loop.id, merged)
+
   return {
     loopId: loop.id,
     lineId: loop.line_id,
     tagCount: tags.length + registeredCount,
     /** `{ "<tagId>": { value, date, time, shift, recordedAt } | null }` */
-    values: { ...(fromSandMan.values || {}), ...fromRegistered.values },
+    values: merged,
     /** Per-tag reasons — "unknown column" and the like. Never a value. */
     errors: { ...(fromSandMan.errors || {}), ...fromRegistered.errors },
     /** True when SandMan could not be reached and this is the last good read. */

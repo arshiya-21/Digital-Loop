@@ -195,6 +195,20 @@ function mpSync() {
     mpRender(true);
   }
 }
+/*
+ * Today's alarms only.
+ *
+ * The panel lists the alarms raised on the current calendar date. Anything
+ * raised on an earlier day drops off at midnight, so the list never carries
+ * yesterday's alarms into today's shift. `t` is when the alarm was raised.
+ * A record with no readable time is kept rather than silently hidden.
+ */
+function mpIsToday(a) {
+  const at = a.t instanceof Date ? a.t : new Date(a.t);
+  if (Number.isNaN(at.getTime())) return true;
+  const n = new Date();
+  return at.getFullYear() === n.getFullYear() && at.getMonth() === n.getMonth() && at.getDate() === n.getDate();
+}
 function mpAlarmList() {
   return Object.values(ALERTS)
     .filter(a => a.active || !a.acked)
@@ -206,8 +220,8 @@ function mpRender(force) {
   const d = new Date();
   $('#mpClk').textContent = hms(d);
   // alarms (rebuilt only when they change)
-  const al = mpAlarmList();
-  const sig = al.map(a => a.key + a.sev + (a.acked ? 'a' : '') + (a.active ? 'x' : '')).join('|');
+  const al = mpAlarmList().filter(mpIsToday);
+  const sig = new Date().toDateString() + '#' + al.map(a => a.key + a.sev + (a.acked ? 'a' : '') + (a.active ? 'x' : '')).join('|');
   if (force || sig !== MP.sig) {
     MP.sig = sig;
     const n = [3, 2, 1].map(s => al.filter(a => a.active && a.sev === s).length);
@@ -235,7 +249,7 @@ function mpRender(force) {
   <div class="mp-a3">${a.active ? (a.acked ? 'Active · acknowledged' : 'Active · not acknowledged') : 'Back to normal · not acknowledged'}${a.blk ? `<button class="mp-b" data-loc="${a.blk}">⌖ Locate</button>` : ''}${a.acked ? '' : `<button class="mp-b" data-ack="${esc(a.key)}">Ack</button>`}</div></div>`,
           )
           .join('')
-      : `<div class="mp-ok"><i>✓</i>No active alarms — unit running normally</div>`;
+      : `<div class="mp-ok"><i>✓</i>No alarms today — unit running normally</div>`;
     $$('#mpAl [data-ack]').forEach(x => (x.onclick = () => (ack(x.dataset.ack), mpRender(true))));
     $$('#mpAl [data-loc]').forEach(x => (x.onclick = () => mpLocate(x.dataset.loc)));
   }

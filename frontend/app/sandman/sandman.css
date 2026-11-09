@@ -478,15 +478,13 @@ body.dl-no-loop #pbar > .pfit {
  * also hangs a "Machine QR" button on the Publish bar and the View ribbon,
  * which prints a sticker sheet nobody has asked for yet.
  *
- * Hidden rather than torn out: the module stays, so every maintenance screen
- * that shows a machine's QR still draws it, and the button comes back by
- * deleting four lines when somebody wants sticker printing.
+ * The Publish bar's "QR cards" button is shown, beside Maintenance. The View
+ * ribbon's copy stays hidden until somebody wants it there.
  *
  * The button only, never the group it sits in: Maintenance is inserted
  * beside it, inside the same "Shop floor" group, so hiding the group would
  * take Maintenance with it.
  */
-#pbar > #pQR,
 .rpanel[data-rp="view"] #vQR {
   display: none !important;
 }
@@ -559,7 +557,7 @@ body.dl-no-loop #pbar > .pfit {
  * the section is what the panel laid out, and nothing escapes it.
  */
 body.mpon .mp-als {
-  max-height: 58%;
+  max-height: none; /* fixed 40 / 60 split with Monitored parameters (see zz-live-monitor.css) */
   overflow: hidden;
 }
 

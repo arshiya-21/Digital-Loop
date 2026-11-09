@@ -20,8 +20,9 @@ body.present.mpon .mpanel { display: flex; }
 .mp-x, .mp-sd { border: 0; background: rgba(255, 255, 255, 0.14); color: #fff; border-radius: 6px; width: 26px; height: 24px; cursor: pointer; font-weight: 700; }
 .mp-x:hover, .mp-sd:hover { background: rgba(255, 255, 255, 0.26); }
 .mp-sec { display: flex; flex-direction: column; min-height: 0; }
-.mp-als { flex: 0 1 auto; max-height: 46%; border-bottom: 1px solid #d5dce7; }
-.mp-pas { flex: 1 1 auto; }
+/* Alarms take 40 % of the panel below the header, Monitored parameters 60 %; each list scrolls inside its own share. */
+.mp-als { flex: 4 1 0; min-height: 0; border-bottom: 1px solid #d5dce7; }
+.mp-pas { flex: 6 1 0; min-height: 0; }
 .mp-sh { display: flex; align-items: center; gap: 8px; padding: 9px 12px 7px; flex: none; }
 .mp-sh b { font: 800 12px var(--cond, inherit); letter-spacing: 0.1em; text-transform: uppercase; color: #3c4b63; }
 .mp-sh .mp-b { margin-left: auto; }

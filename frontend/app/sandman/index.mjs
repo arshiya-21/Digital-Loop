@@ -11,6 +11,7 @@ import * as dbForm from './db-form.mjs'
 import * as tableVisibility from './table-visibility.mjs'
 import * as processChecks from './process-checks.mjs'
 import * as sops from './sops.mjs'
+import * as maintenance from './maintenance.mjs'
 import { installPublishView } from './publish-view.mjs'
 import { ApiError } from './api.mjs'
 
@@ -541,6 +542,13 @@ async function openDesign(designId) {
    * on screen yet, and it redraws when they land.
    */
   sops.adopt(designs.current.id)
+
+  /*
+   * Maintenance and the machines' QR codes, from their own tables — see
+   * maintenance.mjs. Not awaited, for the same reason: it redraws what it
+   * touches when it lands, and a slow answer must not delay the drawing.
+   */
+  maintenance.adopt(designs.current.id, { isAdmin: isAdmin() })
 }
 
 /* ------------------------------------------------------------- saving ------ */
@@ -695,6 +703,8 @@ async function saveToServer() {
    * worth a line in the console rather than a message saying the save failed.
    */
   sops.store(designs.current.id)
+  // The equipment register follows the saved version, so a QR printed from it opens a machine that exists.
+  maintenance.flush().then(() => maintenance.registerEquipment())
   studio.toast(
     `Saved ${designs.current.name} as version ${version}. ` +
     (renamed ? `Renamed from ${renamed}. ` : '') +

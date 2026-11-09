@@ -13,10 +13,56 @@ function mcEquip() {
 }
 
 /* ================= Machine cards (AR on the shop floor via QR) ================= */
+/* v9.53 — with the Fountrix server behind the studio, a sticker opens a page of its own: <address>/m/<token>.
+ * The token is minted when the machine is drawn (so the QR exists immediately), confirmed by the server when the loop
+ * is saved, and never changes. Without a server (a standalone file) the old #card=<tag> address still works. */
+function mcWantsCard(type) {
+  return !!(EQ[type] && !EQ[type].widget && !MC_SKIP.has(type));
+}
+function mcNewToken() {
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+/* every machine has exactly one token, and no two machines share one (pasted or imported copies get their own) */
+function mcEnsureTokens() {
+  const seen = new Set();
+  mcEquip().forEach(b => {
+    if (!b.qr || seen.has(b.qr) || !/^[A-Za-z0-9_-]{16,64}$/.test(b.qr)) b.qr = mcNewToken();
+    seen.add(b.qr);
+  });
+}
+function mcSyncPayload() {
+  mcEnsureTokens();
+  return mcEquip().map(b => ({ key: b.id, name: b.name, type: b.type, desc: b.props.desc || (EQ[b.type] || {}).n || '', token: b.qr }));
+}
+/* the server's tokens are the real ones — take them (a token it replaced is no longer the one to print) */
+function mcApplyTokens(cards) {
+  (cards || []).forEach(c => {
+    const b = DOC.blocks.find(x => String(x.id) === String(c.key));
+    if (b && !c.retired && b.qr !== c.token) b.qr = c.token;
+  });
+}
+function mcRoot(s) {
+  return String(s || '')
+    .split('#')[0]
+    .split('?')[0]
+    .replace(/index\.html$/i, '')
+    .replace(/\/+$/, '');
+}
 function mcBase() {
+  if (window.DL_CARD_BASE) {
+    const c = DOC.plant && DOC.plant.cardBase;
+    return /^https?:\/\//i.test(c || '') ? mcRoot(c) : window.DL_CARD_BASE;
+  }
   return (DOC.plant && DOC.plant.cardBase) || location.href.split('#')[0];
 }
 function mcUrl(b, base) {
+  if (window.DL_CARD_BASE) {
+    mcEnsureTokens();
+    // the machine's identity rides along (?i=…) so the phone shows it even before the server answers
+    return mcRoot(base || mcBase()) + '/m/' + b.qr + mcInfoParam(b).replace('&i=', '?i=');
+  }
   return (base || mcBase()) + '#card=' + encodeURIComponent(b.name) + mcInfoParam(b);
 }
 /* v9.52 — the machine's identity travels inside the QR (&i=…), so any phone shows it even before it can reach the

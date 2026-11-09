@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0e2d5c">
+<title>Machine · Fountrix Digital Loop</title>
+<style>
+/*
+ * The machine page — what a QR sticker on the shop floor opens.
+ *
+ * One column on a phone, two on a tablet or a control-room screen. Everything
+ * a technician taps is at least 44px tall, text never drops below 14px, and the
+ * page works in sunlight (light theme) and in a dim plant room (dark theme).
+ */
+:root {
+  --bg: #eef2f7; --card: #ffffff; --ink: #14233b; --mute: #5b6a80; --line: #d6dde8;
+  --brand: #0e2d5c; --brand-2: #1d4ed8; --on-brand: #ffffff;
+  --ok: #178a4a; --ok-bg: #e5f5ec; --warn: #b36b00; --warn-bg: #fdf0d9; --bad: #c62828; --bad-bg: #fde8e8;
+  --adv: #8a6d00; --adv-bg: #fbf3cc; --info-bg: #e8eefb;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 4px 14px rgba(15, 23, 42, .05);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1220; --card: #131d30; --ink: #e8eef9; --mute: #9fb0c9; --line: #263450;
+    --brand: #12325f; --brand-2: #6aa0ff;
+    --ok: #4cd08a; --ok-bg: #12301f; --warn: #ffb54a; --warn-bg: #36270c; --bad: #ff7b7b; --bad-bg: #3b1818;
+    --adv: #e6c84a; --adv-bg: #332d0c; --info-bg: #162544;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--sans); padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+button, input, select, textarea { font: inherit; color: inherit; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 14px 14px; }
+
+/* header */
+.hd { background: var(--brand); color: var(--on-brand); padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 16px; }
+.hd-in { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: #8da2c0; flex: none; box-shadow: 0 0 0 4px rgba(255,255,255,.15); }
+.dot.ok { background: #34d27b; } .dot.warning { background: #ffb020; } .dot.alarm { background: #ff4d4d; animation: pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.hd h1 { margin: 0; font-size: 26px; line-height: 1.1; letter-spacing: .01em; }
+.hd .sub { opacity: .85; font-size: 14px; margin-top: 2px; }
+.hd .where { opacity: .7; font-size: 12.5px; margin-top: 3px; }
+.chip { margin-left: auto; font: 800 12px var(--sans); letter-spacing: .08em; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.16); white-space: nowrap; }
+.chip.ok { background: #1e8a50; } .chip.warning { background: #b87a00; } .chip.alarm { background: #c62828; }
+
+/* banners */
+.banner { margin: 12px 0 0; padding: 11px 13px; border-radius: 10px; font-size: 14.5px; }
+.banner.alarm { background: var(--bad-bg); color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
+.banner.off { background: var(--warn-bg); color: var(--warn); }
+.banner.retired { background: var(--bad-bg); color: var(--bad); font-weight: 600; }
+.banner b { margin-right: 6px; }
+
+/* layout */
+.grid { display: grid; gap: 14px; margin-top: 14px; grid-template-columns: 1fr; }
+@media (min-width: 860px) { .grid { grid-template-columns: 1fr 1fr; align-items: start; } .span { grid-column: 1 / -1; } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.card > h2 { margin: 0; padding: 13px 15px 9px; font-size: 13px; letter-spacing: .09em; text-transform: uppercase; color: var(--mute); display: flex; align-items: center; gap: 8px; }
+.card > h2 .n { margin-left: auto; font: 700 12px var(--mono); background: var(--info-bg); border-radius: 999px; padding: 2px 9px; color: var(--ink); letter-spacing: 0; }
+.pad { padding: 0 15px 14px; }
+.none { color: var(--mute); padding: 2px 15px 15px; font-size: 14.5px; }
+
+/* readings */
+.rd { padding: 11px 15px; border-top: 1px solid var(--line); border-left: 5px solid transparent; }
+.rd:first-of-type { border-top: 0; }
+.rd.s1 { border-left-color: #d9b800; } .rd.s2 { border-left-color: #ec7a15; background: var(--warn-bg); } .rd.s3 { border-left-color: #d93636; background: var(--bad-bg); }
+.rd-1 { display: flex; align-items: baseline; gap: 10px; }
+.rd-1 b { font-size: 16px; font-weight: 650; }
+.rd-v { margin-left: auto; font: 700 28px/1 var(--mono); white-space: nowrap; }
+.rd-v small { font: 600 14px var(--sans); color: var(--mute); margin-left: 4px; }
+.s2 .rd-v { color: var(--warn); } .s3 .rd-v { color: var(--bad); }
+.rd-2 { color: var(--mute); font-size: 13.5px; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.rd-id { font: 12px var(--mono); color: var(--mute); margin-top: 2px; word-break: break-all; }
+.stale { color: var(--warn); }
+
+/* maintenance */
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 8px 15px; border-top: 1px solid var(--line); font-size: 14.5px; }
+.kv:first-of-type { border-top: 0; }
+.kv span { color: var(--mute); } .kv b { font-weight: 600; text-align: right; word-break: break-word; }
+.task { padding: 11px 15px; border-top: 1px solid var(--line); border-left: 5px solid var(--ok); }
+.task.over { border-left-color: #d93636; background: var(--bad-bg); } .task.soon { border-left-color: #ec9a15; background: var(--warn-bg); }
+.task.new, .task.paused { border-left-color: #8da2c0; }
+.task-1 { display: flex; gap: 8px; align-items: flex-start; }
+.task-1 b { font-weight: 650; flex: 1; }
+.tag { font: 800 11px var(--sans); letter-spacing: .05em; padding: 3px 7px; border-radius: 6px; background: var(--info-bg); white-space: nowrap; }
+.tag.over { background: #d93636; color: #fff; } .tag.soon { background: #ec9a15; color: #fff; } .tag.ok { background: var(--ok-bg); color: var(--ok); }
+.tag.crit { background: #7a1313; color: #fff; }
+.task-2 { color: var(--mute); font-size: 13.5px; margin-top: 3px; }
+.wo { padding: 11px 15px; border-top: 1px solid var(--line); border-left: 5px solid #d93636; background: var(--bad-bg); }
+.wo b { font-weight: 650; } .wo .m { color: var(--mute); font-size: 13.5px; margin-top: 2px; }
+.log { padding: 9px 15px; border-top: 1px solid var(--line); font-size: 14.5px; }
+.log .m { color: var(--mute); font-size: 13px; }
+.sub-h { padding: 10px 15px 4px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); border-top: 1px solid var(--line); }
+
+/* SOP and details */
+details.card > summary { list-style: none; cursor: pointer; padding: 13px 15px; min-height: 48px; font-size: 13px; letter-spacing: .09em; text-transform: uppercase; color: var(--mute); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::after { content: "＋"; margin-left: auto; font-size: 16px; }
+details[open].card > summary::after { content: "－"; }
+ol.sop { margin: 0; padding: 0 15px 14px 38px; } ol.sop li { padding: 5px 0; }
+ol.sop li small { display: block; color: var(--ok); font-weight: 650; font-size: 13px; }
+
+/* buttons */
+.btn { min-height: 48px; padding: 0 14px; white-space: nowrap; border-radius: 12px; border: 1px solid var(--line); background: var(--card); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; color: var(--ink); }
+.btn.pri { background: var(--brand-2); border-color: var(--brand-2); color: #fff; }
+.btn.bad { background: #c62828; border-color: #c62828; color: #fff; }
+.btn:disabled { opacity: .55; }
+.btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid #6aa0ff; outline-offset: 2px; }
+.dock { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line); padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 5; }
+.dock-in { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dock-in.three { grid-template-columns: 1fr 1fr auto; }
+.foot { text-align: center; color: var(--mute); font-size: 12.5px; padding: 18px 8px 6px; }
+.foot a { color: var(--brand-2); }
+
+/* sheet (forms) */
+.sheet-bg { position: fixed; inset: 0; background: rgba(8, 15, 30, .55); z-index: 20; display: none; }
+.sheet-bg.on { display: block; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 94%; overflow-y: auto; background: var(--card); border-radius: 18px 18px 0 0; padding: 16px 16px calc(18px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 700px) { .sheet { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); width: 560px; max-height: 90%; border-radius: 16px; } }
+.sheet h3 { margin: 0 0 4px; font-size: 20px; }
+.sheet .lead { color: var(--mute); font-size: 14px; margin: 0 0 12px; }
+.f { margin: 0 0 12px; } .f label { display: block; font-size: 13px; font-weight: 650; color: var(--mute); margin-bottom: 4px; }
+.f input, .f select, .f textarea { width: 100%; min-height: 46px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.f textarea { min-height: 84px; resize: vertical; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chk { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; min-height: 44px; }
+.chk input { width: 22px; height: 22px; margin-top: 1px; flex: none; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg label { margin: 0; border: 1px solid var(--line); border-radius: 10px; min-height: 46px; display: flex; align-items: center; justify-content: center; font-weight: 650; color: var(--ink); cursor: pointer; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg input:checked + span { color: #fff; }
+.seg label:has(input:checked) { background: var(--brand-2); border-color: var(--brand-2); color: #fff; }
+.seg label.bad:has(input:checked) { background: #c62828; border-color: #c62828; }
+.err { color: var(--bad); font-size: 14px; min-height: 20px; margin: 4px 0 8px; font-weight: 600; }
+.acts { display: flex; gap: 10px; } .acts .btn { flex: 1; }
+.toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: #14233b; color: #fff; padding: 12px 18px; border-radius: 12px; z-index: 30; max-width: 92%; box-shadow: 0 6px 22px rgba(0,0,0,.35); font-weight: 600; }
+.center { text-align: center; padding: 60px 20px; color: var(--mute); }
+.spin { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--brand-2); margin: 0 auto 14px; animation: sp 0.9s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dot.alarm, .spin { animation: none; } }
+</style>
+</head>
+<body>
+<div id="app"><div class="center"><div class="spin"></div>Opening machine…</div></div>
+<div class="sheet-bg" id="sheetBg"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+'use strict';
+/*
+ * Machine page.
+ *
+ * Reads one machine's card from /api/v1/m/<token> every few seconds and draws
+ * it. The token in the address is the only credential; nothing else is stored
+ * except the technician's own name and last team member, in this phone's
+ * localStorage (guarded — storage may be off).
+ */
+const token = decodeURIComponent((location.pathname.split('/m/')[1] || '').split('/')[0]);
+const API = 'api/v1/m/' + encodeURIComponent(token);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let CARD = null, SHEET = false, LAST_OK = 0, OFFLINE = false, TIMER = null;
+
+const store = {
+  get(k) { try { return localStorage.getItem('dl.m.' + k) || ''; } catch { return ''; } },
+  set(k, v) { try { localStorage.setItem('dl.m.' + k, v); } catch { /* storage off */ } },
+};
+
+async function call(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: { 'x-requested-with': 'digital-loop', ...(body ? { 'content-type': 'application/json' } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) { const e = new Error((data && data.message) || `Request failed (${res.status})`); e.status = res.status; throw e; }
+  return data;
+}
+
+/* ---------- formatting ---------- */
+const fmtVal = r => {
+  if (r.value === null && r.text === null) return '—';
+  if (r.value === null) return esc(r.text);
+  const d = r.decimals != null ? r.decimals : (Math.abs(r.value) >= 100 ? 0 : 1);
+  return r.value.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+};
+const limText = r => {
+  const l = r.limits, bits = [];
+  if (l.lo != null || l.hi != null) bits.push(`Limits ${l.lo ?? '—'} – ${l.hi ?? '—'}`);
+  if (l.ll != null || l.hh != null) bits.push(`alarm ${l.ll ?? '—'} / ${l.hh ?? '—'}`);
+  return bits.length ? bits.join(' · ') + (r.unit ? ' ' + r.unit : '') : 'No limits set';
+};
+const ago = iso => {
+  if (!iso) return '';
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  return Math.round(s / 86400) + ' d ago';
+};
+const fmtDate = s => { if (!s) return ''; const d = new Date(String(s).length <= 10 ? s + 'T00:00' : s); return isNaN(d) ? s : d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }); };
+const KIND = { pm: 'PM', insp: 'Inspection', ovh: 'Overhaul', repair: 'Repair', breakdown: 'Request' };
+const STATE = { over: 'OVERDUE', soon: 'DUE SOON', ok: 'OK', new: 'NO RECORD', paused: 'PAUSED' };
+const STATUS = { alarm: 'ALARM', warning: 'WARNING', ok: 'NORMAL', unknown: 'NO DATA' };
+const SEV = { 3: 'ALARM', 2: 'WARNING', 1: 'ADVISORY' };
+
+/* ---------- drawing ---------- */
+function draw() {
+  if (!CARD) return;
+  const c = CARD, m = c.machine, a = c.asset, mt = c.maintenance;
+  const info = [['Make / model', [a.make, a.model].filter(Boolean).join(' ')], ['Serial no.', a.serial], ['Installed', a.installed], ['Power', a.power && a.power + ' kW'],
+    ['Criticality', { A: 'A — stops the whole line', B: 'B — stops one line', C: 'C — no production loss' }[a.criticality] || a.criticality], ['Location', a.location],
+    ['Warranty to', a.warranty && fmtDate(a.warranty)], ['Service', [a.supplier, a.phone].filter(Boolean).join(' · ')], ['Notes', a.notes]].filter(r => r[1]);
+  const stale = c.readings.some(r => r.readAt && Date.now() - new Date(r.readAt).getTime() > 10 * 60000);
+
+  $('#app').innerHTML = `
+  <header class="hd"><div class="hd-in"><span class="dot ${m.status}"></span>
+    <div><h1>${esc(m.tag)}</h1><div class="sub">${esc(m.description || m.type)}</div><div class="where">${esc(c.loop.line)} · ${esc(c.loop.name)}</div></div>
+    <span class="chip ${m.status}">${STATUS[m.status]}</span></div></header>
+  <div class="wrap">
+    ${!m.saved && !m.retired ? `<div class="banner off">This machine is not in a saved version of the loop yet — readings and the SOP appear once the loop is saved.</div>` : ''}
+    ${m.retired ? `<div class="banner retired">This machine has been removed from the loop. Ask the control room which sticker to use.</div>` : ''}
+    ${OFFLINE ? `<div class="banner off"><b>Offline</b>Showing the last data from ${esc(ago(new Date(LAST_OK).toISOString()))}. It will refresh when the connection returns.</div>` : ''}
+    ${c.alarms.length ? `<div class="banner alarm">${c.alarms.map(x => `<div><b>${SEV[x.severity] || 'ALARM'}</b>${esc(x.message)}${x.acked ? ' <small>(acknowledged)</small>' : ''}</div>`).join('')}</div>` : ''}
+    <div class="grid">
+      <section class="card"><h2>Live readings <span class="n">${c.readings.length}</span></h2>
+        ${c.readings.length ? c.readings.map(r => `<div class="rd s${r.severity}"><div class="rd-1"><b>${esc(r.label)}</b><span class="rd-v">${fmtVal(r)}<small>${esc(r.unit)}</small></span></div>
+          <div class="rd-2"><span>${esc(limText(r))}</span>${r.readAt ? `<span class="${Date.now() - new Date(r.readAt).getTime() > 10 * 60000 ? 'stale' : ''}">read ${esc(ago(r.readAt))}</span>` : '<span>no reading stored yet</span>'}</div>
+          <div class="rd-id">${esc(r.id)}${r.linked ? ' · linked' : ' · not linked to plant data'}</div></div>`).join('') : `<div class="none">No readings are set up on this machine yet.</div>`}
+        ${stale ? `<div class="none" style="padding-top:8px">Readings are older than 10 minutes — nobody has had the loop open recently.</div>` : ''}
+      </section>
+
+      <section class="card"><h2>Maintenance ${mt.plans.some(p => p.state === 'over') ? '<span class="tag over">OVERDUE</span>' : ''}</h2>
+        ${mt.hours ? `<div class="kv"><span>Running hours</span><b>${Math.round(mt.hours.value).toLocaleString()} h <small style="color:var(--mute);font-weight:400">${esc(mt.hours.source)}</small></b></div>` : ''}
+        ${mt.open.length ? `<div class="sub-h">Open service requests</div>${mt.open.map(w => `<div class="wo"><b>${esc(w.no || '')} ${esc(w.task)}</b><div class="m">${esc(w.priority)} · ${esc(w.status)} · reported ${esc(fmtDate(w.date))}${w.by ? ' by ' + esc(w.by) : ''}${w.stop ? ' · <b>machine stopped</b>' : ''}</div></div>`).join('')}` : ''}
+        <div class="sub-h">Planned work</div>
+        ${mt.plans.length ? mt.plans.map(p => `<div class="task ${p.state}"><div class="task-1"><b>${esc(p.task)}</b>${p.critical ? '<span class="tag crit">SAFETY</span>' : ''}<span class="tag ${p.state}">${STATE[p.state]}</span></div><div class="task-2">${esc(KIND[p.kind] || p.kind)} · ${esc(p.every)}${p.text ? ' · ' + esc(p.text) : ''}</div></div>`).join('') : `<div class="none">No planned tasks for this machine.</div>`}
+        ${mt.last.length ? `<div class="sub-h">Last work</div>${mt.last.map(w => `<div class="log"><b>${esc(w.task)}</b><div class="m">${esc(KIND[w.kind] || w.kind)} · ${esc(fmtDate(w.date))}${w.by ? ' · ' + esc(w.by) : ''}${w.no ? ' · ' + esc(w.no) : ''}</div></div>`).join('')}` : ''}
+      </section>
+
+      ${c.sop ? `<details class="card span"><summary>SOP · ${esc(c.sop.no)} ${esc(c.sop.area || c.sop.title)} <span class="tag" style="margin-left:auto;margin-right:26px">${c.sop.steps.length} steps</span></summary>
+        <ol class="sop">${c.sop.steps.map(s => `<li>${esc(s.t)}${s.key ? `<small>${esc(s.key)}</small>` : ''}</li>`).join('')}</ol></details>` : ''}
+      ${info.length ? `<details class="card span"><summary>Machine information</summary>${info.map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</details>` : ''}
+    </div>
+    <div class="foot">Fountrix Digital Loop · ${esc(c.loop.foundry)} · updated ${new Date().toLocaleTimeString()}<br><a href="./">Open the whole loop</a> (needs sign-in)</div>
+  </div>
+  <div class="dock"><div class="dock-in ${a.phone ? 'three' : ''}">
+    <button class="btn pri" id="bLog" ${m.retired ? 'disabled' : ''}>🔧 Log work</button>
+    <button class="btn bad" id="bReq" ${m.retired ? 'disabled' : ''}>⚠ Report fault</button>
+    ${a.phone ? `<a class="btn" href="tel:${esc(String(a.phone).replace(/[^\d+]/g, ''))}" aria-label="Call service">📞</a>` : ''}
+  </div></div>`;
+  $('#bLog').onclick = () => openLog();
+  $('#bReq').onclick = () => openReq();
+}
+
+/* ---------- sheets ---------- */
+function openSheet(html) {
+  SHEET = true;
+  $('#sheet').innerHTML = html;
+  $('#sheetBg').classList.add('on');
+  document.body.style.overflow = 'hidden';
+  const first = $('#sheet input, #sheet select, #sheet textarea');
+  if (first) setTimeout(() => first.focus({ preventScroll: true }), 50);
+}
+function closeSheet() {
+  SHEET = false;
+  $('#sheetBg').classList.remove('on');
+  document.body.style.overflow = '';
+}
+$('#sheetBg').addEventListener('click', e => { if (e.target.id === 'sheetBg') closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && SHEET) closeSheet(); });
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4200);
+}
+const teamOpts = () => CARD.team.map(t => `<option value="${esc(t.id)}" ${store.get('member') === t.id ? 'selected' : ''}>${esc(t.name)}${t.role ? ' — ' + esc(t.role) : ''}</option>`).join('');
+
+function openReq() {
+  openSheet(`<h3>Report a fault</h3><p class="lead">${esc(CARD.machine.tag)} — the control room sees this straight away.</p>
+  <div class="f"><label for="rT">What is wrong?</label><textarea id="rT" maxlength="500" placeholder="e.g. Belt slipping, bucket hitting the casing"></textarea></div>
+  <div class="f"><label>Is the machine running?</label><div class="seg"><label><input type="radio" name="rS" value="0" checked><span>Still running</span></label><label class="bad"><input type="radio" name="rS" value="1"><span>Stopped</span></label></div></div>
+  <div class="f"><label for="rP">How urgent?</label><select id="rP"><option value="P1">P1 Emergency — safety / line stopped</option><option value="P2">P2 Urgent — within the shift</option><option value="P3" selected>P3 Normal — within the week</option><option value="P4">P4 Low — next planned stop</option></select></div>
+  <div class="f"><label for="rN">Your name</label><input id="rN" maxlength="80" autocomplete="name" value="${esc(store.get('name'))}"></div>
+  <div class="err" id="rE" role="alert"></div>
+  <div class="acts"><button class="btn" id="rX">Cancel</button><button class="btn bad" id="rS2">Send request</button></div>`);
+  $('#rX').onclick = closeSheet;
+  $('#rS2').onclick = async () => {
+    const task = $('#rT').value.trim(), by = $('#rN').value.trim();
+    if (!task) return ($('#rE').textContent = 'Say what is wrong.');
+    if (by.length < 2) return ($('#rE').textContent = 'Enter your name.');
+    const b = $('#rS2'); b.disabled = true; $('#rE').textContent = '';
+    try {
+      const r = await call('POST', '/request', { task, reportedBy: by, priority: $('#rP').value, stop: document.querySelector('input[name=rS]:checked').value === '1' });
+      store.set('name', by); closeSheet(); toast(`Request ${r.no || ''} sent — the control room can see it.`); refresh();
+    } catch (e) { b.disabled = false; $('#rE').textContent = e.message; }
+  };
+}
+
+function openLog() {
+  const plans = CARD.maintenance.plans, open = CARD.maintenance.open;
+  if (!CARD.team.length) {
+    return openSheet(`<h3>Log work</h3><p class="lead">Only the maintenance team can log work, and no team has been set up for this loop yet. Ask the control room to add the team under Maintenance › Team &amp; alerts.</p><div class="acts"><button class="btn" id="lX">Close</button></div>`), ($('#lX').onclick = closeSheet);
+  }
+  openSheet(`<h3>Log work</h3><p class="lead">${esc(CARD.machine.tag)} — saved to the work log with a work-order number.</p>
+  <div class="f"><label for="lW">What are you doing?</label><select id="lW">
+    ${plans.map(p => `<option value="p:${esc(p.id)}">${esc(p.task)} — ${esc(STATE[p.state].toLowerCase())}</option>`).join('')}
+    ${open.map(w => `<option value="w:${esc(w.id)}">Repair: ${esc(w.no || '')} ${esc(w.task)}</option>`).join('')}
+    <option value="o">Other work…</option></select></div>
+  <div id="lOther" hidden><div class="f"><label for="lK">Type</label><select id="lK"><option value="pm">Preventive maintenance</option><option value="insp">Inspection</option><option value="ovh">Overhaul</option><option value="repair">Repair</option></select></div>
+    <div class="f"><label for="lT">Work done</label><textarea id="lT" maxlength="500"></textarea></div></div>
+  <div id="lSteps"></div>
+  <div class="row2"><div class="f"><label for="lH">Running hours (meter)</label><input id="lH" type="number" inputmode="decimal" min="0" step="any" placeholder="optional"></div>
+    <div class="f"><label for="lD">Downtime (minutes)</label><input id="lD" type="number" inputmode="numeric" min="0" placeholder="0"></div></div>
+  <div class="row2"><div class="f"><label for="lL">Labour (man-hours)</label><input id="lL" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></div>
+    <div class="f"><label for="lO">Other cost (₹)</label><input id="lO" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>
+  <div class="f"><label for="lN">Notes</label><textarea id="lN" maxlength="1000"></textarea></div>
+  <div class="row2"><div class="f"><label for="lM">Your name</label><select id="lM">${teamOpts()}</select></div>
+    <div class="f"><label for="lP">Your PIN</label><input id="lP" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></div></div>
+  <div class="err" id="lE" role="alert"></div>
+  <div class="acts"><button class="btn" id="lX">Cancel</button><button class="btn pri" id="lS">Save to log</button></div>`);
+  const sync = () => {
+    const v = $('#lW').value;
+    $('#lOther').hidden = v !== 'o';
+    const p = v.startsWith('p:') ? plans.find(x => x.id === v.slice(2)) : null;
+    $('#lSteps').innerHTML = p && p.steps.length ? `<div class="f"><label>Checklist</label>${p.steps.map((s, i) => `<label class="chk"><input type="checkbox" data-chk="${i}"><span>${esc(s)}</span></label>`).join('')}</div>` : '';
+  };
+  $('#lW').onchange = sync; sync();
+  $('#lX').onclick = closeSheet;
+  $('#lS').onclick = async () => {
+    const v = $('#lW').value, body = { memberId: $('#lM').value, pin: $('#lP').value };
+    if (v.startsWith('p:')) { body.planId = v.slice(2); const p = plans.find(x => x.id === body.planId); body.checks = [...document.querySelectorAll('[data-chk]')].map(x => ({ t: p.steps[+x.dataset.chk], ok: x.checked })); }
+    else if (v.startsWith('w:')) { body.woId = v.slice(2); body.task = (open.find(x => x.id === body.woId) || {}).task; body.kind = 'repair'; }
+    else { body.kind = $('#lK').value; body.task = $('#lT').value.trim(); if (!body.task) return ($('#lE').textContent = 'Enter the work done.'); }
+    if (v.startsWith('w:')) body.task = body.task || 'Repair';
+    if (!/^\d{3,8}$/.test(body.pin)) return ($('#lE').textContent = 'Enter your PIN.');
+    Object.assign(body, { hours: $('#lH').value, downMin: $('#lD').value, labHrs: $('#lL').value, other: $('#lO').value, notes: $('#lN').value.trim() });
+    const b = $('#lS'); b.disabled = true; $('#lE').textContent = '';
+    try {
+      const r = await call('POST', '/work', body);
+      store.set('member', body.memberId); closeSheet(); toast(`Saved as ${r.no || 'a work record'}.`); refresh();
+    } catch (e) { b.disabled = false; $('#lP').value = ''; $('#lE').textContent = e.message; }
+  };
+}
+
+/* ---------- identity carried inside the QR (?i=…) — shown before / without the server ---------- */
+function qrInfo() {
+  try {
+    let t = new URLSearchParams(location.search).get('i') || '';
+    t = t.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(decodeURIComponent(escape(atob(t + '==='.slice((t.length + 3) % 4)))));
+  } catch { return null; }
+}
+function qrInfoHtml() {
+  const o = qrInfo();
+  if (!o) return '';
+  const crit = { A: 'A — stops the whole line', B: 'B — stops one line', C: 'C — no production loss' };
+  const rows = [['Machine', o.d], ['Make / model', o.m], ['Serial no.', o.s], ['Installed', o.y], ['Power', o.p && o.p + ' kW'], ['Criticality', o.c && (crit[o.c] || o.c)], ['Location', o.l], ['Service', [o.v, o.t].filter(Boolean).join(' · ')]].filter(r => r[1]);
+  if (!rows.length) return '';
+  return `<div class="wrap"><section class="card"><h2>Machine information</h2>${rows.map(r => `<div class="kv"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}${o.t ? `<a class="btn" style="margin-top:10px" href="tel:${esc(String(o.t).replace(/[^\d+]/g, ''))}">📞 Call service</a>` : ''}</section></div>`;
+}
+
+/* ---------- loading ---------- */
+async function refresh() {
+  if (SHEET) return; // never redraw under somebody who is typing
+  try {
+    CARD = await call('GET', '');
+    LAST_OK = Date.now(); OFFLINE = false;
+    document.title = `${CARD.machine.tag} · Fountrix Digital Loop`;
+    draw();
+  } catch (e) {
+    if (e.status === 404 || e.status === 410 || e.status === 401) {
+      clearInterval(TIMER);
+      $('#app').innerHTML = `<div class="center"><h2 style="color:var(--ink)">${e.status === 401 ? 'Sign in needed' : 'QR code not recognised'}</h2><p>${esc(e.message)}</p></div>`;
+      return;
+    }
+    if (CARD) { OFFLINE = true; draw(); }
+    else $('#app').innerHTML = `<div class="center"><h2 style="color:var(--ink)">Cannot reach the server</h2><p>Check your connection. Trying again…</p></div>` + qrInfoHtml();
+  }
+}
+if (qrInfoHtml()) $('#app').insertAdjacentHTML('beforeend', qrInfoHtml());
+refresh();
+TIMER = setInterval(refresh, 8000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+</script>
+</body>
+</html>

@@ -23,6 +23,9 @@ import { live } from './routes/live.js'
 import { sopFiles } from './routes/sopFiles.js'
 import { sops } from './routes/sops.js'
 import { alarms } from './routes/alarms.js'
+import { equipment } from './routes/equipment.js'
+import { maintenance } from './routes/maintenance.js'
+import { machine } from './routes/machine.js'
 import { overview } from './routes/overview.js'
 import { auditLog } from './routes/audit.js'
 
@@ -140,6 +143,14 @@ export function createApp() {
   // short-lived, single-use ticket.
   site.use('/api/v1/session', session.router)
 
+  /*
+   * The machine page — opened from a QR code on the shop floor by somebody who
+   * may have no SandMan session. Mounted WITHOUT `authenticate`, on purpose: the
+   * unguessable token in the address is the credential, it reaches one machine
+   * and nothing else, and every endpoint is rate-limited. See routes/machine.js.
+   */
+  site.use('/api/v1/m', machine.router)
+
   site.use('/api/v1/me', authenticate, identity.router)
   // The foundry's database as SandMan described it — names only, read from the
   // session. Both roles: the tag dropdowns and the published view use the same
@@ -170,6 +181,13 @@ export function createApp() {
   site.use('/api/v1/sops', authenticate, sops.router)
   site.use('/api/v1/alarms', authenticate, alarms.router)
   /*
+   * Equipment and the QR code each machine carries, and the maintenance record
+   * (plans, work log, asset register, spares, team). Both belong to a loop and
+   * borrow its access rules — see routes/equipment.js and routes/maintenance.js.
+   */
+  site.use('/api/v1/equipment', authenticate, equipment.router)
+  site.use('/api/v1/maintenance', authenticate, maintenance.router)
+  /*
    * Plant databases somebody registered — the only credentials this service
    * holds. Administrator-only at the mount AND inside every handler: a prefix
    * is never the security boundary, and this is the prefix it would matter
@@ -197,6 +215,32 @@ export function createApp() {
    * yesterday's page after an update.
    */
   if (existsSync(config.paths.studio)) {
+    /*
+     * The machine page — `/m/<token>`, what a QR sticker opens.
+     *
+     * A page of its own rather than the studio in a different mode: it is a
+     * few kilobytes that load on a plant-floor phone in a second, it works at
+     * any width, and it needs no login and none of the studio's code. It is
+     * served before the studio's static handler and its catch-all so the
+     * address is never answered with the editor.
+     *
+     * `<base href>` is set to wherever this service is mounted, exactly as for
+     * the studio, so the page's one API call resolves under the right prefix.
+     */
+    site.get('/m/:token', (req, res, next) => {
+      let page
+      try {
+        page = readFileSync(resolve(config.paths.studio, 'machine.html'), 'utf8')
+      } catch {
+        return next()
+      }
+      res.set('cache-control', 'no-store')
+      res.set('referrer-policy', 'no-referrer')
+      res.set('x-robots-tag', 'noindex')
+      res.type('html')
+      res.send(page.replace('<base href="/">', `<base href="${config.basePath}/">`))
+    })
+
     /*
      * The built editor, gzipped.
      *
