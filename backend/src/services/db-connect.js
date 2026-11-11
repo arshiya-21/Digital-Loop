@@ -1022,7 +1022,14 @@ export async function recentValues(row, tag, points = 200, windowSeconds = null)
     const refusal = safeToRun(tag.sql)
     if (refusal) throw new Error(refusal)
 
-    const rows = await ask(row, async ({ query }) => query(String(tag.sql), []))
+    /*
+     * A statement that ends in `LIMIT 1` is the one-value (badge) form, which
+     * the Write-your-own box pre-fills. Charted as written it is one point, so
+     * for the chart only it is read as the last MAX_POINTS rows. The reading's
+     * own saved statement is not changed.
+     */
+    const chartSql = String(tag.sql).replace(/\blimit\s+1\s*;?\s*$/i, `LIMIT ${MAX_POINTS}`)
+    const rows = await ask(row, async ({ query }) => query(chartSql, []))
     const list = (Array.isArray(rows) ? rows : []).slice(0, MAX_POINTS)
     if (list.length && Object.keys(list[0]).length < 2) {
       throw new Error(

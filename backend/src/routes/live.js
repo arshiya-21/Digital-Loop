@@ -325,7 +325,23 @@ live.post('/preview', async ({ user, body }) => {
 
   const answer = await latestValues(row, [tag])
   const statement = readStatement(row.engine, tag)
+
+  // A written statement: also hand back the rows it returns (the same ones
+  // the chart is drawn from), so Preview data can list them, not just one.
+  let rows
+  let rowsError = null
+  if (written) {
+    try {
+      const series = await recentValues(row, tag, 2000)
+      rows = (Array.isArray(series) ? series : []).map(p => ({ value: p.value, at: p.recordedAt }))
+    } catch (error) {
+      rowsError = error.message
+    }
+  }
+
   return {
+    ...(rows ? { rows } : {}),
+    ...(rowsError ? { rowsError } : {}),
     value: answer.values.preview ?? null,
     error: answer.errors.preview ?? null,
     tookMs: Date.now() - started,

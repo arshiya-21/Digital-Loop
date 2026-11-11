@@ -696,7 +696,7 @@ function fillTheNewReadingsChoices(drawer, step) {
       ` FROM \`${pick.table}\`` +
       (filtered ? ` WHERE \`${key.value}\` ${op.value} '${value.value.trim()}'` : '') +
       (newest.value ? ` ORDER BY \`${newest.value}\` DESC` : '') +
-      ' LIMIT 1'
+      ' LIMIT 2000'
 
     drawerState.newest = newest.value || null
     drawerState.filter = filtered
@@ -1086,8 +1086,8 @@ function statementFor(source, link, table, tagId) {
     (moment ? ` ORDER BY ${quote('datetime')} DESC` : '')
 
   return /^(sqlserver|azuresql)$/.test(engine)
-    ? whole.replace(/^SELECT /, 'SELECT TOP 1 ')
-    : `${whole} LIMIT 1`
+    ? whole.replace(/^SELECT /, 'SELECT TOP 2000 ')
+    : `${whole} LIMIT 2000`
 }
 
 /**

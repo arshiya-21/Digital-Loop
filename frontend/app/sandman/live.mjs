@@ -1507,7 +1507,7 @@ const CHART_RECORDS = 2000
 function readTheWindow(id, { settle = false } = {}) {
   if (!loopId || !isLinked(id)) return
 
-  api.get(`/live/chart?loopId=${encodeURIComponent(loopId)}&tag=${encodeURIComponent(id)}` +
+  return api.get(`/live/chart?loopId=${encodeURIComponent(loopId)}&tag=${encodeURIComponent(id)}` +
     `&points=${CHART_RECORDS}`)
     .then(answer => {
       charts.set(id, answer)
@@ -1731,7 +1731,7 @@ async function previewData(id) {
   const tag = (REG() || {})[id]
   const link = tag?.link || {}
   const loop = watching()
-  const loaded = charts.get(id)
+  let loaded = charts.get(id)
 
   open(
     /*
@@ -1959,7 +1959,18 @@ async function previewData(id) {
        * rows rather than replacing them, so what was asked and what the chart
        * is drawing can be read against each other.
        */
-      if (statement) rows.innerHTML = asTable(['answer'], [[figure(value)]]) + rows.innerHTML
+      if (statement) {
+        if (Array.isArray(answer.rows) && answer.rows.length) {
+          // Every row the statement returns, newest first.
+          const heads = named.filter(Boolean).length ? named.filter(Boolean) : ['value', 'at']
+          rows.innerHTML = asTable(heads, answer.rows.slice().reverse()
+            .map(r => [figure(r.value), written(r.at)]))
+          tell(`${answer.via || 'The database'} returned ${answer.rows.length} row(s) in ${answer.tookMs} ms.`)
+        } else {
+          rows.innerHTML = asTable(['answer'], [[figure(value)]]) +
+            (answer.rowsError ? `<p class="note">${escapeHtml(answer.rowsError)}</p>` : '')
+        }
+      }
     } catch (error) {
       tell(error.message, 'dl-stale')
     }
@@ -2015,8 +2026,11 @@ async function previewData(id) {
       // Drawn again through the reading's own path, so the chart is what the
       // poll will show rather than a preview of it.
       charts.delete(id)
-      readTheWindow(id)
-      tell('Saved. This reading runs your statement from now on, and the chart is drawn from it.')
+      await readTheWindow(id)
+      // The rows below were the old chart's; show the ones just read.
+      loaded = charts.get(id)
+      showChartRows()
+      tell(`Saved. This reading runs your statement from now on, and the chart is drawn from it (${loaded?.series?.length || 0} record(s)).`)
     } catch (error) {
       tell(`${error.message} — the reading is unchanged.`, 'dl-stale')
     }
