@@ -174,18 +174,41 @@ function wireTheWrittenQuery(drawer, box) {
      * immediately afterwards. The reading that results is an ordinary one in
      * every other way: it polls, it charts, it can be renamed.
      */
-    const made = window.dbAddTag?.()
+    /*
+     * Made here, not by `dbAddTag`.
+     *
+     * `dbAddTag` needs a block, a table and a column — called with none it threw
+     * before anything was created, so "Add this reading" did nothing at all. A
+     * statement has no table to give it, so the reading is built directly, the
+     * same way the studio builds one: a tag in the register, listed on the item,
+     * with an undo step and a save.
+     */
     const reg = peek('REG')
-    const tag = made && reg ? reg[made] : null
-    if (!tag) {
-      tell('The studio would not add a reading here — pick a table first, then switch back.', 'tx3')
+    const selected = peek('SEL')
+    const blockById = peek('B')
+    const block = selected?.t === 'b' && typeof blockById === 'function' ? blockById(selected.id) : null
+    if (!reg || !block || typeof window.mkTag !== 'function') {
+      tell('Select the equipment first, then add the reading.', 'tx3')
       return
     }
 
-    tag.link = { src: chosenSource, sql: statement }
-    delete tag.link.table
-    delete tag.link.col
+    // The first selected column names the reading: `SELECT Fine_Dust_Act_Kgs, datetime …`
+    const first = statement.match(/^\s*select\s+(?:distinct\s+)?[`"[]?([A-Za-z0-9_ ]+?)[`"\]]?\s*(?:,|\sfrom\b|\sas\b)/i)?.[1]?.trim()
+    const suffix = (first || 'QUERY').toUpperCase().replace(/[^A-Z0-9_]/g, '_')
+    let id = `${block.name}.${suffix}`
+    let n = 2
+    while (reg[id]) id = `${block.name}.${suffix}_${n++}`
+
+    window.pushUndo?.()
+    window.mkTag(id, {
+      desc: first ? first.replaceAll('_', ' ') : 'Query reading',
+      unit: '', typ: null, noise: 0, src: 'Database', addr: 'SQL statement', d: 1,
+    })
+    reg[id].link = { src: chosenSource, sql: statement }
+    block.tags.push({ id, show: true, own: true })
+
     persist()
+    window.changed?.()
     window.renderProps?.()
     tell('Added. It reads that statement from now on.')
   }
@@ -748,6 +771,17 @@ function addNameAndTest(drawer) {
 
   fillTheNewReadingsChoices(drawer, step)
 
+  /*
+   * The button that adds the reading goes last.
+   *
+   * The studio puts `Tag ＋` straight under the column, which now means above
+   * the name, the ordering, the filter and the statement it is meant to be
+   * pressed after. It is moved, not copied: the studio's own click handler is
+   * on this very button, so it keeps working from its new place.
+   */
+  const addRow = drawer.querySelector('.db-add')
+  if (addRow) step.querySelector('.dl-step4-body').append(addRow)
+
   const says = step.querySelector('#dlTestSays')
   const tell = (text, tone = '') => { says.innerHTML = `<span class="${tone}">${escapeText(text)}</span>` }
 
@@ -1288,7 +1322,7 @@ function showTheQuery(section) {
       try {
         const answer = await api.get(
           `/live/chart?loopId=${encodeURIComponent(loop)}` +
-          `&tag=${encodeURIComponent(card.dataset.tid)}&windowSeconds=7200`)
+          `&tag=${encodeURIComponent(card.dataset.tid)}&windowSeconds=86400`)
 
         kept.chart = answer?.query || null
         if (kept.chart) shown.textContent = kept.chart

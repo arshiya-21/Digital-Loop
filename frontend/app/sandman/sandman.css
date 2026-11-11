@@ -860,8 +860,15 @@ body.present .dl-empty {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Wraps rather than squeezing: in a narrow panel the second tab ("Write your
+     own") was being clipped out of sight by the control's own overflow. */
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 5px;
+}
+
+.dl-query-tabs {
+  flex: 0 0 auto;
 }
 
 .dl-query-sql {

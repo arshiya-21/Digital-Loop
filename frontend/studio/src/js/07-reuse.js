@@ -128,15 +128,44 @@ function renameIds(markup, suffix) {
  * At-rules are left exactly as they are: `@keyframes` names frames rather
  * than elements, and prefixing those would break the animation it describes.
  */
+function scopeSvgRules(css, scope) {
+  let out = '', i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open < 0) { out += css.slice(i); break; }
+    const head = css.slice(i, open);
+    // Find the matching close brace (rules may nest inside @media / @supports).
+    let depth = 1, j = open + 1;
+    while (j < css.length && depth) { const ch = css[j++]; if (ch === '{') depth++; else if (ch === '}') depth--; }
+    const body = css.slice(open + 1, depth ? css.length : j - 1);
+    const at = head.trim();
+    if (at.startsWith('@')) {
+      out += /^@(media|supports|document)/i.test(at)
+        ? `${head}{${scopeSvgRules(body, scope)}}`
+        : `${head}{${body}}`; // @keyframes, @font-face: names frames/fonts, not elements
+    } else {
+      const sel = head.split(',').map(one => {
+        const t = one.trim();
+        if (!t) return '';
+        if (/^(svg|:root|html|body)$/i.test(t)) return `.${scope}`;
+        return `.${scope} ${t}`;
+      }).filter(Boolean).join(', ');
+      out += `${sel}{${body}}`;
+    }
+    i = j;
+  }
+  return out;
+}
+
 function scopeSvgStyles(markup, scope) {
-  return markup.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (whole, css) => {
-    if (/@(media|supports|keyframes|font-face|import)/i.test(css)) return whole;
-    const scoped = css.replace(/(^|\})([^@{}]+)\{/g, (_, close, selectors) =>
-      close + selectors.split(',').map(one => {
-        const trimmed = one.trim();
-        return trimmed ? `.${scope} ${trimmed}` : one;
-      }).join(', ') + '{');
-    return whole.replace(css, scoped);
+  return markup.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (whole, raw) => {
+    // CDATA wrappers and comments would otherwise end up inside the first selector
+    // and break every rule — leaving the drawing unpainted (black).
+    const css = raw
+      .replace(/<!\[CDATA\[|\]\]>/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/@import[^;]*;/gi, '');
+    return `<style>${scopeSvgRules(css, scope)}</style>`;
   });
 }
 
@@ -237,6 +266,8 @@ function customDraw(d, w, h, b, uid) {
     case 'svg': {
       // The instance's own id, so two placements of one drawing — and two
       // different drawings — cannot define the same `#a`.
+      // Inline SVG, drawn as uploaded: the file's own markup, colours, styles and gradients
+      // are kept (ids/styles are only namespaced so two uploads cannot clash).
       const P = parseSvg(d.svg, uid);
       s = `<svg x="0" y="0" width="${w}" height="${h}" viewBox="${esc(P.vb)}" preserveAspectRatio="${d.stretch ? 'none' : 'xMidYMid meet'}" overflow="visible">${P.inner}</svg>`;
       break;

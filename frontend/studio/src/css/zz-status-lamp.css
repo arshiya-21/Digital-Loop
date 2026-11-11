@@ -1,0 +1,20 @@
+/* v9.54 — status lamp (LED dot) */
+.slamp .sl-txt{font:600 8px var(--sans,system-ui);fill:#334155}
+.slamp.blink .sl-lit,.slamp.blink .sl-glow{animation:slBlink 1s steps(1) infinite}
+@keyframes slBlink{50%{opacity:.18}}
+.slamp .sl-glow{opacity:.6}
+@media (prefers-reduced-motion:reduce){.slamp.blink .sl-lit,.slamp.blink .sl-glow{animation:none}}
+.sl-now{display:flex;gap:10px;align-items:center;background:var(--bg2,#f1f5f9);border-radius:8px;padding:8px;margin-bottom:10px;font-size:12.5px;color:var(--text)}
+.sl-why{color:var(--muted);font-size:11.5px}
+.sl-rule{border:1px solid var(--line);border-radius:8px;padding:8px 9px 6px;margin-bottom:8px;background:var(--panel)}
+.sl-top{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.sl-top b{flex:1;font-size:12px;color:var(--muted)}
+.sl-top .ix-c{margin:0}
+.sl-mv,.sl-x{border:1px solid var(--line);background:none;border-radius:6px;width:24px;height:24px;cursor:pointer;color:var(--muted);padding:0}
+.sl-x:hover{color:#ef4444;border-color:#ef4444}
+.sl-mv:disabled{opacity:.35;cursor:default}
+.sl-sw{display:flex;gap:5px;flex-wrap:wrap;margin:2px 0 4px}
+.sl-sw button{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+.sl-sw button.on{border-color:#fff;box-shadow:0 0 0 2px var(--text,#0f172a)}
+.sl-rg{display:flex;gap:6px}.sl-rg input{flex:1;min-width:0}
+.sl-add{width:100%}

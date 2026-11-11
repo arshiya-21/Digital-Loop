@@ -99,6 +99,7 @@ function eqInspector(b) {
  ${typeof followCapable === 'function' && followCapable(b) ? `<label class="ix-c" title="When everything feeding it has stopped, it runs on for the run-out time and then waits (Idle — no feed); it starts again with its feed"><input type="checkbox" id="ixFollow" ${b.props.follow !== false ? 'checked' : ''}> Follows its feed (idles when its feed stops)</label>${b.props.follow !== false ? `<label class="ix-f">Run-out before idling<select id="ixRunout">${[0, 5, 10, 20, 30, 60, 120].map(s => `<option value="${s}" ${(b.props.runout ?? 10) === s ? 'selected' : ''}>${s ? s + ' s' : 'none'}</option>`).join('')}</select></label>` : ''}` : ''}
  <div class="ix-acts">${typeof rpIsEquipment === 'function' && rpIsEquipment(b) ? `<button class="ib" id="ixRep" ${ed} title="Replace this equipment with another drawing (keeps name, readings and connections)">Replace…</button>` : ''}<button class="ib" id="ixDup" ${ed}>Duplicate</button><button class="ib ix-del" id="ixDel" ${ed}>Delete</button></div>
 </section>
+${b.type === 'statusLamp' && typeof lampInspHTML === 'function' ? lampInspHTML(b, ed) : ''}
 ${typeof collectedHTML === 'function' ? collectedHTML(b) : ''}
 ${b.grp && typeof grpInfo === 'function' ? (() => {
    const gi = grpInfo(b.grp),
@@ -159,13 +160,13 @@ function readingCard(b, bt, t, i, ed) {
   <label class="ix-f">Parameter<input data-ix="desc" value="${esc(t.desc || '')}" ${ed}></label>
   <div class="ix-2"><label class="ix-f">Unit<input data-ix="unit" value="${esc(t.unit || '')}" ${ed}></label><label class="ix-f">Decimals<select data-ix="d" ${ed}>${[0, 1, 2, 3].map(x => `<option ${x === (t.d ?? 1) ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
  </div>
- <div class="ix-grp"><h5>Limits</h5>
+ ${b.type === 'statusLamp' ? '' : `<div class="ix-grp"><h5>Limits</h5>
   <div class="ix-4"><label class="ix-f">Low-low<input type="number" step="any" data-ix="ll" value="${t.ll ?? ''}" placeholder="—" ${ed}></label><label class="ix-f">Low<input type="number" step="any" data-ix="lo" value="${t.lo ?? ''}" placeholder="—" ${ed}></label><label class="ix-f">High<input type="number" step="any" data-ix="hi" value="${t.hi ?? ''}" placeholder="—" ${ed}></label><label class="ix-f">High-high<input type="number" step="any" data-ix="hh" value="${t.hh ?? ''}" placeholder="—" ${ed}></label></div>
   <p class="ix-hint">Outside Low–High the value turns amber; outside Low-low / High-high it raises an alarm.</p>
- </div>
+ </div>`}
  <div class="ix-grp"><h5>On the canvas</h5>
   <label class="ix-c"><input type="checkbox" data-ix="show" ${bt.show ? 'checked' : ''} ${ed}> Show this value next to the equipment</label>
-  <div class="ix-acts"><button class="ib" data-ixa="trend">↗ Trend</button><button class="ib" data-ixa="full" ${ed}>All tag settings…</button><button class="ib ix-del" data-ixa="rm" ${ed}>Remove</button></div>
+  <div class="ix-acts">${b.type === 'statusLamp' ? '' : '<button class="ib" data-ixa="trend">↗ Trend</button>'}<button class="ib" data-ixa="full" ${ed}>All tag settings…</button><button class="ib ix-del" data-ixa="rm" ${ed}>Remove</button></div>
  </div>
 </div></details>`;
 }
@@ -184,6 +185,7 @@ function bindEqInspector(b) {
     fn();
     changed();
   };
+  if (b.type === 'statusLamp' && typeof lampWire === 'function') lampWire(root, b, edit); // status lamp rules
   if (typeof dbWire === 'function') dbWire(root, b); // v4.2 Database → Table → Tag +
   // v6.1 follow the feed / group control
   on('#ixFollow', 'onchange', e => edit(() => (e.target.checked ? delete b.props.follow : (b.props.follow = false))));

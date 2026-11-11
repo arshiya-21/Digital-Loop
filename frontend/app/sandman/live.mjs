@@ -948,8 +948,8 @@ const HOURS = [
   [86_400, '1 day'],
 ]
 
-/** Two hours: the one every chart opens on. */
-const DEFAULT_WINDOW = 7_200
+/** One day: the window every chart opens on, counted back from the newest record when today has none. */
+const DEFAULT_WINDOW = 86_400
 
 /**
  * The window is the read: the chart asks for the span on the buttons.

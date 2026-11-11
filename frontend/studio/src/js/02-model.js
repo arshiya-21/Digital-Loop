@@ -722,7 +722,7 @@ function addBlock(type, x, y, o = {}) {
       }
       b.tags.push({
         id: tid,
-        show: o.show ? o.show.includes(t[0]) : E.inst ? true : i < 1 && t[9] !== 'level',
+        show: o.show ? o.show.includes(t[0]) : E.noTagShow ? false : E.inst ? true : i < 1 && t[9] !== 'level',
       });
     });
   if (b.tags.some(t => REG[t.id]?.role === 'bent')) applyPresc(b);

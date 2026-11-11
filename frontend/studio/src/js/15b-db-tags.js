@@ -109,7 +109,7 @@ function dbBlockHTML(b, ed) {
       .join('')}</select>`;
   let tagCtl = '';
   if (tbl) {
-    const cols = tbl.cols.filter(x => !['datetime', 'tag'].includes(x.t) && x.n !== tbl.key); // v9.39: text (varchar) columns too
+    const cols = tbl.cols; // every column of the table — dates and the key / id column included, as the reading's own column list shows
     const already = new Set(b.tags.map(bt => REG[bt.id]?.link).filter(Boolean).filter(l => l.db === sel.db && l.table === sel.table).map(l => (l.tall ? l.keyVal : l.col)));
     tagCtl = tbl.tall
       ? `<label class="ix-f">Tag name in <span class="mono">${esc(tbl.key)}</span><input id="dbCol" class="mono" placeholder="e.g. ${esc(b.name)}.MOIST" ${ed} spellcheck="false"></label>`
