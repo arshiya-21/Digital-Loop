@@ -1140,7 +1140,11 @@ function renderLibRail(q, nMods) {
   rail.innerHTML =
     btn('all', 'All', 'All equipment', total + nMods) +
     (nMods ? btn('mods', 'Modules', 'My modules', nMods) : '') +
-    cats.map(([i, n]) => btn(i, CAT_SHORT[CATS[i]] || CATS[i].split(' ')[0], CATS[i], n)).join('');
+    cats
+      .map(([i, n]) => [i, n, CAT_SHORT[CATS[i]] || CATS[i].split(' ')[0]])
+      .sort((a, b) => a[2].localeCompare(b[2], undefined, { sensitivity: 'base' })) // A–Z by the name shown
+      .map(([i, n, label]) => btn(i, label, CATS[i], n))
+      .join('');
   const shown = LIBCAT === 'all' ? total + nMods : LIBCAT === 'mods' ? nMods : count(LIBCAT);
   $('#libCount').textContent = shown;
   const head = $('#libCatHead');

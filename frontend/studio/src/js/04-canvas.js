@@ -300,15 +300,17 @@ function tagLayout(b) {
     cw0 = (card ? 7.1 : 6.7) * TS;
   let y = 0;
   return list.map(bt => {
-    const z = bt.sz > 0 ? bt.sz : 1, // per-label size multiplier (right-click a label: Larger / Smaller)
-      bh = Math.round(bh0 * z),
-      cw = cw0 * z,
+    const free = bt.W > 0 && bt.H > 0, // box dragged to a free size (width and height on their own)
       t = REG[bt.id],
       k = E.inst ? '' : (REG[t.id] && REG[t.id].short) || t.id.split('.').pop(), // v9.3: optional short display label
       txt = MODE === 'monitor' || E.inst ? tagTxt(t.id) : t.txt != null && t.txt !== '' ? t.txt : t.states ? 'status' : t.unit, // v9.39 text / status-list tags // v9.9 status text
-      w = Math.max(E.inst ? 40 : 56, (k.length + txt.length + (k ? 1 : 0)) * cw + 12);
-    const o = { bt, t, k, txt, w, h: bh, z, x: bt.pos ? bt.pos.x : 0, y: bt.pos ? bt.pos.y : y };
-    if (!bt.pos) y += bh + (card ? 4 : 2);
+      wEst = Math.max(E.inst ? 40 : 56, (k.length + txt.length + (k ? 1 : 0)) * cw0 + 12),
+      // the text grows with the box and always stays inside it: its size follows the tighter of height and width
+      z = free ? Math.max(0.3, Math.min(5, Math.min(bt.H / bh0, bt.W / wEst))) : bt.sz > 0 ? bt.sz : 1,
+      w = free ? bt.W : wEst * z,
+      h = free ? bt.H : bh0 * z;
+    const o = { bt, t, k, txt, w, h, z, free, wEst, hEst: bh0, fs: (card ? 14.52 : 11) * PREF.ts, x: bt.pos ? bt.pos.x : 0, y: bt.pos ? bt.pos.y : y };
+    if (!bt.pos) y += h + (card ? 4 : 2);
     return o;
   });
 }
@@ -339,12 +341,11 @@ function tagsSVG(b) {
       ly = Math.max(o.y, Math.min(cy, o.y + o.h));
     if (Math.hypot(lx - cx, ly - cy) > 26) s += `<path class="tlead" d="M${lx} ${ly}L${cx} ${cy}"/><circle class="tlead-dot" cx="${cx}" cy="${cy}" r="2"/>`;
   });
-  const card0 = DOC.tagStyle === 'card';
   L.forEach(o => {
     const t = o.t,
       sv = tagSev(t.id),
       sel = TAGSEL === b.id + '|' + t.id;
-    s += `<g class="tagb${sel ? ' tsel' : ''}" data-tag="${esc(t.id)}" data-tb="${b.id}" transform="translate(${o.x},${o.y})"><rect class="bg" width="${o.w}" height="${o.h}" rx="3"/><rect width="3" height="${o.h}" rx="1.5" fill="${MODE === 'monitor' || E.inst ? sevC(sv) : '#94a3b8'}"/><text x="6" y="${o.h * 0.72}"${o.z !== 1 ? ` style="font-size:calc(${card0 ? 14.52 : 11}px * var(--ts) * ${o.z})"` : ''}><tspan class="k">${esc(o.k)}</tspan>${o.k ? ' ' : ''}<tspan class="tv">${esc(o.txt)}</tspan></text>${sel && MODE === 'design' && !PRESENT ? `<rect class="tgrip" x="${o.w - 5}" y="${o.h - 5}" width="9" height="9" rx="2"><title>Drag to resize this label</title></rect>` : ''}${PRESENT ? '' : `<title>${esc(t.id)} · ${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of ${esc(b.name)} · double-click for the trend</title>`}</g>`;
+    s += `<g class="tagb${sel ? ' tsel' : ''}" data-tag="${esc(t.id)}" data-tb="${b.id}" transform="translate(${o.x},${o.y})${o.z !== 1 ? ` scale(${o.z})` : ''}"><rect class="bg" width="${o.w / o.z}" height="${o.h / o.z}" rx="3"/><rect width="3" height="${o.h / o.z}" rx="1.5" fill="${MODE === 'monitor' || E.inst ? sevC(sv) : '#94a3b8'}"/><text x="6" y="${o.free ? o.h / o.z / 2 + o.fs * 0.36 : (o.h / o.z) * 0.72}"><tspan class="k">${esc(o.k)}</tspan>${o.k ? ' ' : ''}<tspan class="tv">${esc(o.txt)}</tspan></text>${sel && MODE === 'design' && !PRESENT ? tagGrips(o.w / o.z, o.h / o.z) : ''}${PRESENT ? '' : `<title>${esc(t.id)} · ${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of ${esc(b.name)} · double-click for the trend</title>`}</g>`;
   });
   return s + '</g>';
 }
@@ -354,14 +355,56 @@ function freezeTags(b) {
     if (!o.bt.pos) o.bt.pos = { x: Math.round(o.x), y: Math.round(o.y) };
   });
 }
+/* a label's box is sized from an estimate of its text; measure the drawn text and widen the box if it does not fit */
+/* Larger / Smaller from the right-click menu: scale the box (and so the text) by a factor */
+function tagGrow(bt, f) {
+  if (bt.W > 0 && bt.H > 0) {
+    bt.W = Math.max(20, Math.round(bt.W * f));
+    bt.H = Math.max(8, Math.round(bt.H * f));
+  } else bt.sz = Math.max(0.5, Math.min(3, +((bt.sz || 1) * f).toFixed(2)));
+}
+function tagGrips(w, h) {
+  const cur = c => (c === 'n' || c === 's' ? 'ns' : c === 'w' || c === 'e' ? 'ew' : c === 'nw' || c === 'se' ? 'nwse' : 'nesw') + '-resize';
+  const T = 'Drag to resize · Shift keeps the proportions';
+  // invisible grab strips along each edge first (easy to catch), then the eight squares on top — as on equipment
+  const strips = [['n', 3.5, -3, w - 7, 6], ['s', 3.5, h - 3, w - 7, 6], ['w', -3, 3.5, 6, h - 7], ['e', w - 3, 3.5, 6, h - 7]]
+    .filter(([, , , sw, sh]) => sw > 2 && sh > 2)
+    .map(([c, x, y, sw, sh]) => `<rect class="tgrip tgs" data-c="${c}" x="${x}" y="${y}" width="${sw}" height="${sh}" style="cursor:${cur(c)}"><title>${T}</title></rect>`)
+    .join('');
+  const dots = [['n', w / 2, 0], ['s', w / 2, h], ['w', 0, h / 2], ['e', w, h / 2], ['nw', 0, 0], ['ne', w, 0], ['sw', 0, h], ['se', w, h]]
+    .map(([c, x, y]) => `<rect class="tgrip" data-c="${c}" x="${x - 3.5}" y="${y - 3.5}" width="7" height="7" rx="2" style="cursor:${cur(c)}"><title>${T}</title></rect>`)
+    .join('');
+  return strips + dots;
+}
+/* a label's box is sized from an estimate of its text; measure the drawn text and widen the box if it does not fit */
+function fitTags(root) {
+  try {
+    (root || document).querySelectorAll('#Ltags .tagb').forEach(g => {
+      const tx = g.querySelector('text'),
+        bg = g.querySelector('rect.bg');
+      if (!tx || !bg) return;
+      const bb = tx.getBBox(),
+        need = Math.ceil(bb.x + bb.width + 6);
+      if (bb.width && need > +bg.getAttribute('width')) {
+        bg.setAttribute('width', need);
+        if (g.querySelector('.tgrip')) {
+          g.querySelectorAll('.tgrip').forEach(x => x.remove());
+          g.insertAdjacentHTML('beforeend', tagGrips(need, +bg.getAttribute('height')));
+        }
+      }
+    });
+  } catch (e) {}
+}
 function tagSoon(b) {
   if (tagSoon.p) return;
   tagSoon.p = true;
   requestAnimationFrame(() => {
     tagSoon.p = false;
     const el = document.querySelector(`#Ltags [data-tg="${b.id}"]`);
-    if (el && typeof svgSwap === 'function') svgSwap(el, tagsSVG(b));
-    else renderCanvas();
+    if (el && typeof svgSwap === 'function') {
+      svgSwap(el, tagsSVG(b));
+      fitTags();
+    } else renderCanvas();
   });
 }
 function renderCanvas() {
@@ -378,6 +421,7 @@ function renderCanvas() {
   $('#Lblocks').innerHTML = DOC.blocks.filter(b => !zl || b.type !== 'areaBox').map(blockSVG).join('') + groupFrames() + selFrame();
   $('#Ltags').innerHTML = DOC.blocks.map(tagsSVG).join('');
   $('#Ltags')._html = null;
+  fitTags();
   liveCanvas(true);
   miniRender();
   applyView();
@@ -437,6 +481,7 @@ function liveCanvas(skipStruct) {
       lt.innerHTML = html;
       lt._html = html;
       lt._n = lt.childElementCount;
+      fitTags();
     }
   }
   try {
@@ -479,6 +524,7 @@ function fastMove(bs) {
         tg = lt.querySelector(`[data-tg="${b.id}"]`);
       if (tg) svgSwap(tg, html);
       else if (html) lt.insertAdjacentHTML('beforeend', html);
+      fitTags();
     }
     DOC.streams.forEach(st => {
       if (!ids.has(st.from.b) && !ids.has(st.to.b)) return;
@@ -1055,13 +1101,15 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   if (tg && MODE === 'design' && e.target.closest('.tgrip')) {
-    // drag the corner grip of the selected label to make it larger / smaller
+    // drag any of the 8 grips of the selected label, as on equipment: the opposite side / corner stays put
     const tb = e.target.closest('.tagb'),
+      c = e.target.closest('.tgrip').dataset.c,
       b = B(tg.dataset.tg),
       bt = b && b.tags.find(x => x.id === tb.dataset.tag),
       o = bt && tagLayout(b).find(x => x.bt === bt);
     if (bt && o) {
-      drag = { k: 'tagsz', b, bt, sx: w.x, w0: o.w, z0: o.z, moved: false };
+      const w0 = Math.max(o.w, +tb.querySelector('rect.bg').getAttribute('width') * o.z); // the box as it is really drawn
+      drag = { k: 'tagsz', b, bt, c, A: tagAnchor(b), w0, h0: o.h, wEst: o.wEst, hEst: o.hEst, L: o.x, T: o.y, R: o.x + w0, Bm: o.y + o.h, moved: false };
       return;
     }
   }
@@ -1371,13 +1419,33 @@ cv.addEventListener('pointermove', e => {
       tagSoon(drag.b);
     }
   } else if (drag.k === 'tagsz') {
-    const dx = w.x - drag.sx;
-    if (!drag.moved && Math.abs(dx) > 2) {
+    const px = w.x - drag.A.x,
+      py = w.y - drag.A.y,
+      c = drag.c;
+    let W = drag.w0,
+      H = drag.h0;
+    if (c.includes('e')) W = px - drag.L;
+    if (c.includes('w')) W = drag.R - px;
+    if (c.includes('s')) H = py - drag.T;
+    if (c.includes('n')) H = drag.Bm - py;
+    if (e.shiftKey && c.length === 2) {
+      // corner + Shift: keep the proportions (projection on the diagonal, so it stays smooth)
+      const f = (W * drag.w0 + H * drag.h0) / (drag.w0 * drag.w0 + drag.h0 * drag.h0);
+      W = drag.w0 * f;
+      H = drag.h0 * f;
+    }
+    W = Math.max(drag.wEst * 0.3, Math.min(3000, W));
+    H = Math.max(drag.hEst * 0.3, Math.min(3000, H));
+    if (!drag.moved && Math.abs(W - drag.w0) + Math.abs(H - drag.h0) > 3) {
       pushUndo();
+      freezeTags(drag.b);
       drag.moved = true;
     }
     if (drag.moved) {
-      drag.bt.sz = Math.max(0.5, Math.min(3, +(drag.z0 * Math.max(0.2, (drag.w0 + dx) / drag.w0)).toFixed(2)));
+      drag.bt.W = Math.round(W);
+      drag.bt.H = Math.round(H);
+      delete drag.bt.sz;
+      drag.bt.pos = { x: Math.round(c.includes('w') ? drag.R - W : drag.L), y: Math.round(c.includes('n') ? drag.Bm - H : drag.T) };
       tagSoon(drag.b);
     }
   } else if (drag.k === 'tag') {
@@ -1885,9 +1953,9 @@ cv.addEventListener('contextmenu', e => {
       menu(e, [
         { t: 'Open trend', f: () => openTrend(tid) },
         { t: 'Reading settings…', f: () => ((IXOPEN = tid), (PTAB = 'eq'), openRight()) },
-        { t: 'Larger label', f: () => (pushUndo(), (bt.sz = Math.min(3, +((bt.sz || 1) + 0.15).toFixed(2))), changed()), dis: ds },
-        { t: 'Smaller label', f: () => (pushUndo(), (bt.sz = Math.max(0.5, +((bt.sz || 1) - 0.15).toFixed(2))), changed()), dis: ds },
-        { t: 'Reset label size', f: () => (pushUndo(), delete bt.sz, changed()), dis: ds || !bt.sz },
+        { t: 'Larger label', f: () => (pushUndo(), tagGrow(bt, 1.15), changed()), dis: ds },
+        { t: 'Smaller label', f: () => (pushUndo(), tagGrow(bt, 1 / 1.15), changed()), dis: ds },
+        { t: 'Reset label size', f: () => (pushUndo(), delete bt.sz, delete bt.W, delete bt.H, changed()), dis: ds || !(bt.sz || bt.W) },
         '-',
         { t: 'Hide this label', f: () => (pushUndo(), freezeTags(b), (bt.show = false), (TAGSEL = null), changed()), dis: ds },
         { t: 'Reset this label’s position', f: () => (pushUndo(), delete bt.pos, changed()), dis: ds || !bt.pos },

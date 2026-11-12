@@ -96,15 +96,16 @@ ${res.off ? '' : `<circle class="sl-glow" cx="${cx}" cy="${cy}" r="${R * 1.55}" 
 <circle cx="${cx}" cy="${cy}" r="${R}" fill="#11161b" stroke="url(#${g}s)" stroke-width="${Math.max(1.5, R * 0.14)}"/>
 <circle class="sl-lit" cx="${cx}" cy="${cy}" r="${R * 0.74}" fill="url(#${g}l)" ${ph}/>
 <ellipse cx="${cx - R * 0.26}" cy="${cy - R * 0.26}" rx="${R * 0.26}" ry="${R * 0.17}" fill="#fff" opacity=".6"/>
-${showTxt && res.l ? `<text x="${cx}" y="${h - 1}" text-anchor="middle" class="sl-txt">${esc(res.l)}</text>` : ''}</g>`;
+${showTxt && res.l ? `<text x="${cx}" y="${h - 1}" text-anchor="middle" class="sl-txt" style="font-size:${Math.max(8, Math.round(w * 0.15))}px">${esc(res.l)}</text>` : ''}</g>`;
 }
 EQ.statusLamp = {
   type: 'statusLamp',
   cat: 8,
   n: 'Status lamp',
   pre: 'SL',
-  w: 34,
+  w: 34, // original size, like all other equipment; drag its handles to enlarge
   h: 46,
+  resize: 'wh',
   inst: 1,
   noflip: 1,
   noTagShow: 1,
@@ -114,7 +115,8 @@ EQ.statusLamp = {
   draw: () => '',
   dyn: (w, h, s, b) => {
     const cfg = b && b.props ? lampCfg(b) : { rules: LAMP_PRE.bool.rules, def: '#f59e0b', none: '#6b7280', txt: true };
-    return lampSvg(w, h, lampEval(cfg, lampRaw(b)), (b && b.id) || 'x', cfg.txt !== false);
+    // a transparent pad over everything the lamp draws (glow, rim, text) so a click on its edge still grabs the lamp, not the area behind it
+    return `<rect class="slpad" x="${-12}" y="${-10}" width="${w + 24}" height="${h + 20}" fill="transparent"/>` + lampSvg(w, h, lampEval(cfg, lampRaw(b)), (b && b.id) || 'x', cfg.txt !== false);
   },
 };
 

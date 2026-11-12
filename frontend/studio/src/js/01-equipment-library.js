@@ -1518,8 +1518,14 @@ const EQ = {
     noflip: 1,
     ports: [],
     tags: [],
+    resize: 'wh', // drag any corner / edge like equipment: the text grows and shrinks with the box
     props: { text: 'Label' },
-    draw: (w, h, s, b) => `<text x="0" y="17" class="lbl-t">${esc(b?.props?.text || 'Label')}</text>`,
+    draw: (w, h, s, b) => {
+      const t = String((b && b.props && b.props.text) || 'Label');
+      if (!b || (!b.w && !b.h)) return `<text x="0" y="17" class="lbl-t">${esc(t)}</text>`; // untouched labels look as before
+      const fs = Math.max(6, Math.min(h * 0.58, w / Math.max(1, t.length * 0.6))); // never wider than its box
+      return `<text x="0" y="${(h / 2 + fs * 0.36).toFixed(1)}" class="lbl-t" style="font-size:${fs.toFixed(1)}px">${esc(t)}</text>`;
+    },
   },
   /* v3.0 — Insert › Shapes (Option A ribbon): plain drawing shapes with an optional text and a colour */
   shRect: shapeDef('Rectangle', 'SH', 160, 100, (w, h, c) => `<rect x="1" y="1" width="${w - 2}" height="${h - 2}" rx="6" fill="${c}" fill-opacity=".1" stroke="${c}" stroke-width="2"/>`),
