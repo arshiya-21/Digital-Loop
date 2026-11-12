@@ -4314,3 +4314,5 @@ body.present #cwrap.af-focus #Lzones .blk:hover .zone-panel { stroke: rgba(15, 2
 .af-pane .af-al { position: absolute; right: 10px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); animation: pulse 1.2s infinite; }
 .af-pane .af-note { padding: 9px 12px; border-top: 1px solid #e3e9f1; font: 500 11.5px var(--cond); color: #64748b; }
 .af-pane .af-empty { padding: 14px; font: 500 13px var(--cond); color: #475569; line-height: 1.5; }
+
+.tagb .tgrip { fill: var(--accent); stroke: #fff; stroke-width: 1; cursor: nwse-resize; }

@@ -296,15 +296,18 @@ function tagLayout(b) {
   const list = b.tags.filter(t => t.show && REG[t.id]);
   const card = DOC.tagStyle === 'card', // v9.4: per-flowsheet card style (larger light value cards)
     TS = PREF.ts * (card ? 1.32 : 1),
-    bh = Math.round((card ? 17 : 16) * TS),
-    cw = (card ? 7.1 : 6.7) * TS;
+    bh0 = Math.round((card ? 17 : 16) * TS),
+    cw0 = (card ? 7.1 : 6.7) * TS;
   let y = 0;
   return list.map(bt => {
-    const t = REG[bt.id],
+    const z = bt.sz > 0 ? bt.sz : 1, // per-label size multiplier (right-click a label: Larger / Smaller)
+      bh = Math.round(bh0 * z),
+      cw = cw0 * z,
+      t = REG[bt.id],
       k = E.inst ? '' : (REG[t.id] && REG[t.id].short) || t.id.split('.').pop(), // v9.3: optional short display label
       txt = MODE === 'monitor' || E.inst ? tagTxt(t.id) : t.txt != null && t.txt !== '' ? t.txt : t.states ? 'status' : t.unit, // v9.39 text / status-list tags // v9.9 status text
       w = Math.max(E.inst ? 40 : 56, (k.length + txt.length + (k ? 1 : 0)) * cw + 12);
-    const o = { bt, t, k, txt, w, h: bh, x: bt.pos ? bt.pos.x : 0, y: bt.pos ? bt.pos.y : y };
+    const o = { bt, t, k, txt, w, h: bh, z, x: bt.pos ? bt.pos.x : 0, y: bt.pos ? bt.pos.y : y };
     if (!bt.pos) y += bh + (card ? 4 : 2);
     return o;
   });
@@ -336,11 +339,12 @@ function tagsSVG(b) {
       ly = Math.max(o.y, Math.min(cy, o.y + o.h));
     if (Math.hypot(lx - cx, ly - cy) > 26) s += `<path class="tlead" d="M${lx} ${ly}L${cx} ${cy}"/><circle class="tlead-dot" cx="${cx}" cy="${cy}" r="2"/>`;
   });
+  const card0 = DOC.tagStyle === 'card';
   L.forEach(o => {
     const t = o.t,
       sv = tagSev(t.id),
       sel = TAGSEL === b.id + '|' + t.id;
-    s += `<g class="tagb${sel ? ' tsel' : ''}" data-tag="${esc(t.id)}" data-tb="${b.id}" transform="translate(${o.x},${o.y})"><rect class="bg" width="${o.w}" height="${o.h}" rx="3"/><rect width="3" height="${o.h}" rx="1.5" fill="${MODE === 'monitor' || E.inst ? sevC(sv) : '#94a3b8'}"/><text x="6" y="${o.h * 0.72}"><tspan class="k">${esc(o.k)}</tspan>${o.k ? ' ' : ''}<tspan class="tv">${esc(o.txt)}</tspan></text>${PRESENT ? '' : `<title>${esc(t.id)} · ${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of ${esc(b.name)} · double-click for the trend</title>`}</g>`;
+    s += `<g class="tagb${sel ? ' tsel' : ''}" data-tag="${esc(t.id)}" data-tb="${b.id}" transform="translate(${o.x},${o.y})"><rect class="bg" width="${o.w}" height="${o.h}" rx="3"/><rect width="3" height="${o.h}" rx="1.5" fill="${MODE === 'monitor' || E.inst ? sevC(sv) : '#94a3b8'}"/><text x="6" y="${o.h * 0.72}"${o.z !== 1 ? ` style="font-size:calc(${card0 ? 14.52 : 11}px * var(--ts) * ${o.z})"` : ''}><tspan class="k">${esc(o.k)}</tspan>${o.k ? ' ' : ''}<tspan class="tv">${esc(o.txt)}</tspan></text>${sel && MODE === 'design' && !PRESENT ? `<rect class="tgrip" x="${o.w - 5}" y="${o.h - 5}" width="9" height="9" rx="2"><title>Drag to resize this label</title></rect>` : ''}${PRESENT ? '' : `<title>${esc(t.id)} · ${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of ${esc(b.name)} · double-click for the trend</title>`}</g>`;
   });
   return s + '</g>';
 }
@@ -1050,6 +1054,17 @@ cv.addEventListener('pointerdown', e => {
     drag = { k: 'click' };
     return;
   }
+  if (tg && MODE === 'design' && e.target.closest('.tgrip')) {
+    // drag the corner grip of the selected label to make it larger / smaller
+    const tb = e.target.closest('.tagb'),
+      b = B(tg.dataset.tg),
+      bt = b && b.tags.find(x => x.id === tb.dataset.tag),
+      o = bt && tagLayout(b).find(x => x.bt === bt);
+    if (bt && o) {
+      drag = { k: 'tagsz', b, bt, sx: w.x, w0: o.w, z0: o.z, moved: false };
+      return;
+    }
+  }
   if (tg) {
     const b = B(tg.dataset.tg);
     drag = {
@@ -1355,6 +1370,16 @@ cv.addEventListener('pointermove', e => {
       drag.bt.pos = { x: sn(drag.ox + dx), y: sn(drag.oy + dy) };
       tagSoon(drag.b);
     }
+  } else if (drag.k === 'tagsz') {
+    const dx = w.x - drag.sx;
+    if (!drag.moved && Math.abs(dx) > 2) {
+      pushUndo();
+      drag.moved = true;
+    }
+    if (drag.moved) {
+      drag.bt.sz = Math.max(0.5, Math.min(3, +(drag.z0 * Math.max(0.2, (drag.w0 + dx) / drag.w0)).toFixed(2)));
+      tagSoon(drag.b);
+    }
   } else if (drag.k === 'tag') {
     const dx = w.x - drag.sx,
       dy = w.y - drag.sy;
@@ -1497,6 +1522,8 @@ function endDrag(e) {
       renderCanvas();
       toast('Label selected — drag to move it · arrow keys nudge · Del hides it · double-click for the trend');
     }
+  } else if (d.k === 'tagsz') {
+    if (d.moved) changed();
   } else if (d.k === 'tag') {
     if (d.moved) changed();
     else if (d.tag) openTrend(d.tag);
@@ -1858,6 +1885,9 @@ cv.addEventListener('contextmenu', e => {
       menu(e, [
         { t: 'Open trend', f: () => openTrend(tid) },
         { t: 'Reading settings…', f: () => ((IXOPEN = tid), (PTAB = 'eq'), openRight()) },
+        { t: 'Larger label', f: () => (pushUndo(), (bt.sz = Math.min(3, +((bt.sz || 1) + 0.15).toFixed(2))), changed()), dis: ds },
+        { t: 'Smaller label', f: () => (pushUndo(), (bt.sz = Math.max(0.5, +((bt.sz || 1) - 0.15).toFixed(2))), changed()), dis: ds },
+        { t: 'Reset label size', f: () => (pushUndo(), delete bt.sz, changed()), dis: ds || !bt.sz },
         '-',
         { t: 'Hide this label', f: () => (pushUndo(), freezeTags(b), (bt.show = false), (TAGSEL = null), changed()), dis: ds },
         { t: 'Reset this label’s position', f: () => (pushUndo(), delete bt.pos, changed()), dis: ds || !bt.pos },
