@@ -104,8 +104,25 @@ function widgetEditor(b) {
     h += `<div class="fld"><label>Label (↵ for a new line)</label><textarea data-pp="label" rows="2">${esc(p.label)}</textarea></div>`;
   if (b.type === 'notice' || b.type === 'label')
     h += `<div class="fld"><label>Text</label><textarea data-pp="text" rows="2">${esc(p.text)}</textarea></div>`;
-  if (b.type === 'areaBox')
+  if (b.type === 'areaBox') {
     h += `<div class="fld"><label>Area name</label><input data-pp="text" value="${esc(p.text)}"></div>`;
+    // header colour (heading band only) and heading text colour; empty = the drawing look's default
+    const sw = [
+      '#1f6feb', '#0ea5e9', '#0e7c86', '#14b8a6', '#2f8f46', '#84cc16', '#eab308', '#c27803', '#f97316', '#d93636',
+      '#e11d48', '#db2777', '#6b4fd6', '#7c3aed', '#1e3a8a', '#7c2d12', '#475569', '#94a3b8', '#e2e8f0', '#0f172a', '#ffffff',
+    ];
+    const isHex = v => /^#[0-9a-f]{6}$/i.test(v || '');
+    // what is actually drawn when nothing is picked: white heading text on a dark header (as the drawing does)
+    const autoText = isHex(p.fill) && zoneDarkHex(p.fill) ? '#ffffff' : '#0f172a';
+    const pick = (k, label, dflt) => {
+      const v = isHex(p[k]) ? p[k] : '',
+        shown = (v || dflt).toLowerCase();
+      return `<div class="fld"><label>${label}${v ? '' : ' <span class="note">(default)</span>'}</label><div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">${sw
+        .map(c => `<button type="button" data-ppset="${k}" data-v="${c}" title="${c}" aria-label="${label} ${c}" style="width:18px;height:18px;padding:0;border-radius:4px;cursor:pointer;background:${c};border:${shown === c ? '2px solid var(--accent)' : '1px solid rgba(15,23,42,.25)'}"></button>`)
+        .join('')}<input type="color" data-pp="${k}" value="${shown}" title="Any colour" style="width:30px;height:22px;padding:0;border:1px solid rgba(15,23,42,.25);border-radius:4px;background:none;cursor:pointer"><button type="button" class="lb" data-ppset="${k}" data-v="" ${v ? '' : 'disabled'}>Default</button></div></div>`;
+    };
+    h += pick('fill', 'Header colour', '#1f6feb') + pick('tcol', 'Heading text colour', autoText);
+  }
   if (EQ[b.type].shape) // v3.0 — Insert › Shapes
     h += `<div class="fld"><label>Text</label><input data-pp="text" value="${esc(p.text || '')}"></div><div class="fld"><label>Colour</label><select data-pp="color">${[['#1f6feb', 'Blue'], ['#2f8f46', 'Green'], ['#c27803', 'Amber'], ['#d93636', 'Red'], ['#6b4fd6', 'Violet'], ['#0e7c86', 'Teal'], ['#475569', 'Slate']].map(([v, n]) => `<option value="${v}" ${p.color === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>`;
   if (b.type === 'addBin')
@@ -172,6 +189,14 @@ function bindWidgetEditor(b) {
       (el.onchange = () => {
         pushUndo();
         p[el.dataset.pp] = el.value || (el.dataset.pp === 'target' ? null : '');
+        changed();
+      }),
+  );
+  $$('#ptab [data-ppset]').forEach(
+    el =>
+      (el.onclick = () => {
+        pushUndo();
+        p[el.dataset.ppset] = el.dataset.v;
         changed();
       }),
   );

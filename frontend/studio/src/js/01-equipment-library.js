@@ -1497,15 +1497,23 @@ const EQ = {
     // v9.1 — zone style (props.zstyle): 'dashed' (default) · 'panel' (soft solid panel, no dotted border) · 'title' (heading only)
     draw: (w, h, s, b) => {
       const zs = b?.props?.zstyle || 'dashed',
-        t = esc(b?.props?.text || 'Area');
-      if (zs === 'title') return `<text x="4" y="17" class="lbl-t zone-t">${t}</text>`;
+        t = esc(b?.props?.text || 'Area'),
+        // own colours, picked in Properties (props.fill = panel, props.tcol = heading text); empty = the look's default
+        hex = v => (/^#[0-9a-f]{3,8}$/i.test(v || '') ? v : ''),
+        fc = hex(b?.props?.fill),
+        // heading text: own colour, else white on a dark header so it stays readable
+        tc = hex(b?.props?.tcol) || (fc && zoneDarkHex(fc) ? '#ffffff' : ''),
+        tSt = tc ? ` style="fill:${tc}"` : '',
+        // the header colour fills the heading band only (solid); the panel body keeps the look's background
+        head = r => `<path class="zone-head" d="M${r} 0H${w - r}A${r} ${r} 0 0 1 ${w} ${r}V28H0V${r}A${r} ${r} 0 0 1 ${r} 0Z"${fc ? ` style="fill:${fc};fill-opacity:1"` : ''}/>`;
+      if (zs === 'title') return `<text x="4" y="17" class="lbl-t zone-t"${tSt}>${t}</text>`;
       if (zs === 'panel') {
         // v9.4 — optional number badge (props.num) before the heading
         const n = b?.props?.num;
         const badge = n ? `<circle class="zone-num" cx="22" cy="20" r="11"/><text x="22" y="24.5" text-anchor="middle" class="zone-numt">${esc(String(n))}</text>` : '';
-        return `<rect class="zone-panel" x="0" y="0" width="${w}" height="${h}" rx="10"/>${n ? '' : `<path class="zone-head" d="M10 0H${w - 10}A10 10 0 0 1 ${w} 10V28H0V10A10 10 0 0 1 10 0Z"/>`}${badge}<text x="${n ? 42 : 12}" y="${n ? 25 : 19}" class="lbl-t zone-t${n ? ' zone-tn' : ''}">${t}</text>`;
+        return `<rect class="zone-panel" x="0" y="0" width="${w}" height="${h}" rx="10"/>${n && !fc ? '' : head(10)}${badge}<text x="${n ? 42 : 12}" y="${n ? 25 : 19}" class="lbl-t zone-t${n ? ' zone-tn' : ''}"${tSt}>${t}</text>`;
       }
-      return `<rect x="0" y="0" width="${w}" height="${h}" rx="8" fill="var(--accent-l)" fill-opacity=".38" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="7 5"/><text x="11" y="19" class="lbl-t">${t}</text>`;
+      return `<rect x="0" y="0" width="${w}" height="${h}" rx="8" fill="var(--accent-l)" fill-opacity=".38" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="7 5"/>${fc ? head(8) : ''}<text x="11" y="19" class="lbl-t"${tSt}>${t}</text>`;
     },
   },
   label: {
@@ -1534,6 +1542,12 @@ const EQ = {
   shBlockArrow: shapeDef('Block arrow', 'SH', 170, 80, (w, h, c) => `<path d="M2 ${h * 0.28}H${w * 0.62}V2L${w - 2} ${h / 2}L${w * 0.62} ${h - 2}V${h * 0.72}H2z" fill="${c}" fill-opacity=".14" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>`),
   shCallout: shapeDef('Callout', 'SH', 190, 96, (w, h, c) => `<path d="M8 2H${w - 8}a6 6 0 0 1 6 6V${h * 0.7 - 6}a6 6 0 0 1-6 6H${w * 0.36}L${w * 0.2} ${h - 2}L${w * 0.24} ${h * 0.7}H8a6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z" fill="${c}" fill-opacity=".1" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>`, false, 0.35),
 };
+/* is a header colour dark enough that its heading text should be white? (area boxes; shared with Properties) */
+function zoneDarkHex(c) {
+  const x = c.length < 6 ? c.slice(1).replace(/./g, '$&$&') : c.slice(1, 7);
+  const [r, g, bl] = [0, 2, 4].map(i => parseInt(x.substr(i, 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * bl < 150;
+}
 /* v3.6 — Create Loop from Image: placeholder for equipment that is not in the library (never listed in the library) */
 EQ.unmapped = {
   type: 'unmapped',
