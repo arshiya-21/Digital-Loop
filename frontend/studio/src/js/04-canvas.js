@@ -325,22 +325,9 @@ function tagsSVG(b) {
   if (!SHOWTAGS || E.widget) return '';
   const L = tagLayout(b);
   if (!L.length) return '';
-  const { W, H } = dims(b),
-    A = tagAnchor(b);
+  const A = tagAnchor(b);
+  // no dotted leader lines from moved labels back to their equipment: they cluttered the drawing
   let s = `<g class="tagg${DOC.tagStyle === 'card' ? ' card' : ''}" data-tg="${b.id}" transform="translate(${A.x},${A.y})">`;
-  // leader lines from labels that sit away from their equipment (equipment rectangle in anchor coordinates)
-  const ex0 = b.x - A.x,
-    ey0 = b.y - A.y,
-    ex1 = ex0 + W,
-    ey1 = ey0 + H;
-  L.forEach(o => {
-    if (!o.bt.pos) return;
-    const cx = Math.max(ex0, Math.min(o.x + o.w / 2, ex1)),
-      cy = Math.max(ey0, Math.min(o.y + o.h / 2, ey1));
-    const lx = Math.max(o.x, Math.min(cx, o.x + o.w)),
-      ly = Math.max(o.y, Math.min(cy, o.y + o.h));
-    if (Math.hypot(lx - cx, ly - cy) > 26) s += `<path class="tlead" d="M${lx} ${ly}L${cx} ${cy}"/><circle class="tlead-dot" cx="${cx}" cy="${cy}" r="2"/>`;
-  });
   L.forEach(o => {
     const t = o.t,
       sv = tagSev(t.id),
