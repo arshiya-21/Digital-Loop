@@ -119,10 +119,19 @@ const readings = [
   { id: 'Q', sql: `SELECT gcs, ts FROM ${NARROW} ORDER BY ts DESC LIMIT 1` },
   // The same column as T0, under a second reading: the aliases must not clash.
   { id: 'D1', table: WIDE, column: 'c0', timeColumn: 'ts' },
+  /*
+   * Written statements of the plain shape Preview data saves. Each one is the
+   * table and column it names, so it joins that table's statement instead of
+   * being a statement — and a two-thousand-row fetch — of its own.
+   */
+  { id: 'W3', sql: `SELECT \`c3\` AS \`W3\`, \`ts\` AS \`datetime\` FROM \`${WIDE}\` ORDER BY \`datetime\` DESC LIMIT 2000` },
+  { id: 'WF', sql: `SELECT \`c2\`, \`ts\` FROM \`${WIDE}\` WHERE \`line\` = 'L2' ORDER BY \`ts\` DESC LIMIT 2000` },
+  // Not the plain shape — an expression — so it still runs as written.
+  { id: 'X', sql: `SELECT c5 * 2, ts FROM ${WIDE} ORDER BY ts DESC LIMIT 2000` },
 ]
 
 /** The newest row is the fifth, so every value carries `+ 4`. */
-const expected = { G: 7.77, Q: 7.77, F0: 904, F1: 905, D1: 104 }
+const expected = { G: 7.77, Q: 7.77, F0: 904, F1: 905, D1: 104, W3: 107, WF: 906, X: 218 }
 for (let i = 0; i < COLUMNS; i += 1) expected[`T${i}`] = 100 + i + 4
 
 const statements = async () => {
@@ -147,12 +156,13 @@ check('every reading gets its own value', wrong.length === 0,
 check('and none of them reports an error', Object.keys(answer.errors).length === 0, answer.errors)
 
 /*
- * Four statements for twenty-five readings: the unfiltered twenty-one on the
- * wide table, the two filtered to L2, the narrow table's one, and the written
- * one. Asserted as an upper bound — a future grouping may do better, and the
- * point is that it never goes back to one per reading.
+ * Four statements for twenty-eight readings: the unfiltered wide table (with
+ * W3 folded in), the wide table filtered to L2 (with WF), the narrow table
+ * (with Q folded in), and X, which is not the plain shape. Asserted as an
+ * upper bound — a future grouping may do better, and the point is that it
+ * never goes back to one per reading.
  */
-check(`twenty-five readings cost four statements, not twenty-five (sent ${sent})`,
+check(`twenty-eight readings cost four statements, not twenty-eight (sent ${sent})`,
   sent > 0 && sent <= 4, sent)
 
 /*

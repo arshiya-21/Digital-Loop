@@ -324,7 +324,15 @@ live.post('/preview', async ({ user, body }) => {
   if (!row) throw notFound('No such database connection.')
 
   const answer = await latestValues(row, [tag])
-  const statement = readStatement(row.engine, tag)
+  /*
+   * The statement that ran, as it ran — including the clock it ordered by
+   * and the indexed narrowing — rather than a description rebuilt beside it.
+   * Its filter value is bound, so it is listed with the statement.
+   */
+  const ran = answer.statements?.preview
+  const statement = ran
+    ? { sql: ran, params: !written && tag.keyColumn && tag.keyValue ? [String(tag.keyValue)] : [] }
+    : readStatement(row.engine, tag)
 
   // A written statement: also hand back the rows it returns (the same ones
   // the chart is drawn from), so Preview data can list them, not just one.

@@ -415,7 +415,7 @@ const DIALECT = {
   },
   postgres: {
     quote: name => `"${String(name).replaceAll('"', '""')}"`,
-    param: index => `${index}`,
+    param: index => `$${index}`,
     one: sql => `${sql} LIMIT 1`,
     ago: seconds => `NOW() - INTERVAL '${seconds} seconds'`,
   },
@@ -738,22 +738,141 @@ export function readStatement(engine, tag) {
   }
 }
 
+/**
+ * A written statement that is really just "one column of one table, newest
+ * row" — read back as the table, column, ordering and filter it names.
+ *
+ * Preview data's "Use" and the Write-your-own box save readings as a statement
+ * of their own, and almost all of them are the shape the studio itself writes:
+ *
+ *     SELECT `C10` AS `X`, `Det` AS `datetime` FROM `additive`
+ *       WHERE `line` = 'L2' ORDER BY `datetime` DESC LIMIT 2000
+ *
+ * Run as written, each one is a statement of its own on every poll — twenty
+ * readings on `additive` were twenty statements, each fetching up to two
+ * thousand rows to keep the first. Recognised, they join the other readings on
+ * that table and the whole table is one statement, one row.
+ *
+ * Deliberately narrow. Anything this does not recognise exactly — a join, an
+ * expression, a function, a qualified table, an ascending order, an order on a
+ * column that is not the one selected as the time — returns null and is run as
+ * written, as before. The WHERE literal becomes a bound parameter, the same
+ * way a dropdown filter is.
+ */
+const IDENT = '(`(?:[^`]|``)+`|"(?:[^"]|"")+"|\\[(?:[^\\]]|\\]\\])+\\]|[A-Za-z_][A-Za-z0-9_]*)'
+const SIMPLE = new RegExp(
+  '^select\\s+(?:top\\s+\\d+\\s+)?' +
+  IDENT + '(?:\\s+as\\s+' + IDENT + ')?' +                 // 1 column, 2 its alias
+  '(?:\\s*,\\s*' + IDENT + '(?:\\s+as\\s+' + IDENT + ')?)?' + // 3 time, 4 its alias
+  '\\s+from\\s+' + IDENT +                                    // 5 table
+  '(?:\\s+where\\s+' + IDENT + '\\s*(<>|!=|>=|<=|=|>|<)\\s*' + // 6 key, 7 operator
+  "('(?:[^']|'')*'|-?\\d+(?:\\.\\d+)?))?" +                   // 8 literal
+  '(?:\\s+order\\s+by\\s+' + IDENT + '(?:\\s+(asc|desc))?)?' + // 9 order, 10 direction
+  '(?:\\s+limit\\s+\\d+)?\\s*;?\\s*$', 'i')
+
+const bare = name => {
+  if (!name) return null
+  const open = name[0]
+  if (open === '`') return name.slice(1, -1).replaceAll('``', '`')
+  if (open === '"') return name.slice(1, -1).replaceAll('""', '"')
+  if (open === '[') return name.slice(1, -1).replaceAll(']]', ']')
+  return name
+}
+
+export function simpleStatement(sql) {
+  const m = SIMPLE.exec(String(sql || '').trim())
+  if (!m) return null
+  const [, column, , time, timeAlias, table, key, op, literal, order, direction] = m
+
+  // Newest first, or no order at all. Oldest first — which is also what an
+  // ORDER BY with no direction means — is a different reading.
+  if (order && String(direction).toLowerCase() !== 'desc') return null
+
+  const tag = { table: bare(table), column: bare(column) }
+  if (order) {
+    // Only an order on the selected time column (or its alias) means "newest".
+    const by = bare(order)
+    if (!time || (by !== bare(time) && by !== bare(timeAlias))) return null
+    tag.timeColumn = bare(time)
+  } else if (time) {
+    // A time selected but not ordered on: whatever row comes first, with its
+    // time. The grouped read orders by its time, so it is not the same read.
+    return null
+  }
+
+  if (key) {
+    const value = literal.startsWith("'") ? literal.slice(1, -1).replaceAll("''", "'") : literal
+    // An empty value is "no filter" to the grouped read, which it is not here.
+    if (value === '') return null
+    tag.keyColumn = bare(key)
+    tag.keyOp = op
+    tag.keyValue = value
+  }
+  return tag
+}
+
+/**
+ * A written statement, asked for its first row only.
+ *
+ * The poll reads one row of it — `positional(rows[0])` — so a statement saved
+ * with `LIMIT 2000` for its chart was fetching two thousand rows to keep one.
+ * Only a trailing limit or a leading TOP is touched; the chart still runs the
+ * statement as written.
+ */
+function firstRowOnly(sql) {
+  return String(sql)
+    .replace(/\blimit\s+\d+\s*;?\s*$/i, 'LIMIT 1')
+    .replace(/^(\s*select\s+(?:distinct\s+)?)top\s+\d+\s/i, '$1TOP 1 ')
+}
+
 export async function latestValues(row, wanted) {
-  const out = { values: {}, errors: {} }
+  /** `statements`: what was actually run for each reading, for Preview data to show. */
+  const out = { values: {}, errors: {}, statements: {} }
   if (!Array.isArray(wanted) || !wanted.length) return out
 
   const dialect = DIALECT[row.engine]
   if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
 
+  /*
+   * Written statements of the plain one-column shape, read as the table and
+   * column they name — so they join the grouped read below. See
+   * `simpleStatement`. The original statement is kept on the side: if the
+   * schema does not know the names, it is run as written after all.
+   */
+  const folded = new Map()
+  for (const tag of wanted) {
+    if (!tag.sql || safeToRun(tag.sql)) continue
+    const plain = simpleStatement(tag.sql)
+    if (plain) folded.set(tag.id, plain)
+  }
+
   // One schema for the whole batch, and usually a remembered one — see
   // `schemaFor`. A poll of twenty readings is one schema read at most.
-  const tables = await tablesFor(row, wanted)
+  // Statements answer for themselves and are not asked about here: a tag with
+  // no table never "knows" the schema, and used to force a fresh schema read
+  // on every poll of a loop holding one.
+  const tables = await tablesFor(row, wanted
+    .map(tag => (tag.sql ? (folded.has(tag.id) ? { ...folded.get(tag.id) } : null) : tag))
+    .filter(Boolean))
   // The same schema read, by type — for deciding whether a "Newest by" pair
   // is two columns the database can compare as dates. See `paired` below.
   const types = typesByTable((await schemaFor(row)).schema)
 
   const usable = []
-  for (const tag of wanted) {
+  for (const original of wanted) {
+    /*
+     * A plain written statement becomes the reading it describes — when every
+     * name in it is one the schema has. Otherwise it stays as written.
+     */
+    const plain = folded.get(original.id)
+    const plainKnown = plain && (() => {
+      const columns = tables.get(plain.table)
+      return !!columns && columns.has(plain.column) &&
+        (!plain.timeColumn || columns.has(plain.timeColumn)) &&
+        (!plain.keyColumn || columns.has(plain.keyColumn))
+    })()
+    const tag = plainKnown ? { id: original.id, ...plain } : original
+
     /*
      * A reading that carries its own statement.
      *
@@ -799,10 +918,65 @@ export async function latestValues(row, wanted) {
      * there the merged expression is the chart's job rather than this one's.
      */
     const second = tag.timeColumn2 && columns.has(tag.timeColumn2) ? tag.timeColumn2 : null
-    const typeOf = name => (types.get(tag.table) || []).find(c => c.name === name)?.type || ''
+    const kinds = types.get(tag.table) || []
+    const typeOf = name => kinds.find(c => c.name === name)?.type || ''
     const paired = time && second && TEMPORAL.test(typeOf(time)) ? second : null
 
-    usable.push({ ...tag, time, paired })
+    /*
+     * "Newest" by the table's real clock — the same one the chart orders by.
+     *
+     * The plant's tables keep their time as text: `Date` "11-17-2026" and
+     * `Time` "14:02:55" on `pouring_data`. Ordering by the `Date` text picked
+     * whichever row of the day the engine liked — 462 at "16 Nov 18:30" was
+     * shown while the chart beside it said 461 at 17 Nov 14:02:55 — and a
+     * date read on its own said midnight. So, as in `recentValues`:
+     *
+     *   1. a date and a time of day read as one moment, checked against the
+     *      rows (`stampFromParts`) — text or not;
+     *   2. else "Newest by" itself, when it is a date and time;
+     *   3. else the table's own timestamp, the plant's before a copier's.
+     *
+     * "Newest by" that is not part of the clock — an `id` — still breaks ties
+     * between rows stamped the same second. With no clock at all it is the
+     * only order there is, as before.
+     */
+    const mysqlLike = row.engine === 'mysql' || row.engine === 'mariadb'
+    const pair = mysqlLike ? await stampFromParts(row, tag, kinds) : null
+    const ownType = time ? typeOf(time) : ''
+    const plantsClock = kinds.find(c =>
+      TEMPORAL.test(c.type) && !CLOCK_ONLY.test(c.type) && !BOOKKEEPING.test(c.name))?.name || null
+
+    let clock = null
+    let clockColumn = null
+    if (pair) clock = pair.sql
+    else if (paired) {
+      clock = row.engine === 'postgres'
+        ? `${dialect.quote(time)} || ' ' || ${dialect.quote(paired)}`
+        : `CONCAT(DATE(${dialect.quote(time)}), ' ', ${dialect.quote(paired)})`
+    } else if (time && TEMPORAL.test(ownType) && !CLOCK_ONLY.test(ownType)) {
+      clock = dialect.quote(time)
+      clockColumn = time
+    } else if (plantsClock) {
+      clock = dialect.quote(plantsClock)
+      clockColumn = plantsClock
+    }
+    const inClock = !!time && (time === clockColumn || time === pair?.date || time === pair?.time || !!paired)
+    const tiebreak = time && clock && !inClock ? time : null
+
+    /*
+     * A clock no index can answer — text parsed per row — would make every
+     * poll sort the whole table to find one row. The table's indexed twin of
+     * that clock (see `indexedTwin`) narrows it to the newest stretch first.
+     */
+    let twin = null
+    if (mysqlLike && clock && !clockColumn) {
+      twin = await indexedTwin(row, tag.table, clock)
+    } else if (mysqlLike && clockColumn) {
+      const indexed = (await indexedColumns(row).catch(() => new Map())).get(tag.table) || new Set()
+      if (!indexed.has(clockColumn)) twin = await indexedTwin(row, tag.table, clock)
+    }
+
+    usable.push({ ...tag, time, paired, clock, tiebreak, twin, pairOrder: paired && !pair })
   }
   if (!usable.length) return out
 
@@ -835,9 +1009,54 @@ export async function latestValues(row, wanted) {
    * too. The two disagreeing is what left a full chart beside a blank value.
    */
   const newestBy = tag => {
-    if (!tag.time) return ''
-    const first = `${dialect.quote(tag.time)} DESC`
-    return tag.paired ? `${first}, ${dialect.quote(tag.paired)} DESC` : first
+    // A dated pair on an engine `stampFromParts` does not read: both halves,
+    // which is the newest day and then the newest time within it.
+    if (tag.pairOrder) return `${dialect.quote(tag.time)} DESC, ${dialect.quote(tag.paired)} DESC`
+    if (tag.clock) return `${tag.clock} DESC` + (tag.tiebreak ? `, ${dialect.quote(tag.tiebreak)} DESC` : '')
+    return tag.time ? `${dialect.quote(tag.time)} DESC` : ''
+  }
+
+  /**
+   * The newest row's statement for a reading (or a group sharing its table,
+   * filter and clock), selecting `columns`.
+   *
+   * With `narrow`, the indexed twin keeps it to the newest stretch of the
+   * table: rows whose twin stamp is further behind the newest than the twin
+   * has ever been from the real clock, plus an hour, cannot hold the newest
+   * record. A filtered reading's newest row can be older than that, which is
+   * why the caller asks again without it when it comes back empty.
+   */
+  const newestStatement = (tag, columns, narrow) => {
+    const q = dialect.quote
+    const params = []
+    const terms = []
+    if (tag.keyColumn && tag.keyValue) {
+      params.push(tag.keyValue)
+      terms.push(`${q(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(params.length)}`)
+    }
+    if (narrow && tag.twin) {
+      const c = q(tag.twin.column)
+      const span = Math.max(0, Math.round(tag.twin.hi - tag.twin.lo)) + TWIN_SLACK_S
+      terms.push(`(${c} >= (SELECT MAX(${c}) FROM ${q(tag.table)}) - INTERVAL ${span} SECOND OR ${c} IS NULL)`)
+    }
+    const order = newestBy(tag)
+    return {
+      sql: dialect.one(`SELECT ${columns}${momentOf(tag)} FROM ${q(tag.table)}` +
+        (terms.length ? ` WHERE ${terms.join(' AND ')}` : '') + (order ? ` ORDER BY ${order}` : '')),
+      params,
+    }
+  }
+
+  /** The newest row, narrowed by the twin where there is one, and not where that finds none. */
+  const newestRow = async (query, tag, columns) => {
+    if (tag.twin) {
+      const narrowed = newestStatement(tag, columns, true)
+      const rows = await query(narrowed.sql, narrowed.params)
+      if (Array.isArray(rows) && rows[0]) return { record: rows[0], sql: narrowed.sql }
+    }
+    const whole = newestStatement(tag, columns, false)
+    const rows = await query(whole.sql, whole.params)
+    return { record: Array.isArray(rows) ? rows[0] || null : null, sql: whole.sql }
   }
 
   /**
@@ -847,18 +1066,11 @@ export async function latestValues(row, wanted) {
    * say "Recorded 00:00" beside a value taken at ten to midnight. The halves
    * are joined for the answer exactly as the chart joins them.
    */
-  const momentOf = tag => {
-    if (!tag.time) return ''
-    if (!tag.paired) return `, ${dialect.quote(tag.time)} AS at`
-    const joined = row.engine === 'postgres'
-      ? `${dialect.quote(tag.time)} || ' ' || ${dialect.quote(tag.paired)}`
-      : `CONCAT(DATE(${dialect.quote(tag.time)}), ' ', ${dialect.quote(tag.paired)})`
-    return `, ${joined} AS at`
-  }
+  const momentOf = tag => (tag.clock ? `, ${tag.clock} AS at` : '')
 
   const groupKey = tag => [
     tag.table, tag.keyColumn || '', tag.keyOp || '=', tag.keyValue ?? '',
-    tag.time || '', tag.paired || '',
+    tag.clock || '', tag.tiebreak || '', tag.clock ? '' : (tag.time || ''), tag.pairOrder ? 'pair' : '',
   ].join('\u0000')
 
   /* A statement names its columns, and a wide table could hold hundreds of
@@ -869,10 +1081,6 @@ export async function latestValues(row, wanted) {
     /** One reading, on its own — the path a written statement always takes. */
     const readOne = async tag => {
       const filtered = !tag.sql && !!(tag.keyColumn && tag.keyValue)
-      const select = tag.sql ? null : `SELECT ${dialect.quote(tag.column)} AS value` + momentOf(tag)
-      const from = tag.sql ? '' : ` FROM ${dialect.quote(tag.table)}`
-      const where = filtered ? ` WHERE ${dialect.quote(tag.keyColumn)} ${comparison(tag.keyOp)} ${dialect.param(1)}` : ''
-      const order = tag.time ? ` ORDER BY ${newestBy(tag)}` : ''
 
       try {
         /*
@@ -881,10 +1089,16 @@ export async function latestValues(row, wanted) {
          * value, second the time if there is one — because the names in
          * somebody's own SELECT are theirs to choose.
          */
-        const rows = tag.sql
-          ? await query(tag.sql, [])
-          : await query(dialect.one(select + from + where + order), filtered ? [tag.keyValue] : [])
-        const row_ = Array.isArray(rows) ? rows[0] : null
+        let row_
+        if (tag.sql) {
+          const rows = await query(firstRowOnly(tag.sql), [])
+          row_ = Array.isArray(rows) ? rows[0] : null
+          out.statements[tag.id] = String(tag.sql)
+        } else {
+          const got = await newestRow(query, tag, `${dialect.quote(tag.column)} AS value`)
+          row_ = got.record
+          out.statements[tag.id] = got.sql
+        }
         const first = tag.sql && row_ ? positional(row_) : row_
         out.values[tag.id] = first
           ? { value: readable(first.value), recordedAt: moment(first.at) }
@@ -918,20 +1132,11 @@ export async function latestValues(row, wanted) {
     const readTogether = async group => {
       const first = group[0]
       const filtered = !!(first.keyColumn && first.keyValue)
-      const select = 'SELECT ' +
-        group.map((tag, at) => `${dialect.quote(tag.column)} AS v${at}`).join(', ') +
-        momentOf(first)
-      const from = ` FROM ${dialect.quote(first.table)}`
-      const where = filtered
-        ? ` WHERE ${dialect.quote(first.keyColumn)} ${comparison(first.keyOp)} ${dialect.param(1)}`
-        : ''
-      const order = first.time ? ` ORDER BY ${newestBy(first)}` : ''
-
-      const rows = await query(
-        dialect.one(select + from + where + order), filtered ? [first.keyValue] : [])
-      const record = Array.isArray(rows) ? rows[0] : null
+      const { record, sql } = await newestRow(query, first,
+        group.map((tag, at) => `${dialect.quote(tag.column)} AS v${at}`).join(', '))
 
       group.forEach((tag, at) => {
+        out.statements[tag.id] = sql
         out.values[tag.id] = record
           ? { value: readable(record[`v${at}`]), recordedAt: moment(record.at) }
           : null
@@ -1504,6 +1709,104 @@ export async function recentValues(row, tag, points = 200, windowSeconds = null)
    */
 
   return withStatement(charted, statement, [String(tag.id || tag.column), when ? 'datetime' : time])
+}
+
+/* ------------------------------------------ an indexed twin of the clock ---*/
+
+/**
+ * One fixed SELECT, built by this service, in one round trip.
+ *
+ * `runQuery` wraps every statement in a read-only transaction and a rollback,
+ * because it runs statements people typed. That is three round trips, and
+ * through the SSH tunnel to the plant each is over a hundred milliseconds —
+ * measured, a `SELECT 1` through it took 380 ms. Statements this service
+ * builds itself from numbers and checked names do not need that fence; they
+ * still have to be a single SELECT.
+ *
+ * Rows come back as objects keyed by the statement's own aliases.
+ */
+export async function readRows(row, sql, params = []) {
+  const statement = String(sql || '').trim()
+  const refusal = safeToRun(statement)
+  if (refusal) throw new Error(refusal)
+  const rows = await ask(row, async ({ query }) => query(statement, params))
+  return Array.isArray(rows) ? rows : []
+}
+
+/** Leading columns of every index, by table — which columns a range can use. */
+const indexLists = new Map()
+async function indexedColumns(row) {
+  const key = schemaKey(row)
+  const hit = indexLists.get(key)
+  if (hit && Date.now() - hit.at < SCHEMA_TTL_MS) return hit.byTable
+  const rows = await readRows(row,
+    'SELECT TABLE_NAME AS t, COLUMN_NAME AS c FROM information_schema.STATISTICS ' +
+    'WHERE TABLE_SCHEMA = DATABASE() AND SEQ_IN_INDEX = 1')
+  const byTable = new Map()
+  for (const r of rows) {
+    if (!byTable.has(r.t)) byTable.set(r.t, new Set())
+    byTable.get(r.t).add(r.c)
+  }
+  indexLists.set(key, { at: Date.now(), byTable })
+  return byTable
+}
+
+/**
+ * An indexed column that moves with a table's real clock.
+ *
+ * Plant tables keep their time as text — `Date` "11-12-2026" and `Time`, or
+ * `mem_date_time` "12.11.2026 11:21:03" — so every window over them parses
+ * every row and no index can help. But the copy tool that fills them stamps
+ * each row in `_watermark_ts`, a real indexed DATETIME, and on the plant's
+ * data that stamp is the record's own time to the second, on every row of
+ * every table.
+ *
+ * So the indexed column is used as a **pre-filter**, never as the answer:
+ * the exact text-clock condition stays in the statement, and the indexed one
+ * only narrows which rows it is worked out for. Its bounds are what was
+ * measured — the furthest the twin has been seen ahead of and behind the real
+ * clock — plus an hour each way, so a row the copier stamps a little late is
+ * still found. Measured again every ten minutes; a table whose twin wanders
+ * by more than six hours does not get one.
+ *
+ * `at` is the table's real clock as SQL. Returns `{ column, lo, hi }` (the
+ * twin minus the clock, in seconds) or null.
+ */
+const twins = new Map()
+const TWIN_TTL_MS = 10 * 60_000
+const TWIN_SLACK_S = 3600
+const TWIN_SPREAD_S = 6 * 3600
+
+export async function indexedTwin(row, table, at) {
+  if (row.engine !== 'mysql' && row.engine !== 'mariadb') return null
+  const key = `${schemaKey(row)}\u0000${table}\u0000${at}`
+  const hit = twins.get(key)
+  if (hit && Date.now() - hit.at < TWIN_TTL_MS) return hit.twin
+
+  let twin = null
+  try {
+    const q = DIALECT.mysql.quote
+    const kinds = typesByTable((await schemaFor(row)).schema).get(table) || []
+    const indexed = (await indexedColumns(row)).get(table) || new Set()
+    for (const column of kinds) {
+      if (!indexed.has(column.name)) continue
+      if (!TEMPORAL.test(column.type) || CLOCK_ONLY.test(column.type) || DATE_ONLY.test(column.type)) continue
+      const lag = `TIMESTAMPDIFF(SECOND, ${at}, ${q(column.name)})`
+      const [r] = await readRows(row,
+        `SELECT COUNT(*) AS n, MIN(${lag}) AS lo, MAX(${lag}) AS hi FROM ${q(table)} ` +
+        `WHERE ${at} IS NOT NULL AND ${q(column.name)} IS NOT NULL`)
+      const lo = Number(r?.lo)
+      const hi = Number(r?.hi)
+      if (Number(r?.n) > 0 && Number.isFinite(lo) && Number.isFinite(hi) && hi - lo <= TWIN_SPREAD_S) {
+        twin = { column: column.name, lo, hi }
+        break
+      }
+    }
+  } catch {
+    twin = null
+  }
+  twins.set(key, { at: Date.now(), twin })
+  return twin
 }
 
 /**
