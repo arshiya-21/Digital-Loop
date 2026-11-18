@@ -1254,17 +1254,39 @@ function renderAll() {
   $('#docName').value = DOC.name;
 }
 let ACX = null;
+/*
+ * The alarm's sound card. A browser starts an AudioContext "suspended" unless it is made
+ * during a click or key press, and the Publish view opens on page load — so the one made
+ * there stayed suspended and every beep was silent. It is now woken on the first gesture
+ * anywhere on the page, and again before each beep.
+ */
+function audioCtx() {
+  if (!ACX) {
+    try {
+      ACX = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      return null;
+    }
+  }
+  if (ACX.state === 'suspended') ACX.resume().catch(() => {});
+  return ACX;
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+  window.addEventListener(ev, () => audioCtx(), { capture: true, passive: true })
+);
 function beep() {
-  if (!SOUND || !ACX) return;
+  if (!SOUND) return;
+  const ctx = audioCtx();
+  if (!ctx || ctx.state !== 'running') return;
   try {
-    const o = ACX.createOscillator(),
-      g = ACX.createGain();
+    const o = ctx.createOscillator(),
+      g = ctx.createGain();
     o.frequency.value = 880;
     g.gain.value = 0.06;
     o.connect(g);
-    g.connect(ACX.destination);
+    g.connect(ctx.destination);
     o.start();
-    o.stop(ACX.currentTime + 0.18);
+    o.stop(ctx.currentTime + 0.18);
   } catch (e) {}
 }
 function setPresent(on) {
@@ -1278,11 +1300,7 @@ function setPresent(on) {
   setFull(on, true);
   if (typeof PVIEW !== 'undefined') Object.assign(PVIEW, { manual: false, w: 0, h: 0 });
   if (on) {
-    if (!ACX) {
-      try {
-        ACX = new (window.AudioContext || window.webkitAudioContext)();
-      } catch (e) {}
-    }
+    audioCtx();
     if (MODE !== 'monitor') setMode('monitor', true);
     SEL = null;
     // v8.3 — arrange the HMI panels for the screen's shape (temporary), then fit

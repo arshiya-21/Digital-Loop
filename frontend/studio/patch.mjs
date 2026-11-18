@@ -519,6 +519,74 @@ function parseSvg(src, uid) {
         speedMon: ['RPM', 'Speed monitor'],
       };
       const inUse = () => {
+  {
+    name: 'the alarm beep wakes the sound card first',
+    file: join('js', '05-panels.js'),
+    anchor: `let ACX = null;
+function beep() {
+  if (!SOUND || !ACX) return;
+  try {
+    const o = ACX.createOscillator(),
+      g = ACX.createGain();
+    o.frequency.value = 880;
+    g.gain.value = 0.06;
+    o.connect(g);
+    g.connect(ACX.destination);
+    o.start();
+    o.stop(ACX.currentTime + 0.18);
+  } catch (e) {}
+}`,
+    replacement: `let ACX = null;
+/*
+ * The alarm's sound card. A browser starts an AudioContext "suspended" unless it is made
+ * during a click or key press, and the Publish view opens on page load — so the one made
+ * there stayed suspended and every beep was silent. It is now woken on the first gesture
+ * anywhere on the page, and again before each beep.
+ */
+function audioCtx() {
+  if (!ACX) {
+    try {
+      ACX = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      return null;
+    }
+  }
+  if (ACX.state === 'suspended') ACX.resume().catch(() => {});
+  return ACX;
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+  window.addEventListener(ev, () => audioCtx(), { capture: true, passive: true })
+);
+function beep() {
+  if (!SOUND) return;
+  const ctx = audioCtx();
+  if (!ctx || ctx.state !== 'running') return;
+  try {
+    const o = ctx.createOscillator(),
+      g = ctx.createGain();
+    o.frequency.value = 880;
+    g.gain.value = 0.06;
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.18);
+  } catch (e) {}
+}`,
+  },
+  {
+    name: 'the Publish view makes the sound card through audioCtx',
+    file: join('js', '05-panels.js'),
+    anchor: `  if (on) {
+    if (!ACX) {
+      try {
+        ACX = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {}
+    }
+    if (MODE`,
+    replacement: `  if (on) {
+    audioCtx();
+    if (MODE`,
+  },
         if (typeof DOC === 'undefined' || !DOC) return [];
         const blocks = DOC.blocks || [],
           streams = DOC.streams || [];
