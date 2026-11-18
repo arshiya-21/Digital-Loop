@@ -1290,6 +1290,8 @@ function beep() {
   } catch (e) {}
 }
 function setPresent(on) {
+  // an operator (a viewer, not an administrator) never leaves the published view — not by Esc, not by leaving full screen
+  if (!on && PRESENT && document.body.classList.contains('dl-viewer')) return;
   setTimeout(syncBrand, 0);
   if (typeof afReset === 'function') afReset(); // v9.20 — Areas: start / leave with the whole loop
   PRESENT = on;

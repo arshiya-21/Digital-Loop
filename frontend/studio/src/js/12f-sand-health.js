@@ -209,7 +209,8 @@ function shiAction(R) {
 function shiDrawBadges() {
   const L = $('#Lshi');
   if (!L) return;
-  if (PREF.shibadge === false) {
+  // never in the published view: that tick-box is per browser, so unticking it in Design cannot hide the badges from operators
+  if (PREF.shibadge === false || PRESENT) {
     L.innerHTML = '';
     return;
   }
@@ -250,7 +251,7 @@ function shiStatus() {
   const el = $('#shiStat');
   if (!el) return;
   const A = shiAll().filter(R => R.score != null);
-  if (!A.length) {
+  if (!A.length || PRESENT) {
     el.hidden = true;
     return;
   }

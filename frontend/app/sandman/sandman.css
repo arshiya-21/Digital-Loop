@@ -381,6 +381,13 @@ body.dl-viewer #pMain {
   display: none !important;
 }
 
+/* The same goes for the sand health badges on the canvas and the figure in the status bar: the "Sand health badges"
+   tick-box is a per-browser setting, so unticking it in Design never reached the operators' screens. */
+body.present #Lshi,
+body.present #shiStat {
+  display: none !important;
+}
+
 .dl-linebar.dl-in-publish .dl-publish {
   display: none !important;
 }
