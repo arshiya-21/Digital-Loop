@@ -397,7 +397,6 @@ function renderProps() {
     T.innerHTML = eqInspector(b);
     bindEqInspector(b);
     if (typeof cpIxInsert === 'function') cpIxInsert(T, b); // v9.41 Process & checks section
-    if (typeof shiIxInsert === 'function') shiIxInsert(T, b); // v9.42 Sand health section
   } else if (PTAB === 'gen') {
     const cons = ports(b)
       .map(p => {

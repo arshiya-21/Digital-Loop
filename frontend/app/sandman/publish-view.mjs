@@ -84,8 +84,8 @@ const PBAR_SELECTOR = '#pbar > button[id]'
 /**
  * Read the publish bar as it stands — only the buttons an operator sees.
  *
- * The bar carries thirteen buttons but six are already hidden by our own
- * stylesheet: #pSHI (Sand health), #pAlarm (the old overlay, now replaced by
+ * The bar carries twelve buttons but five are already hidden by our own
+ * stylesheet: #pAlarm (the old overlay, now replaced by
  * #pMon), #pDiag (System diagnosis), #pSound (Silence alarm), #pReset (Fault
  * reset) and #pQR (QR cards). Listing those in the picker reads as broken —
  * ticking "Show" on System diagnosis has to lose to the integration's own

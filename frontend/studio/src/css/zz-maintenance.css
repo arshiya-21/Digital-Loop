@@ -138,7 +138,7 @@ div.mnt-ok { padding: 14px; border-radius: 10px; font-weight: 600; }
 .pbar #pMnt .mnt-badge { position: static; display: inline-block; margin: -4px 0 -4px 5px; height: 16px; line-height: 16px; min-width: 16px; font-size: 10.5px; box-shadow: none; vertical-align: 0; }
 
 /* v9.52 — Publish bar: separate Fault alarm button removed (the panel button is now “Fault alarm”) */
-body.present .pbar #pAlarm, body.present .pbar #pSHI, body.present .pbar #pDiag, body.present .pbar #pSound, body.present .pbar #pReset { display: none !important; } /* v9.52 — removed from the Publish bar */
+body.present .pbar #pAlarm, body.present .pbar #pDiag, body.present .pbar #pSound, body.present .pbar #pReset { display: none !important; } /* v9.52 — removed from the Publish bar */
 .pbar #pMon.blink { background: #d93636; color: #fff; border-color: #b91c1c; animation: mpAlm 1.4s ease-in-out infinite; }
 @keyframes mpAlm { 50% { box-shadow: 0 0 0 4px rgba(217, 54, 54, 0.25); } }
 /* v9.52 — equipment-wise view + machine QR */

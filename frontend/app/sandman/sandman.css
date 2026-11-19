@@ -367,27 +367,6 @@ body.dl-viewer #pMain {
   display: none !important;
 }
 
-/*
- * Sand health is out of the published view.
- *
- * It scores a line 0–100 from sand properties, stability, bentonite balance
- * and check discipline. Every one of those inputs is a reading — and until a
- * reading is linked to a column there is nothing behind it, so the score would
- * be a confident number computed from dashes. The place to look at it is
- * Design, beside the readings it comes from, not on the screen an operator
- * takes decisions off.
- */
-#pbar #pSHI {
-  display: none !important;
-}
-
-/* The same goes for the sand health badges on the canvas and the figure in the status bar: the "Sand health badges"
-   tick-box is a per-browser setting, so unticking it in Design never reached the operators' screens. */
-body.present #Lshi,
-body.present #shiStat {
-  display: none !important;
-}
-
 .dl-linebar.dl-in-publish .dl-publish {
   display: none !important;
 }
