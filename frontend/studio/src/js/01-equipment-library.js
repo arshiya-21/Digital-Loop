@@ -1482,6 +1482,24 @@ const EQ = {
       return `<rect x="0" y="0" width="5" height="${h}" rx="2" fill="${t ? sevC(tagSev(id)) : '#94a3b8'}"/><text x="12" y="16" class="tc-l">${t ? esc(t.id) : 'Bind a tag in Properties'}</text><text x="12" y="${h - 12}" class="tc-v">${t ? (tagIsText(t) ? esc(tagTxt(id)) : fmtN(val(id), t.d)) : '—'} <tspan class="tc-u">${t && !tagIsText(t) ? esc(t.unit) : ''}</tspan></text>`;
     },
   },
+  /* v9.78 — KPI scorecard tile (icon · title · big value · unit · status pill), bound like the Tag Display Card.
+     Source: bound tag(s) — first / sum / average — or a plant figure: active alarms, equipment availability.
+     Drawn by 27b-kpi-tile.js; made from a card reading with "Score card". */
+  kpiTile: {
+    cat: 8,
+    n: 'KPI Tile',
+    pre: 'KPI',
+    w: 184,
+    h: 48,
+    resize: 'w',
+    widget: 1,
+    noflip: 1,
+    ports: [],
+    tags: [],
+    props: { title: 'KPI', icon: 'bars', src: 'tag', agg: 'first', unit: '', dp: '' },
+    draw: (w, h) => `<rect class="kpi-bg" x="0" y="0" width="${w}" height="${h}" rx="8"/>`,
+    dyn: (w, h, s, b) => kpiTileSVG(w, h, b),
+  },
   areaBox: {
     cat: 8,
     n: 'Area Box (zone)',

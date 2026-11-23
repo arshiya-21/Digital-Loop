@@ -662,6 +662,8 @@ function autoName(type) {
   return `${p}-${i}`;
 }
 function addBlock(type, x, y, o = {}) {
+  /* v9.78 — never reuse an id: a loaded loop may carry a counter that is behind its highest block id */
+  if (DOC.blocks.some(x => x.id === 'b' + DOC.seq)) DOC.seq = DOC.blocks.reduce((m, x) => Math.max(m, +String(x.id).replace(/\D/g, '') || 0), 0) + 1;
   const E = EQ[type],
     id = 'b' + DOC.seq++,
     name = o.name || autoName(type);

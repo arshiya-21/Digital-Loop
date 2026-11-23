@@ -104,6 +104,16 @@ function widgetEditor(b) {
     h += `<div class="fld"><label>Label (↵ for a new line)</label><textarea data-pp="label" rows="2">${esc(p.label)}</textarea></div>`;
   if (b.type === 'notice' || b.type === 'label')
     h += `<div class="fld"><label>Text</label><textarea data-pp="text" rows="2">${esc(p.text)}</textarea></div>`;
+  if (b.type === 'kpiTile') {
+    // v9.78 — KPI / score card tile settings (see 27b-kpi-tile.js)
+    const o = (k, list) => `<select data-pp="${k}">${list.map(([v, n]) => `<option value="${v}" ${p[k] === v ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+    h += `<div class="fld"><label>Icon</label>${o('icon', kpiIconList())}</div>` +
+      `<div class="fld"><label>Value from</label>${o('src', [['tag', 'Bound tag(s) — Tags tab'], ['alarms', 'Active alarms (count)'], ['avail', 'Equipment availability (%)']])}</div>` +
+      (p.src === 'tag' ? `<div class="fld"><label>With several tags show</label>${o('agg', [['first', 'First tag'], ['sum', 'Sum'], ['avg', 'Average']])}</div>` +
+        `<div class="fld"><label>Unit (blank = tag unit)</label><input data-pp="unit" value="${esc(p.unit || '')}"></div>` +
+        `<div class="fld"><label>Decimals (blank = tag)</label><input data-pp="dp" value="${esc(p.dp ?? '')}" inputmode="numeric"></div>` : '') +
+      `<p class="note">The pill shows <b>On target</b> only when a bound tag has limits set (Tags › min / max); without limits no pill is drawn.</p>`;
+  }
   if (b.type === 'areaBox') {
     h += `<div class="fld"><label>Area name</label><input data-pp="text" value="${esc(p.text)}"></div>`;
     // header colour (heading band only) and heading text colour; empty = the drawing look's default
@@ -190,6 +200,7 @@ function bindWidgetEditor(b) {
         pushUndo();
         p[el.dataset.pp] = el.value || (el.dataset.pp === 'target' ? null : '');
         changed();
+        if (el.dataset.pp === 'src' && b.type === 'kpiTile') renderProps(); // the Tags tab and tag fields follow "Value from"
       }),
   );
   $$('#ptab [data-ppset]').forEach(
@@ -360,8 +371,9 @@ function renderProps() {
     st = bState(b);
   // v2.0 — equipment opens the Loop Studio–style Equipment panel (info, properties, data connection, readings);
   // the remaining tabs hold the extra settings. HMI widgets keep their own editor.
-  const tabs = E.widget ? [['gen', 'General']] : [['eq', 'Equipment'], ['gen', 'Connections']];
-  if (E.widget && b.type === 'tagCard') tabs.push(['tags', 'Tags']);
+  // v9.88 — data label cards have their own tab (card list + card editor, see 27-tag-cards.js)
+  const tabs = E.widget ? [['gen', 'General']] : [['eq', 'Equipment'], ...(!E.inst && b.type !== 'statusLamp' && b.tags && b.tags.length && typeof lblSection === 'function' ? [['cards', 'Cards']] : []), ['gen', 'Connections']];
+  if (E.widget && (b.type === 'tagCard' || (b.type === 'kpiTile' && b.props.src === 'tag'))) tabs.push(['tags', 'Tags']);
   if (!E.widget) tabs.push(['alerts', 'Alerts']);
   if (traceKind(b)) tabs.push(['trace', 'Traceability']);
   if (b.tags.some(t => REG[t.id]?.role === 'bent')) tabs.push(['presc', 'Prescription']);
@@ -370,7 +382,28 @@ function renderProps() {
   if (!tabs.some(t => t[0] === PTAB)) PTAB = tabs[0][0];
   P.innerHTML = `<div class="ph"><div class="ttl">${palIcon(b.type, 'ic')}<div style="flex:1;min-width:0"><input class="nm" value="${esc(b.name)}" aria-label="Name"><small>${esc(E.n)} · ${CATS[E.cat]}</small></div></div>
   ${st ? `<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="st-pill" data-stp="${b.id}" style="background:${STC[st]}">${st}</span><span class="note">Health <b data-bsevt="${b.id}">${SEVN[blkSev(b)]}</b></span><button class="sb" id="pRun" style="margin-left:auto">${b.props.oos ? 'Start' : 'Stop'} (simulated)</button></div>` : ''}</div>
-  <div class="ptabs">${tabs.map(([k, n]) => `<button data-pt="${k}" class="${PTAB === k ? 'on' : ''}">${n}${k === 'tags' ? ` (${b.tags.length})` : ''}</button>`).join('')}</div><div id="ptab"></div>`;
+  <div class="ptabs">${(tabs.length > 4 ? tabs.slice(0, 3) : tabs).map(([k, n]) => `<button data-pt="${k}" class="${PTAB === k ? 'on' : ''}">${n}${k === 'tags' ? ` (${b.tags.length})` : ''}</button>`).join('')}${
+    tabs.length > 4
+      ? (() => {
+          /* v9.88 — the rest of the tabs in a "More" menu, so the row stays neat */
+          const more = tabs.slice(3),
+            cur = more.find(t => t[0] === PTAB);
+          return `<span class="ptmore"><button type="button" class="ptmore-b${cur ? ' on' : ''}" aria-haspopup="menu" aria-expanded="false">${cur ? cur[1] : 'More'} ▾</button><span class="ptmore-m" role="menu" hidden>${more.map(([k, n]) => `<button type="button" role="menuitem" data-pt="${k}" class="${PTAB === k ? 'on' : ''}">${n}</button>`).join('')}</span></span>`;
+        })()
+      : ''
+  }</div><div id="ptab"></div>`;
+  {
+    const mb = P.querySelector('.ptmore-b'),
+      mm = P.querySelector('.ptmore-m');
+    if (mb && mm) {
+      mb.onclick = e => {
+        e.stopPropagation();
+        mm.hidden = !mm.hidden;
+        mb.setAttribute('aria-expanded', !mm.hidden);
+      };
+      document.addEventListener('pointerdown', e => !e.target.closest('.ptmore') && (mm.hidden = true), { once: true });
+    }
+  }
   $$('#props [data-pt]').forEach(
     x =>
       (x.onclick = () => {
@@ -511,7 +544,7 @@ function renderProps() {
              const t = REG[bt.id];
              if (!t) return '';
              return `<div class="trow ${OPENTAG === t.id ? 'open' : ''}" data-i="${i}" data-tid="${esc(t.id)}"><div class="top"><span class="bar" data-sevbar="${esc(t.id)}" style="background:${sevC(tagSev(t.id))}"></span><div style="min-width:0"><div class="id">${esc(t.id)}</div><div class="ds">${esc(t.desc)} · ${esc(t.src)}</div><div class="ds mono">${(sp => `Min ${sp.min != null ? fmtN(sp.min, t.d) : '—'} · Opt ${fmtN(sp.opt, t.d)} · Max ${sp.max != null ? fmtN(sp.max, t.d) : '—'} · σ ${fmtN(sp.sd, (t.d || 0) + 2)}`)(spec(t))}</div></div>${t.cfg ? '' : '<span title="Default limits — not confirmed yet" style="width:9px;height:9px;border-radius:50%;background:var(--adv);flex-shrink:0"></span>'}<span class="v" data-live="${esc(t.id)}">${fmtT(t.id)}</span>
-    <button class="lb" data-act="show" title="${bt.show ? 'Hide on canvas' : 'Show on canvas'}">${bt.show ? '👁' : '◌'}</button><button class="lb" data-act="trend" title="Trend">↗</button><button class="lb" data-act="edit" title="Limits">⚙</button><button class="lb" data-act="rm" title="Unbind" style="color:var(--crit)">×</button></div>
+    <button class="lb" data-act="show" title="${bt.show ? 'Hide on canvas' : 'Show on canvas'}">${bt.show ? '👁' : '◌'}</button><button class="lb" data-act="trend" title="Trend">↗</button>${b.type !== 'kpiTile' && typeof scOpen === 'function' ? `<button class="lb" data-act="score" title="Make a score card from this tag">▣</button>` : ''}<button class="lb" data-act="edit" title="Limits">⚙</button><button class="lb" data-act="rm" title="Unbind" style="color:var(--crit)">×</button></div>
     <div class="ex">${tagEditorHtml(t)}</div></div>`;
            })
            .join('')
@@ -532,6 +565,7 @@ function renderProps() {
               bt.show = !bt.show;
               changed();
             } else if (a === 'trend') openTrend(t.id);
+            else if (a === 'score') scOpen(t.id);
             else if (a === 'edit') {
               OPENTAG = OPENTAG === t.id ? null : t.id;
               r.classList.toggle('open', OPENTAG === t.id);

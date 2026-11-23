@@ -389,10 +389,26 @@ function tagSoon(b) {
     tagSoon.p = false;
     const el = document.querySelector(`#Ltags [data-tg="${b.id}"]`);
     if (el && typeof svgSwap === 'function') {
-      svgSwap(el, tagsSVG(b));
+      tagSwap(b, tagsSVG(b));
       fitTags();
     } else renderCanvas();
   });
+}
+/* replace every label group of one equipment: with data label cards a machine can draw several <g data-tg> (one per
+   card), so swapping only the first would leave the old cards behind */
+function tagSwap(b, html) {
+  const lt = $('#Ltags'),
+    els = lt.querySelectorAll(`[data-tg="${b.id}"]`);
+  if (!els.length) {
+    if (html) lt.insertAdjacentHTML('beforeend', html);
+    return;
+  }
+  for (let i = 1; i < els.length; i++) els[i].remove();
+  svgSwap(els[0], html);
+}
+/* the canvas's place on screen (used by the score card designer to drop a new tile in the middle of the view) */
+function cvRect() {
+  return $('#cv').getBoundingClientRect();
 }
 function renderCanvas() {
   if (typeof renderPageFrame === 'function') setTimeout(renderPageFrame, 0); // v8.9 publish page frame
@@ -507,10 +523,7 @@ function fastMove(bs) {
       const g = document.getElementById('bk_' + b.id);
       if (!g) return renderCanvas();
       g.setAttribute('transform', `translate(${b.x},${b.y})`);
-      const html = tagsSVG(b),
-        tg = lt.querySelector(`[data-tg="${b.id}"]`);
-      if (tg) svgSwap(tg, html);
-      else if (html) lt.insertAdjacentHTML('beforeend', html);
+      tagSwap(b, tagsSVG(b));
       fitTags();
     }
     DOC.streams.forEach(st => {
