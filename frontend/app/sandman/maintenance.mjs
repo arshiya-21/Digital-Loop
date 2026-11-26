@@ -261,13 +261,39 @@ export async function registerEquipment({ pull: readFirst = false } = {}) {
 
     const items = call('mcSyncPayload') || []
     const key = sig(items)
-    if (key === registeredKey) return
-    const reply = await api.put(`/equipment/${encodeURIComponent(loopId)}`, { items })
-    registeredKey = key
-    call('mcApplyTokens', reply.cards)
-    window.DL_CARD_BASE = window.DL_CARD_BASE || cardBase()
+    if (key !== registeredKey) {
+      const reply = await api.put(`/equipment/${encodeURIComponent(loopId)}`, { items })
+      registeredKey = key
+      call('mcApplyTokens', reply.cards)
+      window.DL_CARD_BASE = window.DL_CARD_BASE || cardBase()
+    }
   } catch (error) {
     console.error('Registering equipment failed:', error)
+  }
+  await registerCategories(readFirst)
+}
+
+/**
+ * Category QR stickers, the same way: administrators keep the register in step
+ * with the saved categories, everybody reads the real tokens back.
+ */
+let categoriesKey = ''
+async function registerCategories(readFirst) {
+  if (!loopId || typeof peek('qcSyncPayload') !== 'function') return
+  try {
+    if (readFirst || !admin) {
+      const read = await api.get(`/qr-categories?loopId=${encodeURIComponent(loopId)}`)
+      call('qcApplyTokens', read.cards)
+    }
+    if (!admin) return
+    const items = call('qcSyncPayload') || []
+    const key = sig(items)
+    if (key === categoriesKey) return
+    const reply = await api.put(`/qr-categories/${encodeURIComponent(loopId)}`, { items })
+    categoriesKey = key
+    call('qcApplyTokens', reply.cards)
+  } catch (error) {
+    console.error('Registering category QR stickers failed:', error)
   }
 }
 
@@ -301,6 +327,7 @@ export function stop() {
   removeEventListener('pagehide', onHide)
   adopted = false
   registeredKey = ''
+  categoriesKey = ''
 }
 
 export const status = () => ({ loopId, adopted, admin, base: window.DL_CARD_BASE || null })

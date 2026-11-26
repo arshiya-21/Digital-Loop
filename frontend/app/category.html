@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0e2d5c">
+<title>Category · Fountrix Digital Loop</title>
+<style>
+/*
+ * The category page — what a category QR sticker opens (Sand lab, Melting …).
+ * The machine page's look (machine.html): one column on a phone, two on a
+ * tablet, large values, works in sunlight and in a dim plant room.
+ */
+:root {
+  --bg: #eef2f7; --card: #ffffff; --ink: #14233b; --mute: #5b6a80; --line: #d6dde8;
+  --brand: #0e2d5c; --brand-2: #1d4ed8; --on-brand: #ffffff;
+  --ok: #178a4a; --ok-bg: #e5f5ec; --warn: #b36b00; --warn-bg: #fdf0d9; --bad: #c62828; --bad-bg: #fde8e8;
+  --adv: #8a6d00; --adv-bg: #fbf3cc; --info-bg: #e8eefb;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 4px 14px rgba(15, 23, 42, .05);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1220; --card: #131d30; --ink: #e8eef9; --mute: #9fb0c9; --line: #263450;
+    --brand: #12325f; --brand-2: #6aa0ff;
+    --ok: #4cd08a; --ok-bg: #12301f; --warn: #ffb54a; --warn-bg: #36270c; --bad: #ff7b7b; --bad-bg: #3b1818;
+    --adv: #e6c84a; --adv-bg: #332d0c; --info-bg: #162544; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--sans); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 14px 14px; }
+.hd { background: var(--brand); color: var(--on-brand); padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 16px; border-bottom: 6px solid var(--cat, #1d4ed8); }
+.hd-in { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: #8da2c0; flex: none; box-shadow: 0 0 0 4px rgba(255,255,255,.15); }
+.dot.ok { background: #34d27b; } .dot.warning { background: #ffb020; } .dot.alarm { background: #ff4d4d; animation: pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.hd .k { font: 800 11.5px var(--sans); letter-spacing: .12em; opacity: .75; }
+.hd h1 { margin: 0; font-size: 26px; line-height: 1.1; }
+.hd .sub { opacity: .85; font-size: 14px; margin-top: 2px; }
+.hd .where { opacity: .7; font-size: 12.5px; margin-top: 3px; }
+.banner { margin: 12px 0 0; padding: 11px 13px; border-radius: 10px; font-size: 14.5px; }
+.banner.off { background: var(--warn-bg); color: var(--warn); }
+.strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+.st { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; box-shadow: var(--shadow); }
+.st b { display: block; font: 800 26px/1 var(--mono); }
+.st span { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--mute); text-transform: uppercase; }
+.st.c3 b { color: var(--bad); } .st.c2 b { color: var(--warn); } .st.c1 b { color: var(--adv); } .st.c0 b { color: var(--ok); }
+.st.c3.on { background: var(--bad-bg); } .st.c2.on { background: var(--warn-bg); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; margin-top: 14px; }
+.card > h2 { margin: 0; padding: 13px 15px 9px; font-size: 13px; letter-spacing: .09em; text-transform: uppercase; color: var(--mute); display: flex; gap: 8px; }
+.card > h2 .n { margin-left: auto; font: 700 12px var(--mono); background: var(--info-bg); border-radius: 999px; padding: 2px 9px; color: var(--ink); letter-spacing: 0; }
+.cols { display: grid; grid-template-columns: 1fr; }
+@media (min-width: 860px) { .cols { grid-template-columns: 1fr 1fr; } .cols .rd:nth-child(2) { border-top: 0; } }
+.rd { padding: 11px 15px; border-top: 1px solid var(--line); border-left: 5px solid transparent; }
+.rd:first-child { border-top: 0; }
+.rd.s1 { border-left-color: #d9b800; } .rd.s2 { border-left-color: #ec7a15; background: var(--warn-bg); } .rd.s3 { border-left-color: #d93636; background: var(--bad-bg); }
+.rd-1 { display: flex; align-items: baseline; gap: 10px; }
+.rd-1 b { font-size: 16px; font-weight: 650; }
+.rd-1 .eq { font-size: 12.5px; color: var(--mute); display: block; font-weight: 500; }
+.rd-v { margin-left: auto; font: 700 28px/1 var(--mono); white-space: nowrap; }
+.rd-v small { font: 600 14px var(--sans); color: var(--mute); margin-left: 4px; }
+.s2 .rd-v { color: var(--warn); } .s3 .rd-v { color: var(--bad); }
+.rd-2 { color: var(--mute); font-size: 13.5px; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.fx { font: 800 11px var(--sans); background: #ede9fe; color: #6d28d9; border-radius: 5px; padding: 1px 6px; margin-right: 4px; }
+.stale { color: var(--warn); }
+.none { color: var(--mute); padding: 2px 15px 15px; font-size: 14.5px; }
+.foot { text-align: center; color: var(--mute); font-size: 12.5px; padding: 18px 8px 6px; }
+.foot a { color: var(--brand-2); }
+.center { text-align: center; padding: 60px 20px; color: var(--mute); }
+.spin { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--brand-2); margin: 0 auto 14px; animation: sp 0.9s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dot.alarm, .spin { animation: none; } }
+</style>
+</head>
+<body>
+<div id="app"><div class="center"><div class="spin"></div>Opening category…</div></div>
+<script>
+'use strict';
+/*
+ * Category page. Reads one category from /api/v1/c/<token> every few seconds:
+ * its readings with the last value stored for each (by the screens, or by the
+ * server's own 30-second check when no screen is open), limits and status.
+ * The token in the address is the only credential; nothing is stored here.
+ */
+const token = decodeURIComponent((location.pathname.split('/c/')[1] || '').split('/')[0]);
+const API = 'api/v1/c/' + encodeURIComponent(token);
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let CAT = null, LAST_OK = 0, OFFLINE = false, TIMER = null;
+
+const fmtVal = r => {
+  if (r.value === null && r.text === null) return '—';
+  if (r.value === null) return esc(r.text);
+  const d = r.decimals != null ? r.decimals : (Math.abs(r.value) >= 100 ? 0 : 1);
+  return r.value.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+};
+const limText = r => {
+  const l = r.limits, bits = [];
+  if (l.lo != null || l.hi != null) bits.push(`Limits ${l.lo ?? '—'} – ${l.hi ?? '—'}`);
+  if (l.ll != null || l.hh != null) bits.push(`critical ${l.ll ?? '—'} / ${l.hh ?? '—'}`);
+  return bits.length ? bits.join(' · ') + (r.unit ? ' ' + r.unit : '') : 'No limits set';
+};
+const ago = iso => {
+  if (!iso) return '';
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  return Math.round(s / 86400) + ' d ago';
+};
+const STATUS = { alarm: 'ALARM', warning: 'WARNING', ok: 'NORMAL', unknown: 'NO DATA' };
+
+function draw() {
+  const c = CAT, k = c.counts;
+  const status = k.critical ? 'alarm' : k.warning ? 'warning' : c.readings.some(r => r.value !== null) ? 'ok' : 'unknown';
+  // worst first, then as listed
+  const list = c.readings.map((r, i) => ({ r, i })).sort((a, b) => b.r.severity - a.r.severity || a.i - b.i).map(x => x.r);
+  const old = r => r.readAt && Date.now() - new Date(r.readAt).getTime() > 10 * 60000;
+  $('#app').innerHTML = `
+  <header class="hd" style="--cat:${esc(c.category.color)}"><div class="hd-in"><span class="dot ${status}"></span>
+    <div><div class="k">CATEGORY</div><h1>${esc(c.category.name)}</h1>${c.category.description ? `<div class="sub">${esc(c.category.description)}</div>` : ''}<div class="where">${esc(c.loop.line)} · ${esc(c.loop.name)}</div></div></div></header>
+  <div class="wrap">
+    ${OFFLINE ? `<div class="banner off">Offline — showing the last data from ${esc(ago(new Date(LAST_OK).toISOString()))}. It will refresh when the connection returns.</div>` : ''}
+    <div class="strip">
+      <div class="st c3 ${k.critical ? 'on' : ''}"><b>${k.critical}</b><span>Critical</span></div>
+      <div class="st c2 ${k.warning ? 'on' : ''}"><b>${k.warning}</b><span>Warning</span></div>
+      <div class="st c1"><b>${k.near}</b><span>Near</span></div>
+      <div class="st c0"><b>${k.ok}</b><span>OK</span></div>
+      <div class="st"><b>${k.noData}</b><span>No data</span></div>
+    </div>
+    <section class="card"><h2>Parameter · Value · Limits <span class="n">${c.readings.length}</span></h2>
+      ${list.length ? `<div class="cols">${list.map(r => `<div class="rd s${r.severity}"><div class="rd-1"><b>${r.calc ? '<span class="fx">ƒx</span>' : ''}${esc(r.label)}<span class="eq">${esc(r.equipment)}</span></b><span class="rd-v">${fmtVal(r)}<small>${esc(r.unit)}</small></span></div>
+        <div class="rd-2"><span>${esc(limText(r))}</span>${r.readAt ? `<span class="${old(r) ? 'stale' : ''}">read ${esc(ago(r.readAt))}</span>` : '<span>no reading yet</span>'}</div></div>`).join('')}</div>` : '<div class="none">No readings in this category yet.</div>'}
+    </section>
+    <div class="foot">Fountrix Digital Loop · ${esc(c.loop.foundry)} · updated ${new Date().toLocaleTimeString()}<br><a href="./">Open the whole loop</a> (needs sign-in)</div>
+  </div>`;
+}
+
+async function refresh() {
+  try {
+    const res = await fetch(API, { headers: { 'x-requested-with': 'digital-loop' } });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) { const e = new Error((data && data.message) || `Request failed (${res.status})`); e.status = res.status; throw e; }
+    CAT = data; LAST_OK = Date.now(); OFFLINE = false;
+    document.title = `${CAT.category.name} · Fountrix Digital Loop`;
+    draw();
+  } catch (e) {
+    if (e.status === 404 || e.status === 410 || e.status === 401) {
+      clearInterval(TIMER);
+      $('#app').innerHTML = `<div class="center"><h2 style="color:var(--ink)">${e.status === 401 ? 'Sign in needed' : e.status === 410 ? 'Category removed' : 'QR code not recognised'}</h2><p>${esc(e.message)}</p></div>`;
+      return;
+    }
+    if (CAT) { OFFLINE = true; draw(); }
+    else $('#app').innerHTML = `<div class="center"><h2 style="color:var(--ink)">Cannot reach the server</h2><p>Check your connection. Trying again…</p></div>`;
+  }
+}
+refresh();
+TIMER = setInterval(refresh, 8000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+</script>
+</body>
+</html>
