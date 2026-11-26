@@ -827,8 +827,13 @@ function firstRowOnly(sql) {
 
 export async function latestValues(row, wanted) {
   /** `statements`: what was actually run for each reading, for Preview data to show. */
-  const out = { values: {}, errors: {}, statements: {} }
+  const out = {
+    values: {}, errors: {}, statements: {},
+    /** Numbers only, for the request log — see `query` below. */
+    timing: { schemaMs: 0, queries: 0, groups: 0, queryMs: 0, slowestMs: 0 },
+  }
   if (!Array.isArray(wanted) || !wanted.length) return out
+  const schemaStarted = performance.now()
 
   const dialect = DIALECT[row.engine]
   if (!dialect) throw new Error(`"${row.engine}" is not a database engine this understands.`)
@@ -857,6 +862,7 @@ export async function latestValues(row, wanted) {
   // The same schema read, by type — for deciding whether a "Newest by" pair
   // is two columns the database can compare as dates. See `paired` below.
   const types = typesByTable((await schemaFor(row)).schema)
+  out.timing.schemaMs = performance.now() - schemaStarted
 
   const usable = []
   for (const original of wanted) {
@@ -1077,7 +1083,24 @@ export async function latestValues(row, wanted) {
      readings. Kept to a size no database objects to. */
   const BATCH = 100
 
-  await ask(row, async ({ query }) => {
+  await ask(row, async ({ query: run }) => {
+    /*
+     * Every statement timed and counted, for the request log: how many trips
+     * a poll took and how long the slowest was says at once whether a slow
+     * poll is too many queries or one slow query.
+     */
+    const query = async (sql, params) => {
+      const started = performance.now()
+      try {
+        return await run(sql, params)
+      } finally {
+        const ms = performance.now() - started
+        out.timing.queries++
+        out.timing.queryMs += ms
+        out.timing.slowestMs = Math.max(out.timing.slowestMs, ms)
+      }
+    }
+
     /** One reading, on its own — the path a written statement always takes. */
     const readOne = async tag => {
       const filtered = !tag.sql && !!(tag.keyColumn && tag.keyValue)
@@ -1156,6 +1179,7 @@ export async function latestValues(row, wanted) {
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(tag)
     }
+    out.timing.groups = groups.size
 
     for (const group of groups.values()) {
       for (let at = 0; at < group.length; at += BATCH) {

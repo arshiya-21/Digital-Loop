@@ -126,6 +126,8 @@ async function connectionFor(user, connectionId) {
 async function readRegistered(user, byConnection) {
   const values = {}
   const errors = {}
+  /** Summed over every connection, for the request log. Numbers only. */
+  const timing = { schemaMs: 0, queries: 0, groups: 0, queryMs: 0, slowestMs: 0 }
 
   for (const [connectionId, tags] of byConnection) {
     const row = await connectionFor(user, connectionId)
@@ -138,6 +140,14 @@ async function readRegistered(user, byConnection) {
       const answer = await latestValues(row, tags)
       Object.assign(values, answer.values)
       Object.assign(errors, answer.errors)
+      const t = answer.timing
+      if (t) {
+        timing.schemaMs += t.schemaMs
+        timing.queries += t.queries
+        timing.groups += t.groups
+        timing.queryMs += t.queryMs
+        timing.slowestMs = Math.max(timing.slowestMs, t.slowestMs)
+      }
     } catch (error) {
       // The host and the driver's complaint, never the password — it is not
       // interpolated into anything `latestValues` builds.
@@ -146,7 +156,14 @@ async function readRegistered(user, byConnection) {
     }
   }
 
-  return { values, errors }
+  return { values, errors, timing }
+}
+
+/** A promise and how long it took, for the request log. */
+async function timed(promise) {
+  const started = performance.now()
+  const result = await promise
+  return { result, ms: Math.round(performance.now() - started) }
 }
 
 /**
@@ -176,19 +193,35 @@ live.get('/values', async ({ user, query, req }) => {
    * slow historian should not hold up the foundry's own numbers — so they are
    * asked for together rather than one after the other.
    */
-  const [fromSandMan, fromRegistered] = await Promise.all([
-    tags.length
+  const [sandmanHalf, registeredHalf] = await Promise.all([
+    timed(tags.length
       ? cachedValues(
           String(user.foundry.id), String(loop.line_id), tags,
           () => readValues({ foundry: String(user.foundry.id), line: String(loop.line_id), tags })
         )
-      : Promise.resolve({ values: {}, errors: {} }),
-    registeredCount ? readRegistered(user, external) : Promise.resolve({ values: {}, errors: {} }),
+      : Promise.resolve({ values: {}, errors: {} })),
+    timed(registeredCount ? readRegistered(user, external) : Promise.resolve({ values: {}, errors: {} })),
   ])
+  const fromSandMan = sandmanHalf.result
+  const fromRegistered = registeredHalf.result
 
-  // Counts and freshness only — never a reading, never a table name.
+  /*
+   * Counts and times only — never a reading, never a table name.
+   *
+   *   40+12 tags, read | sandman 120ms | db 7800ms: schema 15ms, 12 queries
+   *   for 3 groups, slowest 2900ms
+   *
+   * says at once which half was slow, and whether it was too many trips or
+   * one slow statement.
+   */
+  const t = fromRegistered.timing
   req.logNote = `${tags.length}+${registeredCount} tags` +
-    (fromSandMan.stale ? ', stale' : fromSandMan.cached ? ', cached' : ', read')
+    (fromSandMan.stale ? ', stale' : fromSandMan.cached ? ', cached' : ', read') +
+    (tags.length ? ` | sandman ${sandmanHalf.ms}ms` : '') +
+    (registeredCount && t
+      ? ` | db ${registeredHalf.ms}ms: schema ${Math.round(t.schemaMs)}ms, ` +
+        `${t.queries} queries for ${t.groups} groups, slowest ${Math.round(t.slowestMs)}ms`
+      : '')
 
   const merged = { ...(fromSandMan.values || {}), ...fromRegistered.values }
   if (!fromSandMan.stale) rememberReadings(loop.id, merged)
