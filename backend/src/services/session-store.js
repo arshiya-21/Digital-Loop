@@ -60,6 +60,8 @@ export function openSession(launch) {
      * from. Null when the launch did not include one.
      */
     database: launch.database || null,
+    /** Publish view buttons allowed by SandMan's user access; null = all. */
+    buttons: Array.isArray(launch.buttons) ? launch.buttons : null,
     openedAt: Date.now(),
     expiresAt: Date.now() + config.session.hours * 3600 * 1000,
   }

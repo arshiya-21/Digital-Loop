@@ -21,6 +21,7 @@
  * `save()`, both of which are already on `window` as classic-script globals.
  */
 import { peek } from './studio.mjs'
+import { session } from './session.mjs'
 
 /** Where the overrides live on the saved loop. */
 const CONFIG_KEY = 'publishView'
@@ -393,6 +394,63 @@ function keepAliasesOnScreen() {
   }, 1000)
 }
 
+/* ------------------------------------------- SandMan user access per button ---*/
+
+/**
+ * Which publish-bar buttons each SandMan access right opens.
+ *
+ * SandMan › User access › "Digital Loop" has one tick box per button (Main
+ * Screen, Fit View, Process, … Tickets) and sends the ticked ones at launch.
+ * A button not in the list is hidden for this user, whatever the loop's own
+ * show / hide says — that overlay is per loop and for everybody; this one is
+ * per user and comes from SandMan. Exit publish view is never in the list:
+ * it is the way out and is always there.
+ */
+const ACCESS_IDS = {
+  main_screen: ['pMain'],
+  fit_view: ['pFit', 'pFitFill', 'pFitPage'],
+  areas: ['pAreas'],
+  traceability: ['pTrace'],
+  fault_alarm: ['pMon', 'pAlarm'],
+  system_diagnosis: ['pDiag'],
+  silence_alarm: ['pSound'],
+  fault_reset: ['pReset'],
+  maintenance: ['pMnt'],
+  qr_cards: ['pQR'],
+  parameters_monitoring: ['pLoop'],
+  tickets: ['pTk'],
+}
+const ACCESS_STYLE_ID = 'dlPublishAccessRules'
+
+/** Hide the buttons this user has no access to. Null list (older SandMan) = all allowed. */
+export function paintAccess() {
+  const allowed = session.user?.buttons
+  let sheet = document.getElementById(ACCESS_STYLE_ID)
+  if (!sheet) {
+    sheet = document.createElement('style')
+    sheet.id = ACCESS_STYLE_ID
+    document.head.append(sheet)
+  }
+  if (!Array.isArray(allowed)) {
+    sheet.textContent = ''
+    return
+  }
+  const rules = []
+  for (const [right, ids] of Object.entries(ACCESS_IDS)) {
+    if (allowed.includes(right)) continue
+    for (const id of ids) rules.push(`#${cssId(id)} { display: none !important; }`)
+  }
+  sheet.textContent = rules.join('\n')
+}
+
+/** Whether this user may use a publish-bar button (by its element id). */
+export function buttonAllowed(id) {
+  const allowed = session.user?.buttons
+  if (!Array.isArray(allowed)) return true
+  const right = Object.keys(ACCESS_IDS).find(k => ACCESS_IDS[k].includes(id))
+  return !right || allowed.includes(right)
+}
+
 /**
  * Wake up the overlay when a loop is loaded.
  *
@@ -407,6 +465,7 @@ export function installPublishView({ save } = {}) {
     setTimeout(installButton, 300)
   }
   keepAliasesOnScreen()
+  paintAccess()
   paintPublishView()
   paintAliases()
 

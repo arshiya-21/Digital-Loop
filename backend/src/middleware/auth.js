@@ -132,6 +132,8 @@ function resolveUser(req) {
     lineId: session.lineId,
     /** The foundry's database, described by SandMan. Names only; may be null. */
     database: session.database || null,
+    /** Publish view buttons allowed by SandMan's user access; null = all. */
+    buttons: Array.isArray(session.buttons) ? session.buttons : null,
     token: session.token,
   }
 }

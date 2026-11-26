@@ -66,7 +66,13 @@ export async function enter() {
   }
 
   session.ok = true
-  session.user = { sandmanUserId: me.sandmanUserId, name: me.name, role: me.role }
+  session.user = {
+    sandmanUserId: me.sandmanUserId,
+    name: me.name,
+    role: me.role,
+    /** Publish view buttons allowed in SandMan › User access › Digital Loop; null = all. */
+    buttons: Array.isArray(me.buttons) ? me.buttons : null,
+  }
   session.foundry = { id: plant.id, name: plant.name }
   session.lines = plant.lines.map(line => ({ id: line.id, name: line.name }))
   // The line SandMan opened on comes from the session, like everything else:

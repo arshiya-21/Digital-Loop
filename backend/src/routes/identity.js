@@ -27,6 +27,8 @@ identity.get('/', ({ user }) => ({
   role: user.role,
   /** What this account may do, stated rather than inferred from the role. */
   access: user.role === 'admin' ? ['design', 'publish', 'view'] : ['view'],
+  /** Publish view buttons this user may use (SandMan › User access › Digital Loop); null = all. */
+  buttons: user.buttons,
   /**
    * One foundry, always: a launch opens one plant. It is still a list because
    * that is the shape the studio reads, and because an account that can reach
