@@ -203,7 +203,7 @@ function readDatabase(raw) {
  * comparison is a plain string comparison rather than a `==` waiting to go
  * wrong.
  */
-function readLaunch(body) {
+export function readLaunch(body) {
   const user = text(body.user)
   if (!user) throw badRequest('invalid_field', '"user" is required.')
 
@@ -247,7 +247,23 @@ function readLaunch(body) {
     line: line || null,
     /** The foundry's own database, described but never connected to. */
     database: readDatabase(body.database),
+    buttons: readButtons(body.buttons),
   }
+}
+
+/**
+ * The Publish view buttons this user may use, from SandMan's user access
+ * ("Digital Loop" group: Main Screen, Fit View, … Tickets). Unknown names are
+ * dropped. Null — every button — when SandMan sent no list (an older SandMan).
+ */
+const PUBLISH_BUTTONS = [
+  'main_screen', 'fit_view', 'areas', 'traceability', 'fault_alarm', 'system_diagnosis',
+  'silence_alarm', 'fault_reset', 'maintenance', 'qr_cards', 'parameters_monitoring', 'tickets',
+]
+function readButtons(list) {
+  if (list == null) return null
+  if (!Array.isArray(list)) throw badRequest('invalid_field', '"buttons" must be a list.')
+  return [...new Set(list.map(b => String(b)).filter(b => PUBLISH_BUTTONS.includes(b)))]
 }
 
 /** Mint a launch ticket. SandMan's server only, and from its address only. */
@@ -258,6 +274,13 @@ session.post('/launch', async ({ body, req }) => {
   requireSandMan(req)
 
   const launch = readLaunch(body)
+  // The foundry's database name, for the server-side alert checker (names only; SandMan reads the values).
+  if (launch.database?.name) {
+    await db.prepare(
+      `INSERT INTO foundry_info (foundry_id, database_name, updated_at) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE database_name = VALUES(database_name), updated_at = VALUES(updated_at)`
+    ).run(launch.foundry, launch.database.name, now())
+  }
   const id = uid('tkt')
   const expires = new Date(Date.now() + config.sandman.ticketSeconds * 1000).toISOString()
 

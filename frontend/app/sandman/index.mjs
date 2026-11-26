@@ -12,7 +12,9 @@ import * as tableVisibility from './table-visibility.mjs'
 import * as processChecks from './process-checks.mjs'
 import * as sops from './sops.mjs'
 import * as maintenance from './maintenance.mjs'
+import * as alertRecords from './alert-records.mjs'
 import { installPublishView } from './publish-view.mjs'
+import { installAlertMail } from './alert-mail.mjs'
 import { ApiError } from './api.mjs'
 
 /**
@@ -448,6 +450,7 @@ async function openLine(lineId) {
     // The canvas is emptied either way: leaving the previous line's loop on
     // screen would be claiming this line has a design when it has not.
     designs.close()
+    alertRecords.stop()
     const lineName = designs.lineNameFor(lineId) || 'this line'
     // Nothing is open, so nothing is linked to the plant.
     live.stop()
@@ -523,8 +526,10 @@ async function openDesign(designId) {
   applyRole()
   refreshLineStrip()
 
+  chipQuietUntil = Date.now() + 2000
   studio.write(layout)
   openedWith = studio.size(layout)
+  saveChip('saved')
   clearEmptyNotice()
   studio.fitWholeLoop()
 
@@ -549,6 +554,12 @@ async function openDesign(designId) {
    * touches when it lands, and a slow answer must not delay the drawing.
    */
   maintenance.adopt(designs.current.id, { isAdmin: isAdmin() })
+
+  /*
+   * Tickets, alert days, engineered-alert history and the email log, from
+   * their own tables — see alert-records.mjs. Not awaited, like maintenance.
+   */
+  alertRecords.adopt(designs.current.id)
 }
 
 /* ------------------------------------------------------------- saving ------ */
@@ -565,6 +576,33 @@ async function openDesign(designId) {
  * versions within half an hour.
  */
 let openedWith = 0
+
+/*
+ * The save chip at the top ("● Saved") tells the truth about the server.
+ *
+ * The studio's own chip said "Saved" because it saved to this browser after
+ * every change. Here that save is switched off (`captureSaves`): a change is
+ * on screen only until an administrator presses Save, which stores a new
+ * version. So the chip says "Not saved — press Save" after any change, and
+ * "Saved v70 · 16:10" when the server has the version. Changes made while a
+ * loop is being opened are not edits and are ignored.
+ */
+let chipQuietUntil = 0
+function saveChip(state, version) {
+  const chip = document.getElementById('saveSt')
+  if (!chip) return
+  if (state === 'dirty') {
+    if (!isAdmin() || Date.now() < chipQuietUntil) return
+    chip.textContent = '● Not saved — press Save'
+    chip.className = 'savest busy'
+    chip.title = 'These changes are on this screen only. Press Save (Ctrl+S) to store them in the database as a new version.'
+    return
+  }
+  const at = new Date().toTimeString().slice(0, 5)
+  chip.textContent = `● Saved${version ? ' v' + version : ''} · ${at}`
+  chip.className = 'savest ok'
+  chip.title = 'Everything on screen is stored in the database.'
+}
 
 async function saveToServer() {
   if (!isAdmin()) {
@@ -689,7 +727,23 @@ async function saveToServer() {
     }
   }
 
+  // Tickets and alert history are in their own tables, not in every version of the drawing.
+  await alertRecords.flush()
+  alertRecords.stripFromLayout(document_)
+  // Which process area each machine is in, worked out by the studio (it knows every drawing's size), so the
+  // server-side alert checker routes emails by zone exactly as the screen does.
+  try {
+    const zones = studio.peek('afZones'), members = studio.peek('afMembers')
+    if (typeof zones === 'function' && typeof members === 'function' && document_.DOC) {
+      const map = {}
+      for (const z of zones()) for (const b of members(z)) if (!map[b.id]) map[b.id] = z.id
+      document_.DOC.zoneMap = map
+    }
+  } catch (error) {
+    console.error('Recording the process areas failed:', error)
+  }
   const version = await designs.save(document_)
+  saveChip('saved', version)
   // What is on the canvas now is the thing to compare against next time.
   openedWith = studio.size(document_)
   startedFresh = false
@@ -941,6 +995,8 @@ async function boot() {
      * applied in the publish view only, and leaves the drawing itself alone.
      */
     installPublishView({ save: saveToServer })
+    // Alert and ticket emails go out through SandMan's mail server — alert-mail.mjs.
+    installAlertMail({ lineOf: () => standingLine })
     /*
      * The Fault alarm picker saves the same way the Publish view buttons do:
      * the choice goes onto the loop (DOC.mon) and this writes it to the database.
@@ -997,7 +1053,16 @@ async function boot() {
 
     // Designs live on the server from here: the browser keeps no copy, and
     // Save means a new version rather than a file or a localStorage entry.
-    studio.captureSaves(() => {})
+    /*
+     * Every studio edit calls save(). The original also told the server layer
+     * ('dl:docsaved') so maintenance and the alert records go up within a
+     * second; the capture has to keep doing that, or an operator's logged work
+     * waits until the tab is hidden.
+     */
+    studio.captureSaves(() => {
+      saveChip('dirty')
+      document.dispatchEvent(new Event('dl:docsaved'))
+    })
     studio.captureButtons({
       onSave: saveToServer,
       onOpen: openAnotherLoop,

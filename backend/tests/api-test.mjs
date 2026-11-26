@@ -416,6 +416,24 @@ check('the cookie alone is a session', byCookie.status === 200 && whoami.sandman
 check('/me carries the line the launch named, since there is no redeem reply',
   whoami.line === lineId || whoami.line === null, whoami.line)
 
+/* SandMan › User access › Digital Loop: the Publish buttons this user may use. */
+log.push('ACCESS — the Publish view buttons SandMan allows')
+const meOf = async launch => {
+  const r = await enter(await mintTicket(launch))
+  return (await fetch(`${BASE}/me`, { headers: { cookie: `dl_session=${cookieValue(r)}` } })).json()
+}
+const limited = await meOf({ user: 'op.tickets', name: 'Op', role: 'viewer', ...PLANT, buttons: ['main_screen', 'tickets', 'no_such_button'] })
+check('/me returns the buttons SandMan allowed, unknown names dropped',
+  JSON.stringify(limited.buttons) === JSON.stringify(['main_screen', 'tickets']), limited.buttons)
+check('no list from SandMan (older SandMan) means every button', whoami.buttons === null, whoami.buttons)
+const noneAllowed = await meOf({ user: 'op.none', name: 'Op', role: 'viewer', ...PLANT, buttons: [] })
+check('an empty list means no buttons (not all)', Array.isArray(noneAllowed.buttons) && noneAllowed.buttons.length === 0, noneAllowed.buttons)
+const badButtons = await fetch(`${BASE}/session/launch`, {
+  method: 'POST', headers: { 'content-type': 'application/json', 'x-sandman-secret': SECRET },
+  body: JSON.stringify({ user: 'x', role: 'viewer', ...PLANT, buttons: 'tickets' }),
+})
+check('"buttons" that is not a list is refused', badButtons.status === 400, badButtons.status)
+
 /* The row is gone the moment it is used, not merely marked. */
 const reused = await enter(entryTicket)
 check('a ticket cannot be used twice', reused.status === 303 && !cookieValue(reused),
@@ -1296,6 +1314,65 @@ check('and an alarm cannot be filed against a loop you cannot see',
   (await call(OP2, 'POST', '/alarms', { loopId: liveId, tag: 'X', severity: 1 })).status >= 400)
 
 // ------------------------------------------------ databases somebody added ---
+log.push('ALERT RECORDS — tickets, alert days, history and emails, shared by every screen')
+{
+  const P = `/alert-records/${designId}`
+  const empty = await call(OP1, 'GET', `/alert-records?loopId=${designId}`)
+  check('an operator reads the alert records of a loop they may view', empty.status === 200 && Array.isArray(empty.body.tickets), empty.body)
+  check('an outsider may not', (await call(OP2, 'GET', `/alert-records?loopId=${designId}`)).status >= 403)
+  check('nor write', (await call(OP2, 'PUT', P, { tickets: [] })).status >= 403)
+
+  const t0 = Date.now()
+  const ticketA = { id: 'tkA', no: 'TK-0001', key: 'lim:T_MOIST', source: 'alert', status: 'new', equip: 'b1', owner: 'Sand lab', created: t0,
+    hist: [{ t: t0, by: 'System', text: 'Created' }] }
+  let w = await call(OP1, 'PUT', P, { tickets: [ticketA], days: { 'lim:T_MOIST': { days: ['2026-11-25', '2026-11-26'], mins: { '2026-11-26': 12 } } } })
+  check('an operator stores a ticket (operators cannot save the drawing, but can work tickets)', w.status === 200, w.body)
+
+  // a second screen raises the same alert before it has seen the first one's ticket
+  w = await call(ADMIN, 'PUT', P, { tickets: [{ ...ticketA, id: 'tkB', no: 'TK-0001', created: t0 + 500 }],
+    days: { 'lim:T_MOIST': { days: ['2026-11-24'], mins: { '2026-11-26': 7 } } } })
+  check('a second screen\'s ticket for the same open alert becomes the stored one, not a duplicate',
+    w.status === 200 && w.body.mergedTickets?.tkB?.id === 'tkA' && w.body.mergedTickets.tkB.no === 'TK-0001', w.body)
+
+  // a manual ticket on the other screen wanting the same number gets the next one
+  w = await call(ADMIN, 'PUT', P, { tickets: [{ id: 'tkM', no: 'TK-0001', source: 'manual', status: 'new', created: t0 + 900, hist: [] }] })
+  check('the server issues ticket numbers: a clash gets the next free number', w.body.renumbered?.tkM === 'TK-0002', w.body)
+
+  // both screens work the same ticket: neither loses the other's history
+  await call(OP1, 'PUT', P, { tickets: [{ ...ticketA, status: 'progress', hist: [...ticketA.hist, { t: t0 + 1000, by: 'Ravi', text: 'Work started' }] }] })
+  await call(ADMIN, 'PUT', P, { tickets: [{ ...ticketA, status: 'closed', closeNote: 'Valve cleaned',
+    hist: [...ticketA.hist, { t: t0 + 2000, by: 'Anil', text: 'Closed — Valve cleaned' }] }] })
+  const after = (await call(OP1, 'GET', `/alert-records?loopId=${designId}`)).body
+  const a = after.tickets.find(t => t.id === 'tkA')
+  check('two screens on one ticket: the latest status, and both people\'s history kept',
+    a?.status === 'closed' && a.closeNote === 'Valve cleaned' && a.hist.map(h => h.text).join('|') === 'Created|Work started|Closed — Valve cleaned', a)
+  check('only two tickets stored (no duplicate for the same alert)', after.tickets.length === 2, after.tickets.map(t => t.no))
+  const d = after.days['lim:T_MOIST']
+  check('alert days from every screen are combined, each day\'s larger count kept',
+    d?.days.join() === '2026-11-24,2026-11-25,2026-11-26' && d.mins['2026-11-26'] === 12, d)
+
+  // engineered-alert history: the same open alert from two screens is one entry; once cleared it stays cleared
+  w = await call(OP1, 'PUT', P, { events: [{ id: 'ea1', rule: 'r1', name: 'Compactability high', start: t0, sev: 2 }] })
+  w = await call(ADMIN, 'PUT', P, { events: [{ id: 'ea2', rule: 'r1', name: 'Compactability high', start: t0 + 800, sev: 2 }] })
+  check('the same open engineered alert from a second screen is one history entry', w.body.mergedEvents?.ea2 === 'ea1', w.body)
+  await call(OP1, 'PUT', P, { events: [{ id: 'ea1', rule: 'r1', start: t0, cleared: t0 + 60000 }] })
+  await call(ADMIN, 'PUT', P, { events: [{ id: 'ea1', rule: 'r1', start: t0, cleared: null }] })
+  const ev = (await call(OP1, 'GET', `/alert-records?loopId=${designId}`)).body.events
+  check('a cleared alert stays cleared: an older copy cannot reopen it', ev.length === 1 && ev[0].cleared === t0 + 60000, ev)
+
+  // emails: one record per email, status updates kept, the same email from a second screen once
+  const mail = { id: 'm1', t: t0, ch: 'email', inst: 'lim:T_MOIST', to: ['q1@plant.test'], subject: '[Critical] Moisture — Sand preparation', text: 'x', status: 'queued for the server' }
+  await call(OP1, 'PUT', P, { mails: [mail] })
+  await call(OP1, 'PUT', P, { mails: [{ ...mail, status: 'sent by SandMan to 1' }] })
+  await call(ADMIN, 'PUT', P, { mails: [{ ...mail, id: 'm2', t: t0 + 3000 }] })
+  const mails = (await call(OP1, 'GET', `/alert-records?loopId=${designId}`)).body.mails
+  check('the email log keeps the outcome, and the same email from two screens once',
+    mails.length === 1 && mails[0].status === 'sent by SandMan to 1', mails)
+
+  check('a list that is not a list is refused', (await call(OP1, 'PUT', P, { tickets: 'x' })).status === 400)
+  check('too many records at once are refused', (await call(OP1, 'PUT', P, { mails: Array.from({ length: 3001 }, (_, i) => ({ id: 'z' + i })) })).status === 400)
+}
+
 log.push('CONNECTIONS — the only credentials this service holds')
 
 /*

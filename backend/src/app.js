@@ -20,12 +20,16 @@ import { loops } from './routes/loops.js'
 import { loopVersions } from './routes/loopVersions.js'
 import { assets } from './routes/assets.js'
 import { live } from './routes/live.js'
+import { alertMail } from './routes/alert-mail.js'
+import { alertRecords } from './routes/alert-records.js'
 import { sopFiles } from './routes/sopFiles.js'
 import { sops } from './routes/sops.js'
 import { alarms } from './routes/alarms.js'
 import { equipment } from './routes/equipment.js'
 import { maintenance } from './routes/maintenance.js'
 import { machine } from './routes/machine.js'
+import { category } from './routes/category.js'
+import { qrCategories } from './routes/qr-categories.js'
 import { overview } from './routes/overview.js'
 import { auditLog } from './routes/audit.js'
 
@@ -73,6 +77,29 @@ export function createApp() {
    * is known to overwrite the header.
    */
   app.set('trust proxy', false)
+
+  /*
+   * Security headers, on every response.
+   *
+   * The studio is shown inside SandMan's page (a full-page frame, see SandMan's
+   * digitalloop.jsp), so it may be framed by this service itself and by
+   * SandMan — and by nobody else, which is what stops another site from
+   * putting the studio in a frame and tricking a click (clickjacking). The QR
+   * pages are framed by nobody: one of them takes a maintenance PIN.
+   * `config.frameAncestors` comes from SANDMAN_URL, or DL_FRAME_ANCESTORS when
+   * people reach SandMan at a different address than this server does.
+   */
+  app.use((req, res, next) => {
+    const qrPage = /\/(m|c)\/[^/]+\/?$/.test(req.path) || /\/api\/v1\/(m|c)\//.test(req.path)
+    res.set('x-content-type-options', 'nosniff')
+    res.set('referrer-policy', qrPage ? 'no-referrer' : 'same-origin')
+    res.set('permissions-policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()')
+    res.set('cross-origin-opener-policy', 'same-origin-allow-popups')
+    res.set('content-security-policy',
+      `frame-ancestors ${qrPage ? "'none'" : config.frameAncestors.join(' ')}; object-src 'none'; base-uri 'self'`)
+    if (qrPage) res.set('x-frame-options', 'DENY')
+    next()
+  })
 
   // Before everything, so what it times is the whole request.
   app.use(requestLog(`${config.basePath}/api/v1`))
@@ -150,6 +177,8 @@ export function createApp() {
    * and nothing else, and every endpoint is rate-limited. See routes/machine.js.
    */
   site.use('/api/v1/m', machine.router)
+  // The category page — the same rules as the machine page (token is the credential, read only). routes/category.js.
+  site.use('/api/v1/c', category.router)
 
   site.use('/api/v1/me', authenticate, identity.router)
   // The foundry's database as SandMan described it — names only, read from the
@@ -168,6 +197,10 @@ export function createApp() {
    * stored layout — see routes/live.js.
    */
   site.use('/api/v1/live', authenticate, live.router)
+  // Alert and ticket emails, sent by SandMan's mail server — routes/alert-mail.js.
+  site.use('/api/v1/alerts', authenticate, alertMail.router)
+  // Tickets, alert history and the email log — routes/alert-records.js.
+  site.use('/api/v1/alert-records', authenticate, alertRecords.router)
   /*
    * Written procedures, and what went out of limit.
    *
@@ -186,6 +219,8 @@ export function createApp() {
    * borrow its access rules — see routes/equipment.js and routes/maintenance.js.
    */
   site.use('/api/v1/equipment', authenticate, equipment.router)
+  // Category QR stickers: the register, as /equipment is for machines — routes/qr-categories.js.
+  site.use('/api/v1/qr-categories', authenticate, qrCategories.router)
   site.use('/api/v1/maintenance', authenticate, maintenance.router)
   /*
    * Plant databases somebody registered — the only credentials this service
@@ -227,6 +262,20 @@ export function createApp() {
      * `<base href>` is set to wherever this service is mounted, exactly as for
      * the studio, so the page's one API call resolves under the right prefix.
      */
+    // A category sticker: its own small page, served the same way as the machine page below.
+    site.get('/c/:token', (req, res, next) => {
+      let page
+      try {
+        page = readFileSync(resolve(config.paths.studio, 'category.html'), 'utf8')
+      } catch {
+        return next()
+      }
+      res.set('cache-control', 'no-store')
+      res.set('x-robots-tag', 'noindex')
+      res.type('html')
+      res.send(page.replace('<base href="/">', `<base href="${config.basePath}/">`))
+    })
+
     site.get('/m/:token', (req, res, next) => {
       let page
       try {

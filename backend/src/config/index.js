@@ -260,6 +260,35 @@ export const config = {
    * On separate machines, set this to SandMan's server address and do not
    * expose /api/v1/session/launch through a public reverse proxy.
    */
+  /**
+   * Who may show the studio inside a frame: this service, and SandMan.
+   *
+   * SandMan's Digital Loop page shows the studio in a full-page frame, so its
+   * address must be allowed; everybody else is refused (clickjacking). Taken
+   * from SANDMAN_URL — plus its localhost / 127.0.0.1 twin, since the two are
+   * the same machine but different origins to a browser. When people reach
+   * SandMan at another address than this server does (a public hostname in
+   * front of a loopback SANDMAN_URL), list those origins in DL_FRAME_ANCESTORS,
+   * space-separated, e.g. `https://plant.example.com`.
+   */
+  frameAncestors: (() => {
+    const out = new Set(["'self'"])
+    const add = value => {
+      try {
+        const u = new URL(String(value).trim())
+        if (!/^https?:$/.test(u.protocol)) return
+        out.add(u.origin)
+        if (u.hostname === 'localhost') out.add(u.origin.replace('//localhost', '//127.0.0.1'))
+        if (u.hostname === '127.0.0.1') out.add(u.origin.replace('//127.0.0.1', '//localhost'))
+      } catch {
+        // not an address — ignored rather than allowing everything
+      }
+    }
+    add(process.env.SANDMAN_URL || 'http://localhost:8080/sandman')
+    String(process.env.DL_FRAME_ANCESTORS || '').split(/[\s,]+/).filter(Boolean).forEach(add)
+    return [...out]
+  })(),
+
   launchAllowedIps: (process.env.LAUNCH_ALLOWED_IPS || '127.0.0.1,::1,::ffff:127.0.0.1')
     .split(',')
     .map(entry => entry.trim())

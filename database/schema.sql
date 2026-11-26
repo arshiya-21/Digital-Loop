@@ -676,3 +676,138 @@ CREATE TABLE IF NOT EXISTS mnt_setting (
   CONSTRAINT setting_of_design FOREIGN KEY (design_id)
     REFERENCES design(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * ALERT RECORDS — tickets, alert history and the email log, per loop.
+ *
+ * The settings (teams, who gets emails, tag and engineered alert rules, ticket
+ * rules) are part of the drawing and are saved with its version. What happens
+ * while the loop runs is not: it changes all day from the Publish view, where
+ * operators cannot save the drawing, and it must be the same on every screen.
+ * So it lives here, written by anybody who may view the loop
+ * (routes/alert-records.js), exactly as maintenance does.
+ *
+ * Each row keeps the studio's full record in `doc` next to the columns that
+ * are filtered on, so a field the studio gains tomorrow round-trips today.
+ */
+
+/*
+ * One ticket. `id` is the studio's own and never changes; `ticket_no`
+ * (TK-0007) is issued by the server from `alert_counter`, so two screens can
+ * never give out the same number. `rev` counts changes.
+ */
+CREATE TABLE IF NOT EXISTS alert_ticket (
+  design_id   VARCHAR(40)   NOT NULL,
+  id          VARCHAR(40)   NOT NULL,
+  ticket_no   VARCHAR(40)   NOT NULL,
+  alert_key   VARCHAR(200)  NULL,
+  status      VARCHAR(16)   NOT NULL,
+  equip_key   VARCHAR(80)   NULL,
+  owner       VARCHAR(160)  NULL,
+  doc         LONGTEXT      NOT NULL,
+  rev         INT           NOT NULL DEFAULT 1,
+  created_at  VARCHAR(40)   NOT NULL,
+  updated_at  VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, id),
+  UNIQUE KEY ticket_number (design_id, ticket_no),
+  KEY ticket_by_alert (design_id, alert_key, status),
+  CONSTRAINT ticket_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * Per alert, the days it was active and for how long — what "a ticket after
+ * N days in a row" counts. Days from every screen are combined, never lost.
+ */
+CREATE TABLE IF NOT EXISTS alert_day (
+  design_id   VARCHAR(40)   NOT NULL,
+  alert_key   VARCHAR(200)  NOT NULL,
+  doc         MEDIUMTEXT    NOT NULL,
+  updated_at  VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, alert_key),
+  CONSTRAINT day_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* Engineered alerts that fired: when, the values, which teams were told, when it cleared. */
+CREATE TABLE IF NOT EXISTS alert_event (
+  design_id   VARCHAR(40)   NOT NULL,
+  id          VARCHAR(80)   NOT NULL,
+  rule_id     VARCHAR(80)   NOT NULL,
+  started_at  VARCHAR(40)   NOT NULL,
+  cleared_at  VARCHAR(40)   NULL,
+  doc         TEXT          NOT NULL,
+  updated_at  VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, id),
+  KEY event_by_time (design_id, started_at),
+  KEY event_open (design_id, rule_id, cleared_at),
+  CONSTRAINT event_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* Every alert / ticket email queued, and what SandMan did with it (Administration › Sent emails). */
+CREATE TABLE IF NOT EXISTS alert_mail (
+  design_id   VARCHAR(40)   NOT NULL,
+  id          VARCHAR(60)   NOT NULL,
+  alert_key   VARCHAR(200)  NULL,
+  subject     VARCHAR(300)  NULL,
+  status      VARCHAR(200)  NULL,
+  queued_at   VARCHAR(40)   NOT NULL,
+  doc         TEXT          NOT NULL,
+  updated_at  VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (design_id, id),
+  KEY mail_by_time (design_id, queued_at),
+  CONSTRAINT mail_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* The ticket number sequence of a loop, advanced inside the transaction that inserts the ticket. */
+CREATE TABLE IF NOT EXISTS alert_counter (
+  design_id   VARCHAR(40)   NOT NULL,
+  ticket_seq  INT           NOT NULL DEFAULT 0,
+  PRIMARY KEY (design_id),
+  CONSTRAINT counter_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * The foundry's own database name, as SandMan last named it in a launch.
+ *
+ * The server-side alert checker reads a published loop's linked readings with
+ * nobody signed in, and a reading is linked to "the foundry's database" by
+ * name. Names only — SandMan still holds the connection and reads the values.
+ */
+CREATE TABLE IF NOT EXISTS foundry_info (
+  foundry_id     VARCHAR(80)   NOT NULL,
+  database_name  VARCHAR(200)  NULL,
+  updated_at     VARCHAR(40)   NOT NULL,
+  PRIMARY KEY (foundry_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/*
+ * A category QR sticker (Sand lab, Melting, Pouring …): a named list of
+ * readings from any equipment, with an unguessable token of its own — the
+ * category twin of `equipment_card`. Scanning it opens `/c/<token>`, a phone
+ * page that needs no login and shows only these readings.
+ *
+ * `tags` is the JSON list of reading ids, kept here so the sticker shows what
+ * was saved for it even before the drawing's next version.
+ */
+CREATE TABLE IF NOT EXISTS category_card (
+  id           VARCHAR(40)   NOT NULL,
+  design_id    VARCHAR(40)   NOT NULL,
+  cat_key      VARCHAR(80)   NOT NULL,
+  name         VARCHAR(160)  NOT NULL,
+  color        VARCHAR(20)   NULL,
+  description  VARCHAR(300)  NULL,
+  tags         TEXT          NOT NULL,
+  qr_token     VARCHAR(64)   NOT NULL,
+  created_at   VARCHAR(40)   NOT NULL,
+  updated_at   VARCHAR(40)   NOT NULL,
+  retired_at   VARCHAR(40)   NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY category_token (qr_token),
+  UNIQUE KEY category_per_loop (design_id, cat_key),
+  CONSTRAINT category_of_design FOREIGN KEY (design_id)
+    REFERENCES design(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
