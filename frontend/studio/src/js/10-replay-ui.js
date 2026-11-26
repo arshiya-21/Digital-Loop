@@ -17,7 +17,10 @@ function dstr(t) {
 }
 function shiftsFor(ds) {
   const [y, m, d] = ds.split('-').map(Number);
-  return SHIFTS.map(([L, h]) => shiftOf(new Date(y, m - 1, d, h, 0, 1).getTime()));
+  // A shift that starts before the day's first shift is the next morning's.
+  return SHIFTS.map(([L, mins]) =>
+    shiftOf(new Date(y, m - 1, d, 0, mins + (mins < SHIFTS[0][1] ? 1440 : 0), 1).getTime()),
+  );
 }
 function lastDoneShift() {
   return shiftOf(shiftOf(Date.now()).t0 - 1);
@@ -107,7 +110,7 @@ function buildReplayIndex() {
   RP.M = {};
   mm.forEach(m => {
     const int = 3600e3 / mphOf(m),
-      n = Math.floor(SHIFT_MS / int),
+      n = Math.floor((sh.t1 - sh.t0) / int),
       arr = new Array(n + 1);
     for (let i = 0; i <= n; i++) {
       const t = sh.t0 + i * int;
@@ -116,8 +119,8 @@ function buildReplayIndex() {
     RP.M[m.id] = { int, arr };
   });
   INCIDENTS.forEach(i => {
-    const a = sh.t0 + i.from * SHIFT_MS,
-      b = sh.t0 + i.to * SHIFT_MS;
+    const a = sh.t0 + i.from * (sh.t1 - sh.t0),
+      b = sh.t0 + i.to * (sh.t1 - sh.t0);
     if (a >= now) return;
     if (i.stopIdx != null) {
       const m = mm[i.stopIdx];
@@ -134,8 +137,8 @@ function buildReplayIndex() {
     } else ev.push({ t: a, t2: Math.min(b, now), kind: 'inc', sev: 2, where: 'Process', msg: i.n, inc: i });
   });
   RP.grp = GROUPS.map(([f, n], k) => ({
-    a: sh.t0 + f * SHIFT_MS,
-    b: sh.t0 + (GROUPS[k + 1] ? GROUPS[k + 1][0] : 1) * SHIFT_MS,
+    a: sh.t0 + f * (sh.t1 - sh.t0),
+    b: sh.t0 + (GROUPS[k + 1] ? GROUPS[k + 1][0] : 1) * (sh.t1 - sh.t0),
     n,
   }));
   RP.grp.slice(1).forEach(g => {
@@ -180,7 +183,7 @@ function buildReplayIndex() {
     if (prev >= 2) RP.almOn.push({ id, blk: b.id, a: start, b: now, sev: prev });
   });
   const N = 96,
-    bw = SHIFT_MS / N;
+    bw = (sh.t1 - sh.t0) / N;
   RP.bw = bw;
   RP.bins = [];
   let tn = 0,
@@ -190,7 +193,7 @@ function buildReplayIndex() {
   const inInc = a =>
     INCIDENTS.some(
       i =>
-        i.fx && a >= sh.t0 + i.from * SHIFT_MS - DELAY.sand && a <= sh.t0 + i.to * SHIFT_MS + DELAY.sand * 2,
+        i.fx && a >= sh.t0 + i.from * (sh.t1 - sh.t0) - DELAY.sand && a <= sh.t0 + i.to * (sh.t1 - sh.t0) + DELAY.sand * 2,
     );
   for (let k = 0; k < N; k++) {
     const a = t0 + k * bw;
@@ -355,8 +358,15 @@ function rpHeader() {
   const ds = dstr(RP.sh.t0);
   $('#rpDate').value = ds;
   $('#rpDate').max = dstr(Date.now());
+  // One button per plant shift, named by its own hours — the plant may run
+  // two shifts or four, and not 06–14–22.
+  const day = shiftsFor(ds),
+    box = $('#rpShifts');
+  while (box.children.length < day.length) box.append(document.createElement('button'));
+  while (box.children.length > day.length) box.lastElementChild.remove();
   $$('#rpShifts button').forEach((b, i) => {
-    const s = shiftsFor(ds)[i];
+    const s = day[i];
+    b.textContent = `${s.L} · ${fmtHM(s.t0)}–${fmtHM(s.t1)}`;
     b.disabled = s.t0 > Date.now();
     b.classList.toggle('on', s.t0 === RP.sh.t0);
     b.title = s.label + (s.t1 > Date.now() ? ' (in progress)' : '');
@@ -561,10 +571,10 @@ function rpDraw() {
   x.textAlign = 'center';
   x.fillText(lab, cx, 11);
   x.restore();
-  $('#rpZoomLbl').textContent = span >= SHIFT_MS - 1 ? 'Whole shift' : fmtDur(span);
+  $('#rpZoomLbl').textContent = span >= (RP.sh.t1 - RP.sh.t0) - 1 ? 'Whole shift' : fmtDur(span);
 }
 function rpZoom(f, at) {
-  const span = clamp((RP.v1 - RP.v0) * f, 10 * 60e3, SHIFT_MS);
+  const span = clamp((RP.v1 - RP.v0) * f, 10 * 60e3, (RP.sh.t1 - RP.sh.t0));
   at = at ?? RP.T;
   const r = (at - RP.v0) / (RP.v1 - RP.v0);
   RP.v0 = at - span * r;
@@ -689,7 +699,7 @@ function spark(t) {
   const sp = hi - lo || 1;
   lo -= sp * 0.1;
   hi += sp * 0.1;
-  const X = tt => ((tt - RP.sh.t0) / SHIFT_MS) * W,
+  const X = tt => ((tt - RP.sh.t0) / (RP.sh.t1 - RP.sh.t0)) * W,
     Y = v => H - ((v - lo) / (hi - lo)) * H,
     cur = histVal(t.id, RP.T),
     sv = tagSev(t.id, cur);
@@ -770,7 +780,7 @@ function bindRpPanel() {
     x =>
       (x.onclick = e => {
         const r = x.querySelector('svg').getBoundingClientRect();
-        rpSet(RP.sh.t0 + ((e.clientX - r.left) / r.width) * SHIFT_MS, 'panel');
+        rpSet(RP.sh.t0 + ((e.clientX - r.left) / r.width) * (RP.sh.t1 - RP.sh.t0), 'panel');
       }),
   );
   const q = $('#rpcQ');
@@ -1030,14 +1040,15 @@ function rpJumpEv(dir) {
 }
 $('#rpPrev').onclick = () => rpJumpEv(-1);
 $('#rpNext').onclick = () => rpJumpEv(1);
-$$('#rpShifts button').forEach(
-  (b, i) =>
-    (b.onclick = () => {
-      const s = shiftsFor($('#rpDate').value || dstr(Date.now()))[i];
-      if (s.t0 > Date.now()) return;
-      enterReplay(s, s.t0);
-    }),
-);
+// Delegated, because the buttons are remade when the plant's shifts change.
+$('#rpShifts').onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const i = [...$('#rpShifts').children].indexOf(b);
+  const s = shiftsFor($('#rpDate').value || dstr(Date.now()))[i];
+  if (!s || s.t0 > Date.now()) return;
+  enterReplay(s, s.t0);
+};
 $('#rpDate').onchange = e => {
   const L = shiftsFor(e.target.value).filter(s => s.t0 <= Date.now());
   if (!L.length) {

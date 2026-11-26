@@ -48,7 +48,8 @@ function importForm() {
   $('#iGo').onclick = () => {
     try {
       const o = JSON.parse($('#imT').value);
-      if (o && o.DOC) registerDocCustom(o.DOC);
+      if (cleanLoop(o)) throw 0; // v9.55 — same checks as File › Open
+      registerDocCustom(o.DOC);
       if (!o.DOC || !o.REG || !Array.isArray(o.DOC.blocks) || o.DOC.blocks.some(b => !EQ[b.type])) throw 0;
       pushUndo();
       DOC = o.DOC;

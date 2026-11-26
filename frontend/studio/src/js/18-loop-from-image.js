@@ -94,10 +94,14 @@ function lfiPdfLib() {
   if (LFI_PDF) return LFI_PDF;
   return (LFI_PDF = new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    // v9.55 security — pinned file from the npm package, checked by its hash (SRI) so a changed CDN file is refused
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.integrity = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+    s.crossOrigin = 'anonymous';
+    s.referrerPolicy = 'no-referrer';
     s.onload = () => {
       try {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
         res(window.pdfjsLib);
       } catch (e) {
         rej(e);
@@ -113,7 +117,7 @@ async function lfiPrepare(file) {
   let src, w, h;
   if (type === 'application/pdf' || /\.pdf$/i.test(name)) {
     const pdfjs = await lfiPdfLib();
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, enableXfa: false }).promise;
     const page = await doc.getPage(1);
     const v1 = page.getViewport({ scale: 1 });
     const sc = Math.min(3, 2400 / Math.max(v1.width, v1.height));
@@ -788,7 +792,7 @@ function lfiRenderRef() {
   const key = show ? `${r.x},${r.y},${r.w},${r.h},${r.op},${r.src.length}` : '';
   if (L.dataset.k === key) return;
   L.dataset.k = key;
-  L.innerHTML = show ? `<image href="${r.src}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" opacity="${r.op}" preserveAspectRatio="none" pointer-events="none"/>` : '';
+  L.innerHTML = show && safeImgSrc(r.src) ? `<image href="${esc(safeImgSrc(r.src))}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" opacity="${r.op}" preserveAspectRatio="none" pointer-events="none"/>` : '';
 }
 function lfiSyncBar() {
   const bar = document.getElementById('refBar'),
@@ -801,7 +805,7 @@ function lfiSyncBar() {
     side.hidden = !(show && r.mode === 'side');
     if (!side.hidden && side.dataset.k !== String(r.src.length)) {
       side.dataset.k = String(r.src.length);
-      side.querySelector('img').src = r.src;
+      side.querySelector('img').src = safeImgSrc(r.src);
     }
   }
   if (show) {

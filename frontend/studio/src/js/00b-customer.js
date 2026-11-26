@@ -46,6 +46,18 @@ function normaliseCustomer(c, via) {
     },
   };
 }
+/* v9.55 security — where the customer may come from.
+ *  studioIsDev(): file:// previews, localhost, or a host page that sets window.SANDMAN_DEV = true.
+ *  SANDMAN_ALLOWED_ORIGINS: the Sandman origins allowed to send 'sandman:context' messages (set by the host page);
+ *  without it only this page's own origin is accepted. The hosted Studio should also be served with
+ *  Content-Security-Policy: frame-ancestors <sandman origin> so no other site can embed it. */
+function studioIsDev() {
+  return window.SANDMAN_DEV === true || location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+}
+function originAllowed(o) {
+  const list = Array.isArray(window.SANDMAN_ALLOWED_ORIGINS) ? window.SANDMAN_ALLOWED_ORIGINS : [];
+  return o === location.origin || list.includes(o);
+}
 function readCustomerContext() {
   try {
     const w = normaliseCustomer(window.SANDMAN_CONTEXT, 'Sandman login');
@@ -58,7 +70,8 @@ function readCustomerContext() {
   } catch (e) {}
   try {
     const q = new URLSearchParams(location.search);
-    if (q.get('customer'))
+    // v9.55 security — link parameters may pick a customer only in a local / dev preview, never on a hosted Studio
+    if (q.get('customer') && studioIsDev())
       return normaliseCustomer(
         { customer: { id: q.get('customer'), name: q.get('customerName') || q.get('customer') }, defaultDb: { db: q.get('db') || undefined, type: q.get('dbType') || undefined, host: q.get('dbHost') || undefined } },
         'link parameters',
@@ -102,6 +115,7 @@ window.addEventListener('message', e => {
   if (!d || d.type !== 'sandman:context') return;
   // only the embedding Sandman window (or this window, for the API) may set the customer
   if (e.source !== window.parent && e.source !== window) return;
+  if (!originAllowed(e.origin)) return; // v9.55 — a page that merely embeds the Studio cannot pick the customer
   setCustomerContext(d);
 });
 window.SandmanStudio = Object.assign(window.SandmanStudio || {}, {

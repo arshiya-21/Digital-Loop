@@ -594,7 +594,7 @@ function renderProps() {
         ? list
             .map(t => {
               const o = tagOwner(t.id);
-              return `<button data-id="${esc(t.id)}"><b class="mono">${esc(t.id)}</b> <span class="note">${esc(t.desc)} · ${o ? (o.b ? o.b.name : o.s.name) : 'unbound'}</span></button>`;
+              return `<button data-id="${esc(t.id)}"><b class="mono">${esc(t.id)}</b> <span class="note">${esc(t.desc)} · ${o ? esc(o.b ? o.b.name : o.s.name) : 'unbound'}</span></button>`;
             })
             .join('')
         : '<div class="e">No matching tags. Create a new one.</div>';

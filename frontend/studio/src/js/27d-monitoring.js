@@ -56,7 +56,7 @@ function pmOpen() {
   openModal(
     `<h3 style="margin:0 0 4px">Parameters under monitoring</h3>
  <div class="pm-sum"><div><b>${C.n}</b><span>monitored</span></div><div class="pm-ok"><b>${C.ok}</b><span>in limits</span></div><div class="pm-w"><b>${C.warn}</b><span>warning</span></div><div class="pm-a"><b>${C.alarm}</b><span>alarm</span></div><div class="pm-g"><b>${C.nolim}</b><span>no limits set</span></div><div class="pm-g"><b>${C.nodata}</b><span>no data</span></div></div>
- ${areas.length ? `<table class="pm-t"><thead><tr><th>Area</th><th>Monitored</th><th>In limits</th><th>Warning</th><th>Alarm</th><th>No limits</th><th>No data</th></tr></thead><tbody>${areas.map(([n, c]) => `<tr><td>${esc(n)}</td><td>${c.n}</td><td class="pm-ok">${c.ok}</td><td class="pm-w">${c.warn}</td><td class="pm-a">${c.alarm}</td><td>${c.nolim}</td><td>${c.nodata}</td></tr>`).join('')}</tbody></table>` : ''}
+ ${areas.length ? `<table class="pm-at"><thead><tr><th>Area</th><th>Monitored</th><th>In limits</th><th>Warning</th><th>Alarm</th><th>No limits</th><th>No data</th></tr></thead><tbody>${areas.map(([n, c]) => `<tr><td>${esc(n)}</td><td>${c.n}</td><td class="pm-ok">${c.ok}</td><td class="pm-w">${c.warn}</td><td class="pm-a">${c.alarm}</td><td>${c.nolim}</td><td>${c.nodata}</td></tr>`).join('')}</tbody></table>` : ''}
  <div class="pm-h">In alarm or warning <span class="note">click a reading for its control chart</span></div>
  <div class="pm-l">${C.list.sort((a, b) => b[2] - a[2]).map(row).join('') || '<div class="note" style="padding:10px">Nothing in warning or alarm.</div>'}</div>
  <div class="mact"><button class="ib pri" id="pmClose">Close</button></div>`,
@@ -123,19 +123,19 @@ document.head.insertAdjacentHTML(
   `<style id="pmCss">
 .pmchip .pm-k{display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-weight:700}
 .pmchip .pm-k::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}
-.pm-ok{color:#15803d}.pm-w{color:#c2410c}.pm-a{color:#d93636}.pm-g{color:var(--muted,#5b6b7b)}
+.pm-ok{color:#15803d}.pm-w{color:#c2410c}.pm-a{color:#d93636}.pm-sum .pm-g{color:var(--muted,#5b6b7b)}
 #Lpmbadge .pm-bt{font:600 11px var(--sans);fill:#16212b}
 #Lpmbadge .pmbadge{cursor:pointer}
 .pm-sum{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0}
 .pm-sum div{border:1px solid var(--line,#d6dde6);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column}
 .pm-sum b{font:700 22px var(--sans)}.pm-sum span{font-size:12px;color:var(--muted,#5b6b7b)}
-.pm-t{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px}
-.pm-t th,.pm-t td{padding:5px 8px;border-bottom:1px solid var(--line,#e3e8ec);text-align:right}
-.pm-t th:first-child,.pm-t td:first-child{text-align:left}
+.pm-at{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px}
+.pm-at th,.pm-at td{padding:5px 8px;border-bottom:1px solid var(--line,#e3e8ec);text-align:right}
+.pm-at th:first-child,.pm-at td:first-child{text-align:left}
 .pm-h{font:700 13px var(--sans);margin:6px 0}
 .pm-l{max-height:40vh;overflow:auto;display:flex;flex-direction:column;gap:4px}
-.pm-r{display:grid;grid-template-columns:14px 90px 1fr 110px 110px;gap:8px;align-items:center;text-align:left;border:1px solid var(--line,#e3e8ec);background:var(--panel,#fff);border-radius:6px;padding:6px 8px;cursor:pointer;font-size:12.5px;color:var(--text,#16212b)}
-.pm-r:hover{border-color:#1f6feb}
+button.pm-r{display:grid;grid-template-columns:14px 90px 1fr 110px 110px;gap:8px;align-items:center;text-align:left;border:1px solid var(--line,#e3e8ec);background:var(--panel,#fff);border-radius:6px;padding:6px 8px;cursor:pointer;font-size:12.5px;color:var(--text,#16212b)}
+button.pm-r:hover{border-color:#1f6feb}
 .pm-d{width:10px;height:10px;border-radius:50%}.pm-d3{background:#d93636}.pm-d2{background:#c2410c}
 .pm-lim{color:var(--muted,#5b6b7b)}
 </style>`,

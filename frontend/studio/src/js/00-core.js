@@ -10,6 +10,13 @@ const esc = s =>
     /[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
+/* v9.55 security — one CSV cell: quoted when needed, and a text that starts like a spreadsheet formula
+ * (= + - @ tab, but not a plain negative number) gets a leading ' so Excel shows it as text instead of running it */
+const csvCell = v => {
+  v = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?(e-?\d+)?$/i.test(v)) v = "'" + v;
+  return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+};
 const gauss = () => {
   let u = 0,
     v = 0;

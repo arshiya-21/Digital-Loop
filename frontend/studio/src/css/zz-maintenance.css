@@ -147,6 +147,9 @@ body.present .pbar #pAlarm, body.present .pbar #pDiag, body.present .pbar #pSoun
 .mnt-qr-t { min-width: 0; font-size: 12.5px; }
 .mnt-qr-u { font-size: 10.5px; color: #64748b; word-break: break-all; margin-top: 4px; }
 .mnt-qr-b { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.mnt-sop { border: 1px solid #d5dce7; border-radius: 10px; padding: 4px 10px 10px; background: #fff; margin-bottom: 10px; font-size: 12.5px; }
+.mnt-sop .mc-sop { margin-bottom: 8px; }
+.mnt-sop-f { display: grid; gap: 4px; margin-bottom: 8px; }
 .mnt-warn { margin-top: 5px; font-size: 11.5px; color: #8a5a00; background: #fff7dd; border: 1px solid #f0d58a; border-radius: 6px; padding: 4px 7px; }
 .mnt-eqv { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 14px; min-height: 0; }
 .mnt-eql input[type='search'] { width: 100%; padding: 7px 9px; border: 1px solid #b8c4d6; border-radius: 8px; margin-bottom: 6px; }

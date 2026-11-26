@@ -1,0 +1,18 @@
+/* Performance — Simulate / Publish.
+   The moving sand on the lines and belts animated smoothly, i.e. a new position every frame (60 a second). Each new
+   position makes the browser repaint the part of the canvas the line crosses, together with every equipment picture
+   under it, so on a large loop (the Mueller loop: 34 lines and 22 belts across the whole drawing) the page did little
+   else and hung. The same motion now moves in small steps, about 12 a second: it still reads as sand flowing, and the
+   canvas is repainted about 5 times less often (measured: 121 → 24 repaints a second for the same lines).
+   Only the timing changes — direction, speed and look stay as they were. */
+.live #Lstreams *,
+.live .blk.run .beltd,
+.live .blk.run .sandflow,
+.live .blk.run .fall,
+.live .blk.run .trendln {
+  animation-timing-function: steps(12, end) !important;
+}
+.live .blk.run .glow,
+.live .blk.run .pop {
+  animation-timing-function: steps(10, end) !important;
+}

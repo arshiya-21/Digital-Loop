@@ -395,7 +395,7 @@ function mbBind(I) {
   $('#mbCopy').onclick = () =>
     copyText(
       'equipment,zone,basis,sand_t\n' +
-        I.items.map(r => `${r.b.name},${r.zone},"${r.basis}",${r.mass.toFixed(3)}`).join('\n') +
+        I.items.map(r => `${csvCell(r.b.name)},${csvCell(r.zone)},${csvCell(r.basis)},${r.mass.toFixed(3)}`).join('\n') +
         `\nTOTAL SAND,,,${I.sand.toFixed(3)}`,
       'Inventory copied',
     );

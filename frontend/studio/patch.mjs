@@ -323,7 +323,11 @@ function renameIds(markup, suffix) {
       .replace(new RegExp(\`(\\\\sid\\\\s*=\\\\s*["'])\${safe}(["'])\`, 'g'), \`$1\${to}$2\`)
       .replace(new RegExp(\`url\\\\((["']?)#\${safe}\\\\1\\\\)\`, 'g'), \`url($1#\${to}$1)\`)
       .replace(new RegExp(\`((?:xlink:)?href\\\\s*=\\\\s*["'])#\${safe}(["'])\`, 'g'), \`$1#\${to}$2\`)
-      .replace(new RegExp(\`(\\\\sbegin\\\\s*=\\\\s*["'])\${safe}\\\\.\`, 'g'), \`$1\${to}.\`);
+      .replace(new RegExp(\`(\\\\sbegin\\\\s*=\\\\s*["'])\${safe}\\\\.\`, 'g'), \`$1\${to}.\`)
+      // \`#a { fill:red }\` inside a <style>: the element was renamed above, so its
+      // id selector must follow or the shape loses its colour and draws black.
+      .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi, css =>
+        css.replace(new RegExp(\`#\${safe}(?![\\\\w-])\`, 'g'), \`#\${to}\`));
   }
   return markup;
 }
@@ -339,15 +343,44 @@ function renameIds(markup, suffix) {
  * At-rules are left exactly as they are: \`@keyframes\` names frames rather
  * than elements, and prefixing those would break the animation it describes.
  */
+function scopeSvgRules(css, scope) {
+  let out = '', i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open < 0) { out += css.slice(i); break; }
+    const head = css.slice(i, open);
+    // Find the matching close brace (rules may nest inside @media / @supports).
+    let depth = 1, j = open + 1;
+    while (j < css.length && depth) { const ch = css[j++]; if (ch === '{') depth++; else if (ch === '}') depth--; }
+    const body = css.slice(open + 1, depth ? css.length : j - 1);
+    const at = head.trim();
+    if (at.startsWith('@')) {
+      out += /^@(media|supports|document)/i.test(at)
+        ? \`\${head}{\${scopeSvgRules(body, scope)}}\`
+        : \`\${head}{\${body}}\`; // @keyframes, @font-face: names frames/fonts, not elements
+    } else {
+      const sel = head.split(',').map(one => {
+        const t = one.trim();
+        if (!t) return '';
+        if (/^(svg|:root|html|body)$/i.test(t)) return \`.\${scope}\`;
+        return \`.\${scope} \${t}\`;
+      }).filter(Boolean).join(', ');
+      out += \`\${sel}{\${body}}\`;
+    }
+    i = j;
+  }
+  return out;
+}
+
 function scopeSvgStyles(markup, scope) {
-  return markup.replace(/<style\\b[^>]*>([\\s\\S]*?)<\\/style>/gi, (whole, css) => {
-    if (/@(media|supports|keyframes|font-face|import)/i.test(css)) return whole;
-    const scoped = css.replace(/(^|\\})([^@{}]+)\\{/g, (_, close, selectors) =>
-      close + selectors.split(',').map(one => {
-        const trimmed = one.trim();
-        return trimmed ? \`.\${scope} \${trimmed}\` : one;
-      }).join(', ') + '{');
-    return whole.replace(css, scoped);
+  return markup.replace(/<style\\b[^>]*>([\\s\\S]*?)<\\/style>/gi, (whole, raw) => {
+    // CDATA wrappers and comments would otherwise end up inside the first selector
+    // and break every rule — leaving the drawing unpainted (black).
+    const css = raw
+      .replace(/<!\\[CDATA\\[|\\]\\]>/g, '')
+      .replace(/\\/\\*[\\s\\S]*?\\*\\//g, '')
+      .replace(/@import[^;]*;/gi, '');
+    return \`<style>\${scopeSvgRules(css, scope)}</style>\`;
   });
 }
 
@@ -356,7 +389,8 @@ function parseSvg(src, uid) {
   const m = src.match(/<svg[^>]*>/i);
   let vb = null,
     inner = src,
-    inherited = '';
+    inherited = '',
+    rootClass = '';
   if (m) {
     const v = m[0].match(/viewBox\\s*=\\s*["']([^"']+)["']/i);
     if (v) vb = v[1];
@@ -370,6 +404,10 @@ function parseSvg(src, uid) {
       const got = m[0].match(new RegExp(\`\\\\s\${name}\\\\s*=\\\\s*["']([^"']*)["']\`, 'i'));
       return got ? \` \${name}="\${esc(got[1])}"\` : '';
     }).join('');
+    // The root's own class: stylesheets are written against it (\`.sme .p{fill:var(--sm-body)}\`),
+    // and the root itself is dropped, so without it none of those rules match and the drawing is black.
+    const rc = m[0].match(/\\sclass\\s*=\\s*["']([^"']*)["']/i);
+    if (rc) rootClass = rc[1];
     inner = src.replace(/^[\\s\\S]*?<svg[^>]*>/i, '').replace(/<\\/svg>\\s*$/i, '');
   }
 
@@ -381,7 +419,7 @@ function parseSvg(src, uid) {
 
   return {
     vb: vb || '0 0 100 100',
-    inner: \`<g class="\${scope}"\${inherited}>\${body}</g>\`,
+    inner: \`<g class="\${scope}"\${inherited}>\${rootClass ? \`<g class="\${esc(rootClass)}">\${body}</g>\` : body}</g>\`,
   };
 }`,
   },
@@ -393,6 +431,8 @@ function parseSvg(src, uid) {
     replacement: `    case 'svg': {
       // The instance's own id, so two placements of one drawing — and two
       // different drawings — cannot define the same \`#a\`.
+      // Inline SVG, drawn as uploaded: the file's own markup, colours, styles and gradients
+      // are kept (ids/styles are only namespaced so two uploads cannot clash).
       const P = parseSvg(d.svg, uid);`,
   },
   {
@@ -480,46 +520,6 @@ function parseSvg(src, uid) {
   } else if (PTAB === 'presc') {`,
   },
   {
-    name: 'no label tooltip in the publish view',
-    file: join('js', '04-canvas.js'),
-    anchor: `<title>\${esc(t.id)} · \${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of \${esc(b.name)} · double-click for the trend</title></g>\`;`,
-    replacement: `\${PRESENT ? '' : \`<title>\${esc(t.id)} · \${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of \${esc(b.name)} · double-click for the trend</title>\`}</g>\`;`,
-  },
-  {
-    name: 'the legend lists what the loop uses',
-    file: join('js', '01-equipment-library.js'),
-    anchor: `      // v9.0 — a legend can carry its own list (props.items): ['#rrggbb', 'label'] draws a line in that colour
-      const items = (b && b.props && Array.isArray(b.props.items) && b.props.items.length && b.props.items) || [`,
-    replacement: `      /*
-       * The legend lists what this loop actually uses.
-       *
-       * It used to print the same twelve entries on every drawing — eight
-       * instrument symbols and four line types — whatever was on the canvas.
-       * On a loop with no valves and no air line that is four entries
-       * explaining symbols nobody can find, and the two line colours that
-       * *are* on the drawing have to be hunted for among them. A legend that
-       * does not match its drawing is worse than none: it is read as the key
-       * to the drawing, so every wrong entry is a thing to go looking for.
-       *
-       * So the instruments are the ones placed, and the line types are the
-       * ones drawn. A legend somebody has set a list on by hand (\`props.items\`,
-       * added in v9.0) is still theirs and is left exactly alone.
-       *
-       * The canned list stays as the fallback for an empty canvas, where
-       * deriving would leave a blank strip that reads as broken.
-       */
-      const SYMBOL = {
-        analyzer: ['A', 'Analyzer / sensor point'],
-        motor: ['M', 'Motor'],
-        valve: ['V', 'Valve'],
-        ctrlValve: ['CV', 'Control valve'],
-        flowTx: ['FT', 'Flow transmitter'],
-        levelTx: ['LT', 'Level transmitter'],
-        tempSensor: ['TE', 'Temperature sensor'],
-        speedMon: ['RPM', 'Speed monitor'],
-      };
-      const inUse = () => {
-  {
     name: 'the alarm beep wakes the sound card first',
     file: join('js', '05-panels.js'),
     anchor: `let ACX = null;
@@ -587,6 +587,46 @@ function beep() {
     audioCtx();
     if (MODE`,
   },
+  {
+    name: 'no label tooltip in the publish view',
+    file: join('js', '04-canvas.js'),
+    anchor: `<title>\${esc(t.id)} · \${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of \${esc(b.name)} · double-click for the trend</title></g>\`;`,
+    replacement: `\${PRESENT ? '' : \`<title>\${esc(t.id)} · \${esc(t.desc)} — drag to move this label · Shift+drag moves all labels of \${esc(b.name)} · double-click for the trend</title>\`}</g>\`;`,
+  },
+  {
+    name: 'the legend lists what the loop uses',
+    file: join('js', '01-equipment-library.js'),
+    anchor: `      // v9.0 — a legend can carry its own list (props.items): ['#rrggbb', 'label'] draws a line in that colour
+      const items = (b && b.props && Array.isArray(b.props.items) && b.props.items.length && b.props.items) || [`,
+    replacement: `      /*
+       * The legend lists what this loop actually uses.
+       *
+       * It used to print the same twelve entries on every drawing — eight
+       * instrument symbols and four line types — whatever was on the canvas.
+       * On a loop with no valves and no air line that is four entries
+       * explaining symbols nobody can find, and the two line colours that
+       * *are* on the drawing have to be hunted for among them. A legend that
+       * does not match its drawing is worse than none: it is read as the key
+       * to the drawing, so every wrong entry is a thing to go looking for.
+       *
+       * So the instruments are the ones placed, and the line types are the
+       * ones drawn. A legend somebody has set a list on by hand (\`props.items\`,
+       * added in v9.0) is still theirs and is left exactly alone.
+       *
+       * The canned list stays as the fallback for an empty canvas, where
+       * deriving would leave a blank strip that reads as broken.
+       */
+      const SYMBOL = {
+        analyzer: ['A', 'Analyzer / sensor point'],
+        motor: ['M', 'Motor'],
+        valve: ['V', 'Valve'],
+        ctrlValve: ['CV', 'Control valve'],
+        flowTx: ['FT', 'Flow transmitter'],
+        levelTx: ['LT', 'Level transmitter'],
+        tempSensor: ['TE', 'Temperature sensor'],
+        speedMon: ['RPM', 'Speed monitor'],
+      };
+      const inUse = () => {
         if (typeof DOC === 'undefined' || !DOC) return [];
         const blocks = DOC.blocks || [],
           streams = DOC.streams || [];

@@ -10,17 +10,32 @@
 
 const PL = { on: false, t: null, view: null, filter: 'all', q: '', t0: 0, cap: 12, cols: 4, lay: 'loop' };
 /* v10.1 — two layouts: 'loop' (snake 1 2 3 / 6 5 4) and 'cols' (one column per process, left to right) */
-try {
-  const l = localStorage.getItem('sm.plLay');
-  if (l === 'cols' || l === 'loop') PL.lay = l;
-} catch (e) {}
+/* Parameters monitoring always opens in Loop; Columns is one click away (it is no longer remembered between opens) */
 const plTH = () => (PL.lay === 'cols' ? 44 : innerHeight < 900 ? 58 : PL_TH);
 const PL_PER = 12,
   PL_SEC = 10,
   PL_TH = 70, // tile height (px)
   PL_ROT = 4, // seconds per alarm when a process has several
   PL_MAX = 6, // processes on screen at once (Loop and Columns)
-  PL_GSEC = 20; // seconds per group of processes when there are more than PL_MAX
+  PL_GSEC = 20, // seconds per group of processes when there are more than PL_MAX
+  PL_SLIDE = 700, // ms for one slide from one group to the next
+  PL_CAR_AW = 22, // px between two columns of the moving strip (the arrow)
+  PL_CAR_SEC = 8; // seconds for one column to move past (slow, steady)
+PL.cx = 0; // how far the moving strip has travelled (px)
+/* the moving Columns strip: steady and slow, every frame; pauses while pointed at, while a chart is open or the tab is hidden */
+function plCarTick(ts) {
+  if (!PL.on) return void (PL.raf = 0);
+  const dt = PL.lastTs ? Math.min(100, ts - PL.lastTs) : 0;
+  PL.lastTs = ts;
+  const t = document.getElementById('plTrack');
+  if (t) {
+    const L = +t.dataset.l,
+      step = +t.dataset.step;
+    if (!PL.hold && !document.hidden && !$('#modal').classList.contains('on')) PL.cx += (dt * step) / (PL_CAR_SEC * 1000);
+    if (L > 0) t.style.transform = `translateX(${-(((PL.cx % L) + L) % L).toFixed(1)}px)`;
+  }
+  PL.raf = requestAnimationFrame(plCarTick);
+}
 PL.g0 = Date.now();
 PL.gLast = null;
 const PL_ORDER = [/prep|bento|new sand/i, /mull|mix/i, /mould|mold|disa/i, /pour|melt/i, /shake|knock|cast/i, /return|cool/i];
@@ -42,7 +57,9 @@ function plSt(id) {
 }
 const PL_RANK = { a: 0, w: 1, n: 2, k: 3, x: 4, d: 5 };
 function plSteps() {
-  const Z = afZones().filter(z => pmCount(afMembers(z)).n);
+  /* every area box drawn on the loop is a process step (one with no readings yet shows "0 parameters"), so the count and
+     the "Step n of N" match the loop as drawn — e.g. 7 areas → 7 steps, 6 → 7 → back to 1 */
+  const Z = afZones();
   const rank = z => {
     const i = PL_ORDER.findIndex(r => r.test(afName(z)));
     return i < 0 ? 99 : i;
@@ -187,7 +204,7 @@ function plOverview(S) {
       lim = p.c.a + p.c.w + p.c.n + p.c.k;
     if (!hot.length)
       return `<div class="sc s-k calm"><span class="hd"><span class="st"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg>OK</span>${hd}</span>
-        <span class="bo"><span class="nm">All in limits</span><span class="cnt"><b>${p.rows.length}</b> parameters<br><b>${lim}</b> with limits</span></span>
+        <span class="bo"><span class="nm">${p.rows.length ? 'All in limits' : 'No readings'}</span><span class="cnt"><b>${p.rows.length}</b> parameters<br><b>${lim}</b> with limits</span></span>
         <span class="bd"><span class="lb ok"></span></span></div>`;
     const k = Math.floor(sec / PL_ROT) % hot.length,
       r = hot[k];
@@ -197,8 +214,13 @@ function plOverview(S) {
   };
   /* more than six processes: six at a time in both layouts, moving on by itself every PL_GSEC s (no vertical scroll).
      Pages are full: the last one ends at the last process (7 processes → 1–6, then 2–7). */
+  /* Columns with more than six: one continuous strip moving slowly to the left, 1 → … → last → 1 (see plCarTick).
+     Loop with seven or eight: all of them in one snake, 1 2 3 (4) on top and the rest back along the bottom. */
+  const carousel = PL.lay === 'cols' && S.length > PL_MAX && !matchMedia('(prefers-reduced-motion: reduce)').matches,
+    loopAll = PL.lay === 'loop' && S.length > PL_MAX && S.length <= 8,
+    noPage = carousel || loopAll;
   const ALL = S,
-    np = Math.max(1, Math.ceil(ALL.length / PL_MAX)),
+    np = noPage ? 1 : Math.max(1, Math.ceil(ALL.length / PL_MAX)),
     gp = np > 1 ? Math.floor((Date.now() - PL.g0) / (PL_GSEC * 1000)) % np : 0,
     g0 = Math.min(gp * PL_MAX, Math.max(0, ALL.length - PL_MAX)),
     last = g0 + PL_MAX >= ALL.length,
@@ -208,7 +230,7 @@ function plOverview(S) {
   PL.gLast = gp;
   /* plRender may draw twice in one go (tile re-measure); both draws keep the slide */
   const flip = Date.now() - (PL.gAt || 0) < 80;
-  S = ALL.slice(g0, g0 + PL_MAX);
+  S = noPage ? ALL : ALL.slice(g0, g0 + PL_MAX);
   const gLeft = PL_GSEC - (Math.floor((Date.now() - PL.g0) / 1000) % PL_GSEC),
     pg =
       np > 1
@@ -216,6 +238,27 @@ function plOverview(S) {
         : '';
   h = `<div class="plh-pg${flip ? ' flip' : ''}">` + h;
   const cards = S.map(card);
+  const P = S.map(plPanel),
+    arr = (d, lbl) => `<div class="arw ${d === 0 ? 'r' : d === 180 ? 'l' : d === 90 ? 'dn' : 'up'}" title="${lbl || 'Sand flows to the next step'}"><span class="plt"></span><span class="bd"><svg viewBox="0 0 24 24" style="transform:rotate(${d}deg)"><path d="M6 12h12M13 7l5 5-5 5"/></svg></span></div>`;
+  if (carousel) {
+    /* each item = the process's status card above its column; the sequence is drawn twice so the strip loops without a
+       seam; its position comes from PL.cx (moved every frame by plCarTick, kept across the once-a-second redraw) */
+    const n = S.length,
+      cw = Math.max(200, Math.round(((PL.vw || 1500) - 5 * PL_CAR_AW) / 6)),
+      step = cw + PL_CAR_AW,
+      L = n * step,
+      x = ((PL.cx % L) + L) % L;
+    const items = [];
+    for (let r = 0; r < 2; r++)
+      S.forEach((p, k) =>
+        items.push(
+          `<div class="ci" style="width:${cw}px"><div class="plh-att2" style="--n:1">${cards[k]}</div>${P[k]}</div><div class="ca">${arr(0, k === n - 1 ? 'Return sand goes back to step 1' : '')}</div>`,
+        ),
+      );
+    h += `<div class="plh-cols plh-car" id="plCar"><div class="plh-track" id="plTrack" data-l="${L}" data-step="${step}" style="transform:translateX(${-x}px)">${items.join('')}</div></div></div>`;
+    h += `<div class="plh-ret" title="Return sand goes back to sand preparation"><span class="ed">↑</span><span class="plt"></span><span class="rl">Return sand back to step 1 · ${esc(ALL[0].name)}</span><span class="end"></span><span class="plg"><span>${n} steps · moving · point at it to pause</span></span>${sw}</div>`;
+    return h;
+  }
   if (PL.lay === 'cols') h += `<div class="plh-att2 cols" style="--n:${S.length}">${cards.map((c, i) => (i ? '<div></div>' : '') + c).join('')}</div>`;
   else if (S.length <= 6 && S.length > 3) {
     /* Loop: two cards above each loop column, edges in line with the panels below */
@@ -225,8 +268,24 @@ function plOverview(S) {
   } else h += `<div class="plh-att2" style="--n:${S.length}">${cards.join('')}</div>`;
   /* the same footer row in both layouts: Columns → return-sand line + switch; Loop → colour key + switch */
   const key = `<span class="key">${[['a', 'Alarm'], ['w', 'Warning'], ['n', 'Near limit'], ['k', 'In limits']].map(([k, l]) => `<span class="s-${k}"><i></i>${l}</span>`).join('')}<span class="nx">Values refresh every second · pages change every ${PL_SEC} s</span></span>`;
-  const P = S.map(plPanel),
-    arr = (d, lbl) => `<div class="arw ${d === 0 ? 'r' : d === 180 ? 'l' : d === 90 ? 'dn' : 'up'}" title="${lbl || 'Sand flows to the next step'}"><span class="plt"></span><span class="bd"><svg viewBox="0 0 24 24" style="transform:rotate(${d}deg)"><path d="M6 12h12M13 7l5 5-5 5"/></svg></span></div>`;
+  if (loopAll) {
+    /* seven or eight in one snake, four columns:
+         7: [↱] → 1 → 2 → 3        8: 1 → 2 → 3 → 4
+             ↑            ↓           ↑            ↓
+             7 ← 6 ← 5 ← 4            8 ← 7 ← 6 ← 5       */
+    const n = S.length,
+      top = Math.floor(n / 2),
+      E = '<div></div>',
+      cor = `<div class="rtrk cor" title="Return sand goes back to sand preparation"><span class="plt h"></span><span class="plt v"></span></div>`;
+    const topCells = top < 4 ? [cor, ...P.slice(0, top)] : P.slice(0, 4),
+      bot = P.slice(top).reverse(); // left → right: last … first of the bottom row
+    let g = topCells.map((c, i) => (i ? arr(0) : '') + c).join('');
+    g += `<div class="ret">${arr(-90, 'Return sand goes back to sand preparation')}<span class="rl">Return sand back to step 1</span></div>${E}${E}${E}${E}${E}${arr(90)}`;
+    g += bot.map((c, i) => (i ? arr(180) : '') + c).join('');
+    h = h.replace(/<div class="plh-att2 loopg">[\s\S]*$/, '');
+    h += `<div class="plh-loop l4">${g}</div></div><div class="plh-ret nol">${key}${sw}</div>`;
+    return h;
+  }
   /* columns: 1 → 2 → 3 → … left to right, return sand runs back underneath */
   if (PL.lay === 'cols') {
     const g = P.map((x, k) => (k ? arr(0) : '') + x).join('');
@@ -281,7 +340,11 @@ function plRender() {
   const S = plSteps(),
     focus = document.activeElement && document.activeElement.id === 'plQ',
     caret = focus ? document.activeElement.selectionStart : 0,
-    top = B.scrollTop;
+    top = B.scrollTop,
+    /* the group on screen now, kept so it can slide out to the left when the next group slides in */
+    _vw = (PL.vw = Math.max(600, B.clientWidth - 32)), // the moving strip sizes six columns to this width
+    oldPg = B.querySelector('.plh-pg'),
+    oldBox = oldPg && { t: oldPg.offsetTop, l: oldPg.offsetLeft, w: oldPg.offsetWidth, h: oldPg.offsetHeight };
   B.innerHTML = PL.view == null ? plOverview(S) : plDetail(S, PL.view);
   if (PL.view == null) {
     const T = B.querySelector('.plh-pn .tiles');
@@ -298,6 +361,18 @@ function plRender() {
     }
   }
   B.scrollTop = top;
+  /* slider: the new group comes in from the right (.flip), the old one leaves to the left */
+  const newPg = B.querySelector('.plh-pg.flip');
+  if (newPg && oldPg && oldBox && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    oldPg.classList.remove('flip');
+    oldPg.classList.add('out');
+    oldPg.removeAttribute('id');
+    oldPg.querySelectorAll('[id]').forEach(x => x.removeAttribute('id'));
+    Object.assign(oldPg.style, { top: oldBox.t + 'px', left: oldBox.l + 'px', width: oldBox.w + 'px', height: oldBox.h + 'px' });
+    B.appendChild(oldPg);
+    PL.slideEnd = Date.now() + PL_SLIDE;
+    setTimeout(() => oldPg.remove(), PL_SLIDE);
+  }
   B.querySelectorAll('[data-plt]').forEach(x => (x.onclick = () => openTrend(x.dataset.plt)));
   B.querySelectorAll('[data-plview]').forEach(x => (x.onclick = () => ((PL.view = +x.dataset.plview), (PL.filter = 'all'), (PL.q = ''), plRender(), (B.scrollTop = 0))));
   B.querySelectorAll('[data-plback]').forEach(x => (x.onclick = () => ((PL.view = null), plRender())));
@@ -311,6 +386,13 @@ function plRender() {
         plRender();
       }),
   );
+  /* the moving strip pauses while the pointer is on it (to read or click a value) */
+  const car = B.querySelector('#plCar');
+  if (car) {
+    car.onpointerenter = () => (PL.hold = true);
+    car.onpointerleave = () => (PL.hold = false);
+    if (!car.matches(':hover')) PL.hold = false;
+  } else PL.hold = false;
   /* a page dot jumps to that group of processes and restarts its time */
   B.querySelectorAll('[data-plg]').forEach(x => (x.onclick = () => ((PL.g0 = Date.now() - +x.dataset.plg * PL_GSEC * 1000), plRender())));
   B.querySelectorAll('[data-plf]').forEach(x => (x.onclick = () => ((PL.filter = x.dataset.plf), plRender())));
@@ -329,18 +411,36 @@ function plOpen() {
   }
   PL.on = true;
   PL.view = null;
+  PL.lay = 'loop'; // opens in Loop by default
   O.classList.add('on');
+  /* the screen is redrawn every second: while a mouse button is down on it, wait — otherwise a click that spans a redraw
+     (press on the old "View all", release on the new one) is lost and "View all" looked like it did nothing */
+  if (!O._pdown) {
+    O._pdown = true;
+    O.addEventListener('pointerdown', () => (PL.pdown = Date.now()), true);
+    const up = () => setTimeout(() => (PL.pdown = 0), 80);
+    O.addEventListener('pointerup', up, true);
+    O.addEventListener('pointercancel', up, true);
+  }
+  document.body.classList.add('pl-on'); // the loop drawing is covered: stop painting it (see #plCss)
   const bt = $('#pLoop');
   if (bt) bt.setAttribute('aria-pressed', 'true');
   plRender();
   clearInterval(PL.t);
-  PL.t = setInterval(() => PL.on && !document.hidden && !$('#modal').classList.contains('on') && plRender(), 1000);
+  cancelAnimationFrame(PL.raf);
+  PL.lastTs = 0;
+  PL.raf = requestAnimationFrame(plCarTick);
+  /* no redraw while a slide is running, so it is not cut off half way */
+  PL.t = setInterval(() => PL.on && !document.hidden && !$('#modal').classList.contains('on') && Date.now() > (PL.slideEnd || 0) && !(PL.pdown && Date.now() - PL.pdown < 3000) && plRender(), 1000);
 }
 function plClose() {
   PL.on = false;
   clearInterval(PL.t);
+  cancelAnimationFrame(PL.raf);
+  PL.raf = 0;
   const O = $('#plOv');
   if (O) O.classList.remove('on');
+  document.body.classList.remove('pl-on');
   const bt = $('#pLoop');
   if (bt) bt.setAttribute('aria-pressed', 'false');
 }
@@ -549,9 +649,28 @@ document.head.insertAdjacentHTML(
  .plh-loop .plh-t{padding:4px 8px 3px}.plh-loop .plh-t .v,.plh-pn .tiles.big .v{font-size:20px}.plh-loop .plh-t .nm{font-size:12.5px}.plh-loop .plh-t .lm{padding-top:2px;font-size:10.5px}.plh-pn .tiles.big .nm{font-size:13px}
  .plh-loop .plh-pn{padding:8px 10px}.plh-loop .ph h3{font-size:16px}.plh-pn .ps{margin-top:4px}.plh-pn .tiles{margin-top:7px}.plh-pn .pf{margin-top:5px}.plh-ret.nol{height:24px}}
 .plh-pg{flex:1;min-height:0;display:flex;flex-direction:column;gap:inherit}
-.plh-pg.flip{animation:plPg .5s ease-out}
-@keyframes plPg{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.plh-pg.flip{animation:none}}
+.plh-box{position:relative;overflow-x:hidden}
+/* performance: while Parameters monitoring covers the loop, the drawing underneath (moving pictures, lines, lamps) is not
+   painted at all */
+body.pl-on #cv{visibility:hidden}
+.plh-cols.plh-car{display:block;position:relative;overflow:hidden;min-height:420px}
+.plh-car .plh-track{display:flex;height:100%;will-change:transform}
+.plh-car .ci{flex:none;display:flex;flex-direction:column;gap:12px;min-height:0;height:100%}
+.plh-car .ci .plh-att2{display:block}
+.plh-car .ci .plh-pn{flex:1;min-height:0}
+.plh-car .ca{flex:none;width:22px;position:relative;padding-top:124px;box-sizing:border-box}
+.plh-car .ca .arw{height:100%}
+@media (max-width:1500px){.plh-car .ca{padding-top:112px}}
+@media (max-height:900px){.plh-car .ca{padding-top:93px}}
+.plh-loop.l4{grid-template-columns:minmax(0,1fr) 46px minmax(0,1fr) 46px minmax(0,1fr) 46px minmax(0,1fr)}
+@media (max-width:1500px){.plh-loop.l4{grid-template-columns:minmax(0,1fr) 20px minmax(0,1fr) 20px minmax(0,1fr) 20px minmax(0,1fr)}}
+.plh-loop .rtrk.cor .plt.h{left:calc(50% - 4px)}
+.plh-loop .rtrk.cor .plt.v{left:50%;right:auto;width:8px;margin-left:-4px;top:calc(50% - 4px);bottom:-2px;height:auto;margin-top:0;background-image:repeating-linear-gradient(180deg,#b9894a 0 7px,transparent 7px 16px);animation-name:plfU}
+.plh-pg.flip{animation:plPgIn .7s cubic-bezier(.45,0,.2,1)}
+.plh-pg.out{position:absolute;margin:0;pointer-events:none;animation:plPgOut .7s cubic-bezier(.45,0,.2,1) forwards}
+@keyframes plPgIn{from{transform:translateX(calc(100% + 24px))}to{transform:none}}
+@keyframes plPgOut{from{transform:none}to{transform:translateX(calc(-100% - 24px))}}
+@media (prefers-reduced-motion:reduce){.plh-pg.flip,.plh-pg.out{animation:none}.plh-pg.out{display:none}}
 .plh-ret .plg{position:relative;z-index:1;flex:none;display:inline-flex;align-items:center;gap:8px;margin-left:10px;padding:2px 10px;border-radius:999px;background:#fff;border:1px solid var(--ln);font-size:12px;color:var(--mu);white-space:nowrap}
 .plh-ret .plg .dots{display:inline-flex;gap:4px}
 .plh-ret .plg .dots button{width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#c9d3df;cursor:pointer}

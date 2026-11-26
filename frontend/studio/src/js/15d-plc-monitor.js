@@ -306,6 +306,7 @@ function openPlcMonitor(scope) {
     <div class="pm-scroll" id="pmScroll"><table class="pm-t"><thead><tr><th>Equipment</th><th>Tag name</th><th>Parameter</th><th class="num">Value</th><th>Unit</th><th>Quality</th><th>Last updated</th></tr></thead><tbody id="pmBody"></tbody></table></div>
   </div>`;
   ov.classList.add('on');
+  if (typeof pmMntMount === 'function') pmMntMount(ov, scope); // v9.52 / v10.4 DEMO — Live data | Maintenance tabs
   $('#pmClose').onclick = closePlcMonitor;
   $('#pmRefresh').onclick = () => SandmanData.refresh();
   $('#pmPlc').onchange = e => {

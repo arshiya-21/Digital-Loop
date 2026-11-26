@@ -3371,7 +3371,7 @@ body:not(.is-sim) .tbL #monCtl { opacity: 0.55; pointer-events: none; }
 body:not(.is-sim) .tbL #monCtl::after { content: 'Switch to Simulate to use'; font-size: 11px; color: var(--muted); margin-left: 6px; }
 /* side panel: Loop Studio list rows, light scrollbars, footer */
 .lrail { scrollbar-width: none; } .lrail::-webkit-scrollbar { display: none; }
-.lmain, .left .pbody { scrollbar-width: thin; scrollbar-color: #c3ccd8 transparent; }
+.lmain, .left .pbody { scrollbar-width: auto; scrollbar-color: #c3ccd8 transparent; }
 .lmain::-webkit-scrollbar { width: 8px; } .lmain::-webkit-scrollbar-thumb { background: #c3ccd8; border-radius: 8px; } .lmain::-webkit-scrollbar-track { background: transparent; }
 .psub { display: none; }
 .lmain.list #lib .pal span { display: flex; flex-direction: column; gap: 1px; }
@@ -3391,7 +3391,7 @@ body:not(.is-sim) .tbL #monCtl::after { content: 'Switch to Simulate to use'; fo
 
 /* v1.8 — quiet scrollbars everywhere: thin, light, no arrow buttons; the category rail never shows one;
    the library list shows its bar only while the pointer is over it */
-* { scrollbar-width: thin; scrollbar-color: #c7d0dc transparent; }
+* { scrollbar-width: auto; scrollbar-color: #c7d0dc transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 *::-webkit-scrollbar-track { background: transparent; }
@@ -4226,9 +4226,9 @@ body.present #pgframe { display: none; }
 .pm-scroll { overflow: auto; flex: 1; min-height: 120px; margin: 10px 0 0; }
 .pm-t { width: 100%; border-collapse: separate; border-spacing: 0; }
 .pm-t thead th { position: sticky; top: 0; z-index: 2; background: #fbfcfd; text-align: left; font-size: 12px; color: #4b5563; font-weight: 650; padding: 7px 12px; border-bottom: 1px solid #dfe5ea; }
-.pm-t td { padding: 6px 12px; border-bottom: 1px solid #edf1f4; white-space: nowrap; }
+.pm-t td { text-align: left; padding: 6px 12px; border-bottom: 1px solid #edf1f4; white-space: nowrap; }
 .pm-t td.mono { font-family: var(--mono); font-size: 12px; color: #374151; }
-.pm-t .num { text-align: right; font-variant-numeric: tabular-nums; }
+.pm-t td.num, .pm-t th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .pm-t td.num { font-weight: 650; color: #111827; }
 .pm-t tr.pm-r:hover td { background: #f3f8f7; }
 .pm-t tr.pm-g th { background: #eef3f3; text-align: left; padding: 7px 12px; border-bottom: 1px solid #dfe8e7; font-weight: 400; color: #1f2933; position: sticky; top: 31px; z-index: 1; }
@@ -4320,3 +4320,8 @@ body.present #cwrap.af-focus #Lzones .blk:hover .zone-panel { stroke: rgba(15, 2
 /* status lamp: its drawing lives in the click-through .dyn layer, so its hit area must stay (invisibly) filled when selected —
    otherwise a click on the selected lamp falls through to the area box behind it and moves that instead */
 .design .blk.t-statusLamp.sel-b .hit { fill: transparent; stroke: none; }
+/* v10.4 — PLC Tag Monitor: about 10 rows visible, then a vertical scroll bar */
+.pm-scroll { flex: none; max-height: 420px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: #8a96a3 #eef1f4; }
+.pm-scroll::-webkit-scrollbar { width: 10px; }
+.pm-scroll::-webkit-scrollbar-track { background: #f1f4f7; }
+.pm-scroll::-webkit-scrollbar-thumb { background: #8a96a3; border-radius: 5px; border: 2px solid #eef1f4; }

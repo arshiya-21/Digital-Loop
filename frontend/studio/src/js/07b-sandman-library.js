@@ -149,8 +149,8 @@ function smlibDraw(d, w, h, b) {
   return `<g class="smw${run ? ' has-run' : ''}${flt ? ' has-fault' : ''}">${img('still', 'smi-still')}${run ? img('run', 'smi-run') : ''}${flt ? img('fault', 'smi-fault') : ''}</g>`;
 }
 const smlibSet = el => {
-  const [id, v, pal, paint] = el.getAttribute('data-smi').split('|'),
-    u = smlibUrl(id, v, pal, paint);
+  const [id, v, pal, paint, lv, dk] = el.getAttribute('data-smi').split('|'),
+    u = smlibUrl(id, v, pal, paint, lv, dk); // lv = level key (19b-level-fill.js) · dk = drive key (27e / 27k)
   if (el.getAttribute('href') !== u) el.setAttribute('href', u);
 };
 // library tiles get their picture only when scrolled into view (the canvas is drawn at once)
@@ -313,29 +313,39 @@ try {
 let EQ_BUDGET = 60; // how many drawings may move at once in Auto
 const EQ_MIN = 16; // Auto never animates fewer than this
 const EQ_ON = new Set(); // block ids allowed to move
+/* Performance: every moving drawing is a picture that the browser redraws completely on every frame, so 50+ moving
+   drawings (the Mueller loop at fit-to-screen) kept the page busy all the time and Simulate / Publish hung.
+   Full and Auto now animate only drawings that are on screen and big enough to see the motion (smaller side at least
+   EQ_MINPX on screen); the rest show their still picture and start moving as soon as they are zoomed into view. The
+   selected equipment always moves. Measured on the Mueller loop: 55 moving → 977 ms of every second busy; 19 visible
+   ones moving → 385 ms. */
+const EQ_MINPX = 36;
 function eqAnimApply() {
   document.querySelectorAll('#Lblocks .blk .smw.has-run').forEach(w => {
     const id = w.closest('.blk')?.dataset.b;
-    w.classList.toggle('noanim', EQANIM === 'still' || (EQANIM === 'auto' && !EQ_ON.has(id)));
+    w.classList.toggle('noanim', EQANIM === 'still' || !EQ_ON.has(id));
   });
 }
 function eqAnimRank() {
   EQ_ON.clear();
-  if (EQANIM !== 'auto') return eqAnimApply();
+  if (EQANIM === 'still') return eqAnimApply();
   const cv = document.getElementById('cv');
   if (!cv) return;
   const R = cv.getBoundingClientRect(),
     sel = typeof SEL !== 'undefined' && SEL && SEL.t === 'b' ? SEL.id : null;
   const list = [];
-  document.querySelectorAll('#Lblocks .blk.run .smw.has-run').forEach(w => {
+  document.querySelectorAll('#Lblocks .blk .smw.has-run').forEach(w => {
+    /* measured on the drawing as a whole (whichever picture is showing): the moving picture is hidden while the drawing
+       is still, so measuring it would give 0 and the drawing would never start moving again */
     const g = w.closest('.blk'),
       r = w.getBoundingClientRect(),
       vw = Math.max(0, Math.min(r.right, R.right) - Math.max(r.left, R.left)),
       vh = Math.max(0, Math.min(r.bottom, R.bottom) - Math.max(r.top, R.top));
-    if (vw * vh > 0) list.push([g.dataset.b === sel ? 1e12 : vw * vh, g.dataset.b]);
+    if (g.dataset.b === sel) return list.push([1e12, g.dataset.b]);
+    if (vw * vh > 0 && Math.min(r.width, r.height) >= EQ_MINPX) list.push([vw * vh, g.dataset.b]);
   });
   list.sort((a, b) => b[0] - a[0]);
-  list.slice(0, EQ_BUDGET).forEach(([, id]) => EQ_ON.add(id));
+  (EQANIM === 'auto' ? list.slice(0, EQ_BUDGET) : list).forEach(([, id]) => EQ_ON.add(id));
   eqAnimApply();
 }
 (() => {
@@ -381,8 +391,17 @@ function setEqAnim(v) {
     toast(EQANIM === 'auto' ? 'Equipment animation: Auto — keeps Simulate smooth' : EQANIM === 'full' ? 'Equipment animation: every drawing moves' : 'Equipment animation: still pictures');
   };
 })();
-// new canvas content: apply the current choice at once
-new MutationObserver(() => eqAnimApply()).observe(document.getElementById('Lblocks'), { childList: true });
+// new canvas content: work out again which drawings move (once per burst of changes)
+{
+  let eqT = 0;
+  new MutationObserver(() => {
+    eqAnimApply();
+    clearTimeout(eqT);
+    eqT = setTimeout(eqAnimRank, 60);
+  }).observe(document.getElementById('Lblocks'), { childList: true });
+  // the view can also change without a pointer (Fit, keys, Publish screen size): check every 2 s while simulating
+  setInterval(() => typeof MODE !== 'undefined' && MODE === 'monitor' && !document.hidden && eqAnimRank(), 2000);
+}
 
 /* v9.7 — per-equipment colour style (props.smpal) from the library button, Properties and the right-click menu */
 const smPalCan = b => !!(b && EQ[b.type] && EQ[b.type].smlib && !(EQ[b.type].def && (EQ[b.type].def.pal || EQ[b.type].def.paint)));

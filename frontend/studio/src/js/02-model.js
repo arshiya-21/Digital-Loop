@@ -251,6 +251,29 @@ function buildOwner() {
     }),
   );
 }
+/* v10.4 — demo baseline and noise.
+ *  simBase: the value a demo reading moves around — its normal value, a held demo value, or (for readings linked to
+ *  the gateway, which have no normal value) the first value it showed. Before v10.4 such readings were pulled to 0
+ *  every second, so they slid down in every demo and replayed as 0.0.
+ *  simNz (v9.54, restored): demo readings vary by at least 12 % of their band; readings without limits by 1.5 %. */
+function simBase(id) {
+  const t = REG[id],
+    V = VAL[id];
+  if (!t) return null;
+  if (t.hold != null) return t.hold;
+  if (t.typ != null) return t.typ;
+  if (V && V.base == null && V.x != null && isFinite(V.x)) V.base = V.x;
+  return V && V.base != null ? V.base : null;
+}
+function simNz(t, base) {
+  const n = t.noise || 0;
+  if (t.src && !/sample|demo/i.test(t.src) && t.typ != null) return n;
+  const L = [t.ll, t.lo, t.hi, t.hh].filter(v => v != null),
+    sp = t.hi != null && t.lo != null ? t.hi - t.lo : t.hh != null && t.ll != null ? t.hh - t.ll : null;
+  let nz = sp != null ? Math.abs(sp) * 0.12 : Math.abs(base || 0) * 0.015;
+  if (t.hold != null && L.length) nz = Math.min(nz, Math.min(...L.map(v => Math.abs(t.hold - v))) * 0.45);
+  return tagIsText(t) ? 0 : Math.max(n, nz);
+}
 function simTick() {
   SIMT++;
   const now = Date.now();
@@ -277,28 +300,39 @@ function simTick() {
     }
     if (t.cyc) {
       const [mn, mx, P] = t.cyc;
-      const ups = b ? srcBlocks(b) : [],
-        dns = b ? dstBlocks(b) : [];
-      const upStop = ups.length && ups.every(u => !isRun(u)),
-        dnStop = dns.length && dns.every(u => !isRun(u));
-      let dir = V.dir;
-      if (upStop) dir = -1;
-      else if (dnStop) dir = 1;
-      const rate = (mx - mn) / (P * (dir > 0 ? 0.4 : 0.6));
-      V.x = clamp(V.x + dir * rate + distFx(t.role) * 0.02, 0, 100);
-      if (!upStop && !dnStop) {
-        if (V.x >= mx) V.dir = -1;
-        if (V.x <= mn) V.dir = 1;
-      }
-      V.fill = dir > 0;
-      V.v = clamp(V.x + gauss() * t.noise * 0.3, 0, 100);
+      const ups = b ? lvLinks(b, 'in') : [],
+        dns = b ? lvLinks(b, 'out') : [];
+      const inOn = ups.length ? ups.some(u => lvFed(u)) : true,
+        outOn = dns.length ? dns.some(isRun) : true;
+      const fillR = (mx - mn) / (P * 0.4),
+        drainR = (mx - mn) / (P * 0.6);
+      let rate;
+      if (inOn && outOn) {
+        const work = clamp(t.hold != null ? t.hold : t.typ != null ? t.typ : (mn + mx) / 2, mn, mx),
+          wander = Math.sin((SIMT + (V.ph || (V.ph = Math.random() * 600))) / Math.max(20, P * 0.35)) * (mx - mn) * 0.12;
+        rate = clamp((work + wander - V.x) * 0.03, -drainR * 0.6, fillR * 0.6);
+      } else rate = (inOn ? fillR : 0) - (outOn ? drainR : 0);
+      V.x = clamp(V.x + rate + distFx(typeof simRole === 'function' ? simRole(t) : t.role) * 0.02, 2, 98);
+      V.dir = rate >= 0 ? 1 : -1;
+      V.fill = rate > 0.02;
+      V.flow = inOn && outOn ? 'both' : inOn ? 'in' : outOn ? 'out' : 'none';
+      V.v = clamp(V.x + gauss() * t.noise * 0.08, 0, 100);
+    } else if (V.ts && now - V.ts < 60000) {
+      // v10.4 — live data owns this reading: the demo never moves it
     } else {
-      const tgt = (t.hold != null ? t.hold : t.typ) + distFx(t.role); // v9.18: demo hold value (REG[id].hold) — e.g. a dummy alarm
+      const base = simBase(id);
+      if (base == null) {
+        V.h.push({ t: now, v: V.v });
+        if (V.h.length > 900) V.h.shift();
+        continue;
+      }
+      const nz = simNz(t, base);
+      const tgt = base + distFx(typeof simRole === 'function' ? simRole(t) : t.role); // v9.18: demo hold value (REG[id].hold) — e.g. a dummy alarm
       V.x += (tgt - V.x) * 0.07;
-      V.dft = V.dft * 0.94 + gauss() * t.noise * 0.12;
+      V.dft = V.dft * 0.94 + gauss() * nz * 0.12;
       if (t.lab) {
-        if (SIMT % 30 === 1 || !V.h.length) V.v = V.x + V.dft + gauss() * t.noise;
-      } else V.v = V.x + V.dft + gauss() * t.noise * 0.5;
+        if (SIMT % 30 === 1 || !V.h.length) V.v = V.x + V.dft + gauss() * nz;
+      } else V.v = V.x + V.dft + gauss() * nz * 0.5;
     }
     V.h.push({ t: now, v: V.v });
     if (V.h.length > 900) V.h.shift();
@@ -311,14 +345,16 @@ function seedHist() {
     ensureVal(id);
     const V = VAL[id];
     if (V.h.length) continue;
-    let d = 0,
-      x = V.x;
+    const base = t.cyc ? V.x : simBase(id);
+    if (base == null) continue;
+    const nz = t.cyc ? t.noise : simNz(t, base);
+    let d = 0;
     for (let i = 300; i > 0; i--) {
-      d = d * 0.94 + gauss() * t.noise * 0.12;
-      V.h.push({ t: now - i * 1000, v: (t.cyc ? x : t.hold != null ? t.hold : t.typ) + d + gauss() * t.noise * 0.5 });
+      d = d * 0.94 + gauss() * nz * 0.12;
+      V.h.push({ t: now - i * 1000, v: base + d + gauss() * nz * 0.5 });
     }
     V.v = V.h[V.h.length - 1].v;
-    if (!t.cyc) V.x = t.hold != null ? t.hold : t.typ;
+    if (!t.cyc) V.x = base;
   }
 }
 /* v9.44 — severity of a value against the tag limits. db = deadband (fraction): every limit is moved toward the
@@ -594,15 +630,87 @@ const STC = {
   IDLE: '#94a3b8',
   FAULT: '#d93636',
 };
-function symState(b) {
-  const lv = b.tags.find(
-    t =>
-      REG[t.id]?.role === 'level' ||
-      (EQ[b.type].tags[0] && EQ[b.type].tags[0][9] === 'level' && t === b.tags[0]),
+/* v10.3 (19b-level-fill.js) — the level shown on a drawing moves smoothly towards the reading (at most ~4 % of the
+   vessel per second), so a new reading, a reset or a redraw of the layout never makes the fill jump */
+var LVSHOW = {};
+/* the equipment feeding a vessel ('in') or drawing from it ('out'): every material line incl. return sand, through
+   junctions; data, air and water lines do not carry sand */
+function lvLinks(b, dir) {
+  const out = [],
+    seen = new Set([b.id]),
+    mat = s => !['data', 'air', 'water', 'metal'].includes(s.kind);
+  const walk = id =>
+    DOC.streams.forEach(s => {
+      if (!mat(s)) return;
+      const here = dir === 'in' ? s.to.b : s.from.b,
+        there = dir === 'in' ? s.from.b : s.to.b;
+      if (here !== id || seen.has(there)) return;
+      seen.add(there);
+      const u = B(there);
+      if (!u) return;
+      if (u.type === 'junction') walk(u.id);
+      else out.push(u);
+    });
+  walk(b.id);
+  return out;
+}
+/* does this equipment really deliver sand? It must run, and a belt / elevator / feeder must itself be fed (a running
+   belt behind a stopped elevator carries nothing). Vessels and the start of a line count as fed. */
+function lvVessel(u) {
+  if (lvTagOf(u)) return true;
+  const d = EQ[u.type] && EQ[u.type].def;
+  return !!(d && typeof smlibHasLevel === 'function' && typeof smlibIdOf === 'function' && smlibHasLevel(smlibIdOf(d)));
+}
+function lvFed(u, depth = 0) {
+  if (!isRun(u)) return false;
+  if (depth > 8 || lvVessel(u)) return true;
+  const ups = lvLinks(u, 'in');
+  return !ups.length || ups.some(x => lvFed(x, depth + 1));
+}
+/* the machine's level reading: chosen on the machine (props.lvlTag, '-' = none) › role "level" › the library type's
+   level tag › a reading named level / LVL (tags read from a plant database carry no role) */
+function lvTagOf(b) {
+  const p = (b && b.props) || {};
+  if (p.lvlTag === '-' || !b || !b.tags) return null;
+  const ok = t => REG[t.id] && !tagIsText(REG[t.id]);
+  if (p.lvlTag) {
+    const t = b.tags.find(x => x.id === p.lvlTag);
+    if (t && ok(t)) return t;
+  }
+  const E = EQ[b.type];
+  return (
+    b.tags.find(t => ok(t) && REG[t.id].role === 'level') ||
+    b.tags.find(t => ok(t) && E && E.tags && E.tags[0] && E.tags[0][9] === 'level' && t === b.tags[0]) ||
+    b.tags.find(t => ok(t) && /(^|[^a-z])(level|lvl)([^a-z]|$)/i.test(`${t.id} ${REG[t.id].desc || ''} ${REG[t.id].short || ''}`)) ||
+    null
   );
+}
+/* 0..1 from the reading: % as is, any other unit against "Full at" (props.lvlFull); null = no value */
+function lvFrac(b, id) {
+  const v = val(id);
+  if (v == null || !isFinite(v)) return null;
+  const u = String(REG[id].unit || '').trim(),
+    full = !u || /^%$|percent|pct/i.test(u) ? 100 : +b.props.lvlFull;
+  return full > 0 ? clamp(v / full, 0, 1) : null;
+}
+function levelShown(b, id) {
+  const v = lvFrac(b, id);
+  if (v == null) return null;
+  if (RP || MODE !== 'monitor') return (LVSHOW[b.id] = { v, t: Date.now() }).v;
+  const now = Date.now(),
+    o = LVSHOW[b.id];
+  if (!o) return (LVSHOW[b.id] = { v, t: now }).v;
+  const dt = Math.min(5, (now - o.t) / 1000),
+    step = 0.04 * dt;
+  o.v = Math.abs(v - o.v) <= step ? v : o.v + Math.sign(v - o.v) * step;
+  o.t = now;
+  return o.v;
+}
+function symState(b) {
+  const lv = lvTagOf(b);
   const first = b.tags[0] && REG[b.tags[0].id];
   return {
-    level: lv && REG[lv.id] ? clamp(val(lv.id) / 100, 0, 1) : null,
+    level: lv ? levelShown(b, lv.id) : null,
     sev: first ? tagSev(first.id) : 0,
     pos:
       first && (first.role === 'vpos' || first.role === 'cvpos')

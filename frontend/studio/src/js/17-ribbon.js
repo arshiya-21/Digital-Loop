@@ -108,8 +108,15 @@
     inp.onkeydown = e => e.key === 'Enter' && go();
   }
   function loadData(o, label) {
-    if (o && o.DOC) registerDocCustom(o.DOC);
-    if (!o || !o.DOC || !o.REG || !Array.isArray(o.DOC.blocks) || o.DOC.blocks.some(b => !EQ[b.type])) {
+    // v9.55 — check and clean the whole file first; only then register its custom equipment
+    const bad = cleanLoop(o);
+    const custIds = new Set(((o && o.DOC && o.DOC.custom) || []).map(d => d.id));
+    if (bad || o.DOC.blocks.some(b => !EQ[b.type] && !custIds.has(b.type))) {
+      toast('That file is not a SandMan flowsheet');
+      return false;
+    }
+    registerDocCustom(o.DOC);
+    if (o.DOC.blocks.some(b => !EQ[b.type])) {
       toast('That file is not a SandMan flowsheet');
       return false;
     }

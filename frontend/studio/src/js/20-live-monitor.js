@@ -1,6 +1,6 @@
 /*! SandMan Digital Loop Studio — 20-live-monitor.js
  *  v9.47 — Live monitor panel in the Publish view + monitored-parameter picker.
- *  · The panel sits beside the drawing (left side by default, ⇄ moves it to the right) and stays visible while publishing; the
+ *  · The panel sits on the right of the drawing by default (⇄ moves it to the left) and stays visible while publishing; the
  *    drawing refits into the remaining area, so nothing is covered.
  *  · Alarms: every active alarm, critical first, then warnings, then advisories (newest first within a level);
  *    unacknowledged critical alarms flash. Ack, Ack all and Locate (the equipment is ringed on the drawing).
@@ -165,7 +165,7 @@ function mpEnsure() {
 <section class="mp-sec mp-pas"><div class="mp-sh"><b>Monitored parameters</b><span class="mp-n" id="mpN"></span><button class="mp-b" id="mpEdit" title="Choose the parameters shown here">✎ Choose</button></div><div class="mp-list" id="mpPa"></div></section>`;
     $('#mpHide').onclick = () => mpSet(false);
     $('#mpSide').onclick = () => {
-      mpCfg().side = mpCfg().side === 'right' ? 'left' : 'right';
+      mpCfg().side = mpCfg().side === 'left' ? 'right' : 'left'; // unset = right (the default)
       save();
       mpSync();
       requestAnimationFrame(() => requestAnimationFrame(() => PRESENT && presentFit()));
@@ -187,7 +187,7 @@ function mpSync() {
   }
   const on = PRESENT && mpOn();
   document.body.classList.toggle('mpon', on);
-  document.body.classList.toggle('mpright', mpCfg().side === 'right'); // v9.47: left by default
+  document.body.classList.toggle('mpright', mpCfg().side !== 'left'); // right by default (was left, v9.47); ⇄ still moves it
   const b = $('#pMon');
   if (b) b.classList.toggle('on', mpOn());
   if (on) {

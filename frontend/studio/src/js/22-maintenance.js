@@ -7,7 +7,7 @@
  *    open until a repair closes them.
  *  · Alerts: due soon → Advisory, overdue → Warning, open breakdown → Warning; shown in the Alerts list, Live panel and
  *    on the machine; optional desktop pop-ups; due list can be sent by email / WhatsApp (prepared message).
- *  · Only the maintenance team logs work: each member has a PIN (a simple lock until the Fountrix server adds logins).
+ *  · Only the maintenance team logs work: each member has a PIN (a simple lock until the ORBIX server adds logins).
  *  · Running hours: an hour-meter tag from the PLC when one is set for the machine, otherwise the meter reading the
  *    technician enters when logging.
  *  · Asset register: make, model, serial, installed, supplier, power, criticality and warranty for every machine.
@@ -287,7 +287,7 @@ function mntNotify(where, msg, sev) {
   const M = DOC.maint && DOC.maint.cfg;
   if (!M || !M.desktop || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   try {
-    new Notification(`${sev >= 2 ? '⚠ ' : ''}${where} — Fountrix maintenance`, { body: msg, tag: where + msg });
+    new Notification(`${sev >= 2 ? '⚠ ' : ''}${where} — ORBIX maintenance`, { body: msg, tag: where + msg });
   } catch (e) {}
 }
 function mntDueList() {
@@ -300,7 +300,7 @@ function mntDueList() {
 }
 function mntDueText() {
   const { due, open } = mntDueList();
-  const L = [`Fountrix maintenance — ${DOC.name || 'Loop'} — ${mntFmtD(mntIso(), true)}`, ''];
+  const L = [`ORBIX maintenance — ${DOC.name || 'Loop'} — ${mntFmtD(mntIso(), true)}`, ''];
   if (open.length) {
     L.push(`OPEN BREAKDOWNS (${open.length})`);
     open.forEach(e => L.push(`• ${B(e.blk)?.name}: ${e.task} (reported ${mntFmtD(e.date, true)})`));
@@ -580,7 +580,7 @@ function mntTabSet(body) {
   <h5 class="mnt-h5">Costs</h5><div class="mnt-g3"><div class="fld"><label>Labour rate (₹ per man-hour)</label><input id="cfR" type="number" min="0" value="${c.rate}"></div><div class="fld"><label>Monthly maintenance budget (₹)</label><input id="cfB" type="number" min="0" value="${c.budget || ''}" placeholder="optional"></div><div class="fld"><label>Plant operating hours per day (for MTBF / availability)</label><input id="cfOp" type="number" min="1" max="24" value="${c.opHours}"></div></div>
   <h5 class="mnt-h5">Alerts</h5><div class="note">Who is told what, when, how loud and on which channel is set per event in <b>Alert rules</b>. Team members receive alerts by the role chosen above.</div>
   <label class="mnt-cb"><input type="checkbox" id="cfN" ${c.desktop ? 'checked' : ''} ${hasN ? '' : 'disabled'}> Desktop pop-up on this computer${hasN && Notification.permission === 'denied' ? ' <span class="note">(blocked in this browser’s settings)</span>' : ''}</label>
-  <h5 class="mnt-h5">Extra recipients</h5><div class="note">People outside the team who also receive the due list. Automatic sending (daily list + instant overdue / breakdown alerts) comes with the Fountrix server; until then the buttons prepare the message for you to send.</div>
+  <h5 class="mnt-h5">Extra recipients</h5><div class="note">People outside the team who also receive the due list. Automatic sending (daily list + instant overdue / breakdown alerts) comes with the ORBIX server; until then the buttons prepare the message for you to send.</div>
   <div class="fld"><label>Email addresses (comma separated)</label><input id="cfE" value="${esc(c.emails)}" placeholder="maintenance@plant.com"></div>
   <div class="fld"><label>WhatsApp numbers (with country code, comma separated)</label><input id="cfW" value="${esc(c.wa)}" placeholder="+91 98xxxxxxxx"></div>
   <div class="mact" style="justify-content:flex-start"><button class="ib pri" id="cfSave">Save settings</button><button class="ib" id="cfMail">✉ Email due list</button><button class="ib" id="cfWa">WhatsApp due list</button></div>
@@ -885,7 +885,7 @@ function mntTabRel(body) {
 /* ---------- Printable work orders and reports (A4) ---------- */
 function mntPrint(o) {
   const M = mntDoc();
-  const head = (title, no, right) => `<header><div><div class="brand">Fountrix · Maintenance</div><h1>${title}</h1><div class="sub">${esc(DOC.name || '')}</div></div><div class="hr">${no ? `<div class="no">${esc(no)}</div>` : ''}${right || ''}<div class="pd">Printed ${mntFmtD(mntIso(), true)}</div></div></header>`;
+  const head = (title, no, right) => `<header><div><div class="brand">ORBIX · Maintenance</div><h1>${title}</h1><div class="sub">${esc(DOC.name || '')}</div></div><div class="hr">${no ? `<div class="no">${esc(no)}</div>` : ''}${right || ''}<div class="pd">Printed ${mntFmtD(mntIso(), true)}</div></div></header>`;
   const assetBox = b => {
     const a = M.assets[b.id] || {};
     const h = mntHours(b.id);
@@ -949,7 +949,7 @@ function mntPrint(o) {
   .safety{border:2px solid #b91c1c;background:#fff1f1;padding:6px 8px;margin:8px 0;font-weight:600;font-size:10pt}
   .sign{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:22px;font-size:9.5pt;color:#333}.sign span{display:block;border-bottom:1px solid #333;height:34px;margin-bottom:3px}
   footer{margin-top:14px;font-size:8.5pt;color:#777;border-top:1px solid #ccc;padding-top:4px}
-  </style>${html}${o.plan || o.entry ? `<h2>Findings / notes</h2><table class="grid"><tbody>${blankRows([1], 3)}</tbody></table>${sign}` : ''}<footer>Fountrix Digital Loop · Maintenance module · ${esc(DOC.name || '')}</footer><script>setTimeout(()=>print(),300)<\/script>`);
+  </style>${html}${o.plan || o.entry ? `<h2>Findings / notes</h2><table class="grid"><tbody>${blankRows([1], 3)}</tbody></table>${sign}` : ''}<footer>ORBIX Digital Loop · Maintenance module · ${esc(DOC.name || '')}</footer><script>setTimeout(()=>print(),300)<\/script>`);
   w.document.close();
 }
 
@@ -1012,7 +1012,10 @@ function mntTabCost(body) {
   };
 }
 function mntCsvRows(rows, name) {
-  const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const q = s => {
+    const c = csvCell(s);
+    return c.startsWith('"') ? c : `"${c}"`;
+  };
   const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1230,9 +1233,50 @@ function mntForm(opts, host) {
 function mntQrBlock(b) {
   const u = mcUrl(b),
     based = DOC.plant && DOC.plant.cardBase;
-  return `<div class="mnt-qr"><div class="mnt-qr-c">${typeof mcQr === 'function' ? mcQr(u, 3) : ''}</div><div class="mnt-qr-t"><b>Machine QR — ${esc(b.name)}</b><div class="note">Scan on the shop floor: live readings, alarms, maintenance due, open requests, last work and SOP — with Log work / Service request.</div><div class="mono mnt-qr-u">${esc(u)}</div>${based || window.DL_CARD_BASE ? '' : '<div class="mnt-warn">Set the address the phones open (View › Machine QR) before printing — this file’s own address works only on this computer.</div>'}<div class="mnt-qr-b"><button class="sb" data-qrp="${b.id}">🖨 Print sticker</button><button class="sb" data-qro="${b.id}">Open card</button></div></div></div>`;
+  return `<div class="mnt-qr"><div class="mnt-qr-c">${typeof mcQr === 'function' ? mcQr(u, 3) : ''}</div><div class="mnt-qr-t"><b>Machine QR — ${esc(b.name)}</b><div class="note">Scan on the shop floor: live readings, alarms, maintenance due, open requests, last work and SOP — with Log work / Service request.</div><div class="mono mnt-qr-u">${esc(u)}</div>${based || window.DL_CARD_BASE ? '' : '<div class="mnt-warn">Set the address the phones open (View › Machine QR) before printing — this file’s own address works only on this computer.</div>'}<div class="mnt-qr-b"><button class="sb" data-qrp="${b.id}">🖨 Print sticker</button><button class="sb" data-qro="${b.id}">Open card</button></div></div></div>${mntSopHtml(b)}`;
+}
+/* the SOP of the machine's process area — the steps the phone card shows, plus the SOP documents linked to this machine */
+function mntSopHtml(b) {
+  const p = typeof mcArea === 'function' ? mcArea(b) : null;
+  if (!p) return '';
+  const sop = p.sop || {};
+  const steps = sop.steps || [];
+  const docs = typeof sfDocsOfBlock === 'function' ? sfDocsOfBlock(p, b) : [];
+  if (!steps.length && !docs.length) return '';
+  const more = steps.length - 12;
+  const list = steps.length ? `<ol class="mc-sop">${steps.slice(0, 12).map(s => `<li>${esc(s.t)}${s.key ? ` <span>${esc(s.key)}</span>` : ''}</li>`).join('')}</ol>${more > 0 ? `<div class="note">+ ${more} more step${more === 1 ? '' : 's'} in the full SOP</div>` : ''}` : '';
+  const files = docs
+    .map(d => {
+      const c = sfCur(d);
+      return `<div class="sf-lk">${sfIcon(c.ext)}<span class="sf-cm"><b>${esc(d.title)}</b><small>v${c.n} · ${esc(sfWhen(c.at))}</small></span><button class="sb" data-msopv="${esc(p.id)}" data-msopd="${esc(d.id)}">View</button><button class="sb" data-msopdl="${esc(p.id)}" data-msopd="${esc(d.id)}" title="Download">⬇</button></div>`;
+    })
+    .join('');
+  return `<div class="mnt-sop"><div class="mnt-sub">SOP · ${esc(sop.no || '')} ${esc(p.name || '')}</div>${list}${files ? `<div class="mnt-sop-f">${files}</div>` : ''}${steps.length ? `<button class="sb" data-msop="${esc(p.id)}">Open full SOP</button>` : ''}</div>`;
+}
+function mntBindSop(root) {
+  const proc = id => (DOC.cps || []).find(p => String(p.id) === id);
+  const leave = () => typeof closePlcMonitor === 'function' && closePlcMonitor();
+  root.querySelectorAll('[data-msop]').forEach(x => (x.onclick = () => (leave(), openCP(proc(x.dataset.msop).id, 'sop'))));
+  root.querySelectorAll('[data-msopv]').forEach(
+    x =>
+      (x.onclick = () => {
+        leave();
+        SFSEL = x.dataset.msopd;
+        SFVER = null;
+        SFUP = null;
+        openCP(proc(x.dataset.msopv).id, 'docs');
+      }),
+  );
+  root.querySelectorAll('[data-msopdl]').forEach(
+    x =>
+      (x.onclick = () => {
+        const d = sfDocs(proc(x.dataset.msopdl)).find(y => y.id === x.dataset.msopd);
+        if (d) sfDownload(sfCur(d));
+      }),
+  );
 }
 function mntBindQr(root) {
+  mntBindSop(root);
   root.querySelectorAll('[data-qrp]').forEach(x => (x.onclick = () => mntPrintStickers([B(x.dataset.qrp)])));
   root.querySelectorAll('[data-qro]').forEach(
     x =>
@@ -1254,7 +1298,7 @@ function mntPrintStickers(list, base) {
       const a = M.assets[b.id] || {};
       const u = mcUrl(b, b0);
       const id = [[a.make, a.model].filter(Boolean).join(' '), a.serial && 'S/N ' + a.serial].filter(Boolean).join(' · ');
-      return `<div class="s"><div class="h"><span class="n">${esc(b.name)}</span>${a.crit ? `<span class="c c${esc(a.crit)}">${esc(a.crit)}</span>` : ''}</div><div class="q">${mcQr(u, 4)}</div><div class="d">${esc(b.props.desc || EQ[b.type].n)}</div>${id ? `<div class="a">${esc(id)}</div>` : ''}<div class="k">Scan: live readings · alarms · maintenance</div><div class="f">Fountrix · ${esc(DOC.name || '')}</div></div>`;
+      return `<div class="s"><div class="h"><span class="n">${esc(b.name)}</span>${a.crit ? `<span class="c c${esc(a.crit)}">${esc(a.crit)}</span>` : ''}</div><div class="q">${mcQr(u, 4)}</div><div class="d">${esc(b.props.desc || EQ[b.type].n)}</div>${id ? `<div class="a">${esc(id)}</div>` : ''}<div class="k">Scan: live readings · alarms · maintenance · SOP</div><div class="f">Fountrix · ${esc(DOC.name || '')}</div></div>`;
     })
     .join('');
   const w = window.open('', '_blank');

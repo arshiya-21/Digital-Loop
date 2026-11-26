@@ -96,7 +96,8 @@ function mcInfoHtml(o) {
   const row = (l, v) => (v ? `<div><span>${l}</span><b>${esc(v)}</b></div>` : '');
   const crit = { A: 'A — stops the whole line', B: 'B — stops one line', C: 'C — no production loss' };
   const h = [row('Make / model', o.m), row('Serial no.', o.s), row('Installed', o.y), row('Power', o.p && o.p + ' kW'), row('Criticality', o.c && (crit[o.c] || o.c)), row('Location', o.l), row('Service contact', [o.v, o.t].filter(Boolean).join(' · '))].join('');
-  return h ? `<div class="mc-sec">Machine information</div><div class="mc-info">${h}${o.t ? `<a class="x3-b mc-call" href="tel:${esc(String(o.t).replace(/[^\d+]/g, ''))}">📞 Call service</a>` : ''}</div>` : '';
+  // v9.55 — these details travel inside the QR link itself, so say where they came from
+  return h ? `<div class="mc-sec">Machine information <small class="note">(from the sticker — not checked against plant records)</small></div><div class="mc-info">${h}${o.t ? `<a class="x3-b mc-call" href="tel:${esc(String(o.t).replace(/[^\d+]/g, ''))}">📞 Call service</a>` : ''}</div>` : '';
 }
 function mcArea(b) {
   return (DOC.cps || []).find(c => (c.blocks || []).includes(b.id));
@@ -155,9 +156,9 @@ function mcOpen(name, info) {
     if (MC_PAUSE) return;
     const bb = DOC.blocks.find(x => x.name === name);
     ov.innerHTML = bb
-      ? `<div class="mc-wrap">${mcBody(bb, false)}<div class="mc-acts"><button class="x3-b" id="mcLoop">Open the whole loop</button></div><div class="mc-foot">Fountrix Digital Loop · ${esc(DOC.name || '')} · updated ${new Date().toLocaleTimeString()}</div></div>`
+      ? `<div class="mc-wrap">${mcBody(bb, false)}<div class="mc-acts"><button class="x3-b" id="mcLoop">Open the whole loop</button></div><div class="mc-foot">ORBIX Digital Loop · ${esc(DOC.name || '')} · updated ${new Date().toLocaleTimeString()}</div></div>`
       : MC_INFO
-        ? `<div class="mc-wrap"><div class="mc-h"><span class="mc-dot"></span><div><div class="mc-n">${esc(name)}</div><div class="mc-t">${esc(MC_INFO.d || '')}</div></div></div>${mcInfoHtml(MC_INFO)}<p class="mc-none">Live readings and maintenance appear when this phone can open the plant's Fountrix loop.</p><div class="mc-acts"><button class="x3-b" id="mcLoop">Open the whole loop</button></div></div>`
+        ? `<div class="mc-wrap"><div class="mc-h"><span class="mc-dot"></span><div><div class="mc-n">${esc(name)}</div><div class="mc-t">${esc(MC_INFO.d || '')}</div></div></div>${mcInfoHtml(MC_INFO)}<p class="mc-none">Live readings and maintenance appear when this phone can open the plant's ORBIX loop.</p><div class="mc-acts"><button class="x3-b" id="mcLoop">Open the whole loop</button></div></div>`
         : `<div class="mc-wrap"><div class="mc-n">Machine “${esc(name)}” not found</div><p class="mc-none">This loop has no equipment with that tag. Check the QR sticker or open the whole loop.</p><div class="mc-acts"><button class="x3-b" id="mcLoop">Open the whole loop</button></div></div>`;
     const lp = $('#mcLoop');
     if (lp) lp.onclick = mcClose;
@@ -198,16 +199,25 @@ function mcQrSheet() {
   const base = mcBase();
   const render = () => {
     const b0 = $('#mcBase').value.trim() || base;
+    // v9.55 — warn when the stickers would send phones to another site than this Studio
+    let foreign = false;
+    try {
+      foreign = !/^https?:$/.test(new URL(b0).protocol) || (location.protocol !== 'file:' && new URL(b0).origin !== location.origin);
+    } catch (e) {
+      foreign = true;
+    }
+    const wn = $('#mcWarn');
+    if (wn) wn.hidden = !foreign;
     $('#mcGrid').innerHTML = eq
       .map(b => {
         const u = mcUrl(b, b0);
-        return `<div class="mc-q"><div class="mc-qr">${mcQr(u, 4)}</div><div class="mc-qn">${esc(b.name)}</div><div class="mc-qd">${esc(b.props.desc || EQ[b.type].n)}</div><div class="mc-qs">Scan: live readings · alarms · maintenance</div></div>`;
+        return `<div class="mc-q"><div class="mc-qr">${mcQr(u, 4)}</div><div class="mc-qn">${esc(b.name)}</div><div class="mc-qd">${esc(b.props.desc || EQ[b.type].n)}</div><div class="mc-qs">Scan: live readings · alarms · maintenance · SOP</div></div>`;
       })
       .join('');
   };
   openModal(
     `<h3>Machine QR stickers</h3><div class="note">One sticker per machine (${eq.length}). Stick it on the real equipment — scanning it with a phone opens that machine's live card: readings, limits, alarms and the SOP steps. The phones must be able to open the loop's address, so use the published SandMan address, not a file on this computer.</div>
- <div class="fld" style="margin-top:10px"><label>Address the phones open</label><input id="mcBase" class="mono" value="${esc(base)}" spellcheck="false"></div>
+ <div class="fld" style="margin-top:10px"><label>Address the phones open</label><input id="mcBase" class="mono" value="${esc(base)}" spellcheck="false"><div id="mcWarn" class="note tx3" hidden>This address is not this Studio's own site. Check it before printing — phones that scan the stickers will open it.</div></div>
  <div class="mc-grid" id="mcGrid"></div>
  <div class="mact"><button class="ib" id="mcCancel">Close</button><button class="ib" id="mcSave">Save address with the loop</button><button class="ib pri" id="mcPrint">Print stickers</button></div>`,
     'xl',

@@ -1,7 +1,7 @@
 /*! SandMan Digital Loop Studio — 24-mnt-alert-rules.js
  *  v9.53 — Maintenance alert rules (one place to configure who is told what, when, and how)
  *  · One row per event: on/off · when (lead time / delay) · level in the Fault alarm list (Off, Advisory, Warning,
- *    Critical) · desktop pop-up · who is notified (roles) · channels (App now; Email / WhatsApp sent by the Fountrix
+ *    Critical) · desktop pop-up · who is notified (roles) · channels (App now; Email / WhatsApp sent by the ORBIX
  *    server) · escalation (after N hours unanswered → in-charge / production head).
  *  · Condition triggers (condition-based maintenance): a live reading beyond a limit for N minutes opens a service
  *    request by itself — e.g. shakeout vibration > 8 mm/s for 2 min.
@@ -65,7 +65,7 @@ function mntPeople(roles, person) {
   });
   return [...new Map(out.map(t => [t.id, t])).values()];
 }
-/* one notification → app pop-up now; email / WhatsApp queued for the Fountrix server; all kept in the log */
+/* one notification → app pop-up now; email / WhatsApp queued for the ORBIX server; all kept in the log */
 const MNT_SENT = new Set();
 function mntSend(key, ev, where, msg, person, force) {
   const R = mntRules()[ev];
@@ -135,7 +135,7 @@ function mntCheck() {
     const esc = r.esc != null && !taken && ageH >= +r.esc;
     if (esc && !e.escAt) {
       e.escAt = mntIso();
-      (e.hist = e.hist || []).push({ t: e.escAt, by: 'Fountrix', st: e.status, note: `Escalated to ${(r.escTo || []).map(x => MNT_ROLES[x]).join(', ')} — not taken up in ${r.esc < 1 ? Math.round(r.esc * 60) + ' min' : r.esc + ' h'}` });
+      (e.hist = e.hist || []).push({ t: e.escAt, by: 'ORBIX', st: e.status, note: `Escalated to ${(r.escTo || []).map(x => MNT_ROLES[x]).join(', ')} — not taken up in ${r.esc < 1 ? Math.round(r.esc * 60) + ' min' : r.esc + ' h'}` });
       save();
       const R2 = Object.assign({}, r, { to: r.escTo || ['incharge'] });
       M.rules['_esc'] = R2;
@@ -159,7 +159,7 @@ function mntCheck() {
       const mins = (Date.now() - MNT_COND_T[c.id]) / 6e4;
       if (mins < +c.mins) return;
       if (M.log.some(e => e.cond === c.id && mntIsOpen(e))) return;
-      const e = { id: mntId('w'), blk: b.id, kind: 'breakdown', task: c.task || `${t.desc} ${c.op === '<' ? 'below' : 'above'} ${c.val} ${t.unit || ''}`.trim(), date: mntIso(), by: 'Fountrix (automatic)', stop: false, prio: c.prio || 'P3', status: 'open', cond: c.id, notes: `Automatic: ${t.desc} = ${fmtN(v, t.d)} ${t.unit || ''} (${c.op} ${c.val}) for ${+c.mins} min`, hist: [{ t: mntIso(), by: 'Fountrix', st: 'open', note: 'Opened by condition trigger' }] };
+      const e = { id: mntId('w'), blk: b.id, kind: 'breakdown', task: c.task || `${t.desc} ${c.op === '<' ? 'below' : 'above'} ${c.val} ${t.unit || ''}`.trim(), date: mntIso(), by: 'ORBIX (automatic)', stop: false, prio: c.prio || 'P3', status: 'open', cond: c.id, notes: `Automatic: ${t.desc} = ${fmtN(v, t.d)} ${t.unit || ''} (${c.op} ${c.val}) for ${+c.mins} min`, hist: [{ t: mntIso(), by: 'ORBIX', st: 'open', note: 'Opened by condition trigger' }] };
       e.no = mntWoNo();
       M.log.push(e);
       logEv(`Condition trigger: ${b.name} — ${e.task} → ${e.no}`, 2);
@@ -244,15 +244,15 @@ function mntTabRules(body) {
   }).join('');
   const prev = MNT_RSEL ? mntRulePreview(MNT_RSEL) : null;
   const tags = b => b.tags.filter(t => REG[t.id] && typeof val(t.id) === 'number');
-  body.innerHTML = `<div class="note" style="margin-bottom:8px">Each event: when it is raised, how loud it is in the <b>Fault alarm</b> list (Off = only the Maintenance badge and notifications), who is told, on which channel, and who is told next if nobody acts. <b>App</b> works now; <b>Email</b> and <b>WhatsApp</b> are queued and sent by the Fountrix server (Phase 2).</div>
+  body.innerHTML = `<div class="note" style="margin-bottom:8px">Each event: when it is raised, how loud it is in the <b>Fault alarm</b> list (Off = only the Maintenance badge and notifications), who is told, on which channel, and who is told next if nobody acts. <b>App</b> works now; <b>Email</b> and <b>WhatsApp</b> are queued and sent by the ORBIX server (Phase 2).</div>
  <table class="mnt-t mnt-rules"><thead><tr><th>On</th><th>Event</th><th>When</th><th>Fault alarm list</th><th>Pop-up</th><th>Notify</th><th>Channels</th><th>Escalate if not taken up</th><th></th></tr></thead><tbody>${rows}</tbody></table>
  ${prev ? `<div class="mnt-prev"><b>${esc(MNT_EV.find(x => x[0] === MNT_RSEL)[1])} — what fires now (${prev.length})</b>${prev.length ? `<ul>${prev.slice(0, 12).map(x => `<li>${esc(x)}</li>`).join('')}${prev.length > 12 ? `<li class="note">+ ${prev.length - 12} more</li>` : ''}</ul>` : '<div class="note">Nothing at the moment.</div>'}</div>` : ''}
  <div class="mnt-cols" style="margin-top:12px"><div>
-  <h5 class="mnt-h5">Condition triggers — open a service request automatically</h5><div class="note">Condition-based maintenance: when a live reading stays beyond its limit for the set minutes, Fountrix opens a service request on that machine (once, until it is closed).</div>
+  <h5 class="mnt-h5">Condition triggers — open a service request automatically</h5><div class="note">Condition-based maintenance: when a live reading stays beyond its limit for the set minutes, ORBIX opens a service request on that machine (once, until it is closed).</div>
   <table class="mnt-t"><thead><tr><th>Machine</th><th>Reading</th><th>Limit</th><th>For</th><th>Priority</th><th>Now</th><th></th></tr></thead><tbody>${M.conds.map(c => { const t = REG[c.tag]; const v = t ? val(c.tag) : null; const bad = t && (c.op === '<' ? v < +c.val : v > +c.val); return `<tr class="${c.off ? 'mnt-off' : ''}"><td><b>${esc(B(c.blk)?.name || '?')}</b></td><td>${esc(t ? t.desc : c.tag)}</td><td class="mono">${c.op} ${esc(c.val)} ${esc(t?.unit || '')}</td><td class="mono">${c.mins} min</td><td>${mntPrioChip(c.prio)}</td><td class="mono">${t ? `${fmtN(v, t.d)}${bad ? ' <span class="mnt-st mnt-over">beyond</span>' : ''}` : '—'}</td><td style="white-space:nowrap"><button class="lb" data-coff="${c.id}">${c.off ? 'Turn on' : 'Turn off'}</button><button class="lb" data-crm="${c.id}" style="color:var(--crit)">Remove</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="note">No condition triggers yet.</td></tr>'}</tbody></table>
   <div class="mnt-cond-add"><select id="cnB">${mntEquip().filter(b => tags(b).length).map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select><select id="cnT"></select><select id="cnO"><option value=">">above</option><option value="<">below</option></select><input id="cnV" type="number" step="any" placeholder="limit"><input id="cnM" type="number" min="0" value="5" title="minutes"><span class="note">min</span><select id="cnP">${['P1', 'P2', 'P3', 'P4'].map(p => `<option ${p === 'P2' ? 'selected' : ''}>${p}</option>`).join('')}</select><button class="ib pri" id="cnAdd">Add trigger</button></div>
  </div><div>
-  <h5 class="mnt-h5">Notification log</h5><div class="note">Every notification Fountrix raised — for audit. Email / WhatsApp rows are queued until the server sends them.</div>
+  <h5 class="mnt-h5">Notification log</h5><div class="note">Every notification ORBIX raised — for audit. Email / WhatsApp rows are queued until the server sends them.</div>
   <div class="mnt-outbox">${M.outbox.slice(0, 60).map(o => `<div><span class="mono">${mntFmtD(o.t, true)}</span> <b>${esc(o.where)}</b> — ${esc(o.msg)}<div class="note">${esc((MNT_EV.find(x => x[0] === o.ev) || [, o.ev === '_esc' ? 'Escalation' : o.ev])[1])} → ${esc(o.to.join(', ') || 'no team member with that role')} · ${o.ch.map(c => ({ app: 'App', email: 'Email', wa: 'WhatsApp' })[c]).join(', ')} · ${esc(o.st)}</div></div>`).join('') || '<div class="note">Nothing sent yet.</div>'}</div>
  </div></div>`;
   const redraw = () => (save(), mntCheck(), mntRender());

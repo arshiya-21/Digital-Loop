@@ -9,46 +9,78 @@
    and traceability tables (see /history, /events, /trace APIs).
    =================================================================== */
 const HOUR = 3600e3,
-  SHIFT_MS = 8 * HOUR,
-  SHIFTS = [
-    ['A', 6],
-    ['B', 14],
-    ['C', 22],
-  ];
+  SHIFT_MS = 8 * HOUR;
+/*
+ * The plant's shifts: [letter, start in minutes after midnight], in the
+ * order of the production day — the first one starts the day. Shifts need not
+ * be eight hours: each runs until the next one starts. The defaults are the
+ * plant's (01:00, 08:00, 16:30); the app replaces them with the backend's
+ * through `setShiftStarts`, so they are set in one place.
+ */
+let SHIFTS = [
+  ['A', 60],
+  ['B', 480],
+  ['C', 990],
+];
 let TPATH = new Set(),
   RPsave = null;
 let _shC = null;
+/** Take the shift start times, as "HH:MM" strings in production-day order. */
+function setShiftStarts(list) {
+  const mins = (Array.isArray(list) ? list : [])
+    .map(s => /^(\d{1,2}):(\d{2})$/.exec(String(s).trim()))
+    .filter(m => m && +m[1] < 24 && +m[2] < 60)
+    .map(m => +m[1] * 60 + +m[2]);
+  if (!mins.length || new Set(mins).size !== mins.length) return false;
+  SHIFTS = mins.map((m, i) => [String.fromCharCode(65 + i), m]);
+  _shC = null;
+  return true;
+}
+const hhmm = mins => `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 function shiftOf(t) {
   if (_shC && t >= _shC.t0 && t < _shC.t1) return _shC;
   return (_shC = shiftOf_(t));
 }
 function shiftOf_(t) {
   const d = new Date(t),
-    h = d.getHours();
-  let L,
-    s = new Date(d);
-  if (h >= 6 && h < 14) {
-    L = 'A';
-    s.setHours(6, 0, 0, 0);
-  } else if (h >= 14 && h < 22) {
-    L = 'B';
-    s.setHours(14, 0, 0, 0);
-  } else {
-    L = 'C';
-    if (h < 6) s.setDate(s.getDate() - 1);
-    s.setHours(22, 0, 0, 0);
+    now = d.getHours() * 60 + d.getMinutes(),
+    byTime = [...SHIFTS].sort((a, b) => a[1] - b[1]);
+  // The latest start at or before this time of day; before the first start
+  // of the day, it is the previous day's last shift still running.
+  let i = byTime.length - 1;
+  while (i >= 0 && byTime[i][1] > now) i--;
+  const s = new Date(d);
+  if (i < 0) {
+    i = byTime.length - 1;
+    s.setDate(s.getDate() - 1);
   }
+  const [L, start] = byTime[i];
+  s.setHours(0, start, 0, 0);
+  const e = new Date(s);
+  if (i + 1 < byTime.length) e.setHours(0, byTime[i + 1][1], 0, 0);
+  else {
+    e.setDate(e.getDate() + 1);
+    e.setHours(0, byTime[0][1], 0, 0);
+  }
+  /*
+   * The date a shift is filed under is its production day's: a shift that
+   * starts after midnight but before the day's first shift belongs to the
+   * day before.
+   */
+  const day = new Date(s);
+  if (start < SHIFTS[0][1]) day.setDate(day.getDate() - 1);
   const k = s.getTime();
   const dc =
-    String(s.getFullYear()).slice(2) +
-    String(s.getMonth() + 1).padStart(2, '0') +
-    String(s.getDate()).padStart(2, '0');
+    String(day.getFullYear()).slice(2) +
+    String(day.getMonth() + 1).padStart(2, '0') +
+    String(day.getDate()).padStart(2, '0');
+  const end = byTime[(i + 1) % byTime.length][1];
   return {
     t0: k,
-    t1: k + SHIFT_MS,
+    t1: e.getTime(),
     L,
     code: dc + L,
-    label: `Shift ${L} · ${s.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} ${String(s.getHours()).padStart(2, '0')}:00–${String((s.getHours() + 8) % 24).padStart(2, '0')}:00`,
+    label: `Shift ${L} · ${day.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} ${hhmm(start)}–${hhmm(end)}`,
   };
 }
 function recentShifts() {
@@ -104,8 +136,8 @@ const GROUPS = [
   [0.78, 'Housing'],
 ];
 function rampAt(inc, t, sh) {
-  const a = sh.t0 + inc.from * SHIFT_MS,
-    b = sh.t0 + inc.to * SHIFT_MS,
+  const a = sh.t0 + inc.from * (sh.t1 - sh.t0),
+    b = sh.t0 + inc.to * (sh.t1 - sh.t0),
     r = (b - a) * 0.18;
   if (t < a || t > b) return 0;
   return Math.min(1, (t - a) / r, (b - t) / r);
@@ -118,6 +150,17 @@ function incFx(role, t) {
     if (i.fx && i.fx[role]) o += i.fx[role] * rampAt(i, t, sh);
   });
   return o;
+}
+/* v10.4 — role of a reading: its REG role, else worked out from its name (cpRoleOf, 12e) — cached; REG is not changed */
+const ROLEC = new Map();
+function roleOf(id) {
+  const t = REG[id];
+  if (!t) return '';
+  if (t.role) return t.role;
+  if (ROLEC.has(id)) return ROLEC.get(id);
+  const r = typeof cpRoleOf === 'function' ? cpRoleOf(id, t, '') : '';
+  ROLEC.set(id, r);
+  return r;
 }
 function moldingMachines() {
   return DOC.blocks.filter(
@@ -133,13 +176,13 @@ function stoppedAt(b, t) {
     i =>
       i.stopIdx != null &&
       mm[i.stopIdx] === b &&
-      t >= sh.t0 + i.from * SHIFT_MS &&
-      t <= sh.t0 + i.to * SHIFT_MS,
+      t >= sh.t0 + i.from * (sh.t1 - sh.t0) &&
+      t <= sh.t0 + i.to * (sh.t1 - sh.t0),
   );
 }
 function groupAt(t) {
   const sh = shiftOf(t),
-    f = (t - sh.t0) / SHIFT_MS;
+    f = (t - sh.t0) / (sh.t1 - sh.t0);
   let g = GROUPS[0][1];
   GROUPS.forEach(([a, n]) => {
     if (f >= a) g = n;
@@ -167,15 +210,19 @@ function histVal(id, t) {
       ph = ((((ts + s * 500) % P) + P) % P) / P;
     return clamp(ph < 0.4 ? mn + ((mx - mn) * ph) / 0.4 : mx - ((mx - mn) * (ph - 0.4)) / 0.6, 0, 100);
   }
+  // v10.4 — readings linked to the gateway have no normal value: replay them around the value they show (not 0)
+  const base = tg.typ != null ? tg.typ : typeof simBase === 'function' ? simBase(id) : null;
+  if (base == null) return null;
+  const nz = tg.typ != null ? tg.noise : typeof simNz === 'function' ? simNz(tg, base) : tg.noise;
   const tq = tg.lab ? Math.floor(ts / 1800) * 1800 : Math.floor(ts / 5) * 5,
     j = Math.sin(s0 * 9301.7 + tq * 0.0123457) * 43758.5453;
   return (
-    tg.typ +
+    base +
     (Math.sin(tq / 900 + s) * 0.7 + Math.sin(tq / 233 + s * 2) * 0.35 + Math.sin(tq / 61 + s * 3) * 0.15) *
-      tg.noise *
+      nz *
       2 +
-    (j - Math.floor(j) - 0.5) * tg.noise * 1.2 +
-    (INCROLES.has(tg.role) ? incFx(tg.role, tq * 1000) : 0)
+    (j - Math.floor(j) - 0.5) * nz * 1.2 +
+    (INCROLES.has(tg.role || roleOf(id)) ? incFx(tg.role || roleOf(id), tq * 1000) : 0)
   );
 }
 /* --- genealogy --- */
@@ -361,7 +408,7 @@ function moldAt(m, sh, i) {
 }
 function moldsIn(m, from, to) {
   const A = RP && RP.M && RP.M[m.id];
-  if (A && from >= RP.sh.t0 - SHIFT_MS * 0.01 && to <= RP.sh.t1 + 1) {
+  if (A && from >= RP.sh.t0 - (RP.sh.t1 - RP.sh.t0) * 0.01 && to <= RP.sh.t1 + 1) {
     const int = A.int;
     const i0 = Math.max(0, Math.ceil((from - RP.sh.t0) / int)),
       i1 = Math.min(A.arr.length - 1, Math.floor((to - RP.sh.t0) / int));
@@ -394,8 +441,10 @@ function parseMold(id) {
   const y = 2000 + +m[2].slice(0, 2),
     mo = +m[2].slice(2, 4) - 1,
     d = +m[2].slice(4, 6),
-    h = SHIFTS.find(s => s[0] === m[3])[1];
-  const t0 = new Date(y, mo, d, h, 0, 0, 0).getTime();
+    shift = SHIFTS.find(s => s[0] === m[3]);
+  if (!shift) return null;
+  const h = shift[1] + (shift[1] < SHIFTS[0][1] ? 1440 : 0);
+  const t0 = new Date(y, mo, d, 0, h, 0, 0).getTime();
   return moldAt(mc, shiftOf(t0 + 1000), +m[4] - 1);
 }
 

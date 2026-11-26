@@ -111,10 +111,15 @@ function lblCardSVG(b, list, title, lamps, sz, key) {
   if (!sz || (!sz.w && !sz.h)) return lblCardCore(b, list, title, lamps, { rot, rotHint });
   const o = { w: sz.w, rot, rotHint };
   let body = lblCardCore(b, list, title, lamps, o);
-  if (sz.h) {
-    const h0 = lcH(body);
-    if (sz.h < h0 - 1) body = lblCardCore(b, list, title, lamps, { w: sz.w, k: Math.max(0.55, sz.h / h0), fit: sz.h, rot, rotHint });
-    else if (sz.h > h0 + 1) body = lblCardCore(b, list, title, lamps, { w: sz.w, fit: sz.h, grow: sz.h - h0, rot, rotHint });
+  /* The height a card was resized to is kept as a scale of its natural height (sz.k), so the card follows the number of
+     readings it shows: "Tags at a time" 4 → 1 makes it smaller instead of stretching one row over the old height.
+     An older fixed height (sz.h, no k) is kept only on cards that do not rotate — on a rotating card it froze the card
+     at the size of its biggest page. */
+  const h0 = lcH(body),
+    fit = sz.k ? Math.round(h0 * sz.k) : sz.h && !rot ? sz.h : 0;
+  if (fit) {
+    if (fit < h0 - 1) body = lblCardCore(b, list, title, lamps, { w: sz.w, k: Math.max(0.55, fit / h0), fit, rot, rotHint });
+    else if (fit > h0 + 1) body = lblCardCore(b, list, title, lamps, { w: sz.w, fit, grow: fit - h0, rot, rotHint });
   }
   return body;
 }
@@ -1255,6 +1260,13 @@ let LBL_MORE_OPEN = false;
             z = (Z[k] = Z[k] || {});
           if (v > 0) z[d] = Math.max(d === 'w' ? 60 : 30, Math.min(900, v));
           else delete z[d];
+          /* a typed height is kept as a scale of the natural height too, so the card still follows its row count */
+          if (d === 'h') {
+            delete z.k;
+            const c = z.h && lblCards(b).find(x => x.key === k),
+              nat = c && lcH(lblCardSVG(b, c.rows, c.title, c.lamps, { w: z.w }, k));
+            if (nat) z.k = +(z.h / nat).toFixed(3);
+          }
           if (!z.w && !z.h) delete Z[k];
           changed();
           renderCanvas();
@@ -1899,6 +1911,11 @@ document.addEventListener(
       W0 = +bg.getAttribute('width'),
       H0 = +bg.getAttribute('height');
     const A = tagAnchor(b);
+    /* the card's natural height at its current width — a resize is stored as a scale of it (see lblCardSVG) */
+    const natH = w => {
+      const c = lblCards(b).find(x => x.key === key);
+      return (c && lcH(lblCardSVG(b, c.rows, c.title, c.lamps, { w }, key))) || H0;
+    };
     const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute('transform'));
     const P0 = { x: +m[1] - A.x, y: +m[2] - A.y };
     const sc = (g.getScreenCTM() || { a: 1 }).a,
@@ -1926,8 +1943,9 @@ document.addEventListener(
       hh = Math.max(50, Math.round(hh));
       if (dir.includes('w')) px = P0.x + (W0 - w);
       if (dir.includes('n')) py = P0.y + (H0 - hh);
-      (b.props.lblSize = b.props.lblSize || {})[key] = { w, h: dir === 'e' || dir === 'w' ? (b.props.lblSize[key] || {}).h || null : hh };
-      if (dir === 'e' || dir === 'w') b.props.lblSize[key].h = (b.props.lblSize[key] && b.props.lblSize[key].h) || null;
+      const was = (b.props.lblSize = b.props.lblSize || {})[key] || {};
+      /* a width-only drag keeps the height choice; any drag that changes the height stores it as a scale */
+      b.props.lblSize[key] = dir === 'e' || dir === 'w' ? { w, h: was.h || null, k: was.k || null } : { w, h: hh, k: +(hh / natH(w)).toFixed(3) };
       (b.props.lblPos = b.props.lblPos || {})[key] = { x: Math.round(px), y: Math.round(py) };
       if (b.props.lblSide) delete b.props.lblSide[key];
       cancelAnimationFrame(raf);

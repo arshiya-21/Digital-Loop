@@ -114,7 +114,7 @@ function tagEditorHtml(t) {
   return `<div class="row2"><div class="fld"><label>Tag ID</label><input data-lim="id" class="mono" value="${esc(t.id)}"></div><div class="fld"><label>Description</label><input data-lim="desc" value="${esc(t.desc)}"></div></div>
  ${tagSpecFields(t, 'data-lim')}${sigmaStrip(t)}
  <div class="row2"><div class="fld"><label>Unit</label><input data-lim="unit" value="${esc(t.unit)}"></div><div class="fld"><label>Decimals</label><input type="number" min="0" max="4" data-lim="d" value="${t.d ?? 1}"></div></div>
- <details class="alm"><summary>Alarm limits (LL / L / H / HH)</summary><div class="row4"><div class="fld"><label>LL</label><input type="number" step="any" data-lim="ll" value="${t.ll ?? ''}"></div><div class="fld"><label>L</label><input type="number" step="any" data-lim="lo" value="${t.lo ?? ''}"></div><div class="fld"><label>H</label><input type="number" step="any" data-lim="hi" value="${t.hi ?? ''}"></div><div class="fld"><label>HH</label><input type="number" step="any" data-lim="hh" value="${t.hh ?? ''}"></div></div><button class="sb" data-alm2s="1">Set from σ: L/H = ±2σ, LL/HH = ±3σ</button></details>
+ <details class="alm"><summary>Alarm limits (LL / L / H / HH)</summary><div class="row4"><div class="fld"><label>LL</label><input type="number" step="any" data-lim="ll" value="${t.ll ?? ''}"></div><div class="fld"><label>L</label><input type="number" step="any" data-lim="lo" value="${t.lo ?? ''}"></div><div class="fld"><label>H</label><input type="number" step="any" data-lim="hi" value="${t.hi ?? ''}"></div><div class="fld"><label>HH</label><input type="number" step="any" data-lim="hh" value="${t.hh ?? ''}"></div></div><button class="sb" data-alm2s="1">Set from σ: L/H = ±2σ, LL/HH = ±3σ</button></details>${typeof aonHTML === 'function' ? aonHTML(t) : ''}
  ${iss.length ? `<div class="note tx3">${iss.map(esc).join(' · ')}</div>` : ''}<div class="row2" style="margin-top:6px"><button class="ib" data-trend="1">Open control chart</button>${t.cfg ? '<span class="chip sv0" style="align-self:center;justify-self:end">Limits confirmed</span>' : '<button class="ib pri" data-confirm="1">Confirm limits</button>'}</div>
  <div class="note">Address: <span class="mono">${esc(t.addr || '—')}</span></div>`;
 }
@@ -540,10 +540,7 @@ function csvExportForm() {
   const csv = rows
     .map(r =>
       r
-        .map(v => {
-          v = String(v ?? '');
-          return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-        })
+        .map(csvCell)
         .join(','),
     )
     .join('\n');

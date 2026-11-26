@@ -453,6 +453,7 @@ function liveCanvas(skipStruct) {
         d.innerHTML = E.dyn(dd.dw, dd.dh, symState(b), b);
       }
     }
+    if (typeof smLvSync === 'function') smLvSync(b, g); // storage drawings at their real level, drawings at their driven speed
     const n = document.getElementById('bn_' + b.id);
     if (n) n.innerHTML = bnameInner(b, st);
     const ha = document.getElementById('ha_' + b.id);
@@ -1905,7 +1906,7 @@ function menu(e, items, opts = {}) {
     .map((it, i) =>
       it === '-'
         ? '<hr>'
-        : `<button data-mi="${i}" ${it.tip ? `title="${esc(it.tip)}" aria-label="${esc(it.tip)}"` : ''} ${it.dis ? 'disabled style="opacity:.4"' : ''}>${it.sw ? `<i class="sw" style="background:${it.sw}"></i>` : ''}${it.t}${it.k ? `<span class="k">${it.k}</span>` : ''}</button>`,
+        : `<button data-mi="${i}" ${it.tip ? `title="${esc(it.tip)}" aria-label="${esc(it.tip)}"` : ''} ${it.dis ? 'disabled style="opacity:.4"' : ''}>${it.sw ? `<i class="sw" style="background:${esc(it.sw)}"></i>` : ''}${esc(it.t)}${it.k ? `<span class="k">${esc(it.k)}</span>` : ''}</button>`,
     )
     .join('');
   m.classList.add('on');

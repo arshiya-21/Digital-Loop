@@ -124,7 +124,7 @@ try {
   const s = localStorage.getItem(LS);
   if (s) {
     const o = JSON.parse(s);
-    if (o.DOC && o.REG && (registerDocCustom(o.DOC), o.DOC.blocks.every(b => EQ[b.type]))) {
+    if (o.DOC && o.REG && !cleanLoop(o) && (registerDocCustom(o.DOC), o.DOC.blocks.every(b => EQ[b.type]))) {
       DOC = o.DOC;
       REG = o.REG;
       for (const id in REG) ensureVal(id);
@@ -136,6 +136,20 @@ try {
 /* v1.11 — a first visit opens an empty flowsheet in Design mode; the reference loop is one click away
    (card on the empty canvas, or File → Templates). ?tpl=sand / ?tpl=foundry open a reference loop directly. */
 const tplQ = new URLSearchParams(location.search).get('tpl');
+/* v9.49 — a preview can open with a given loop (window.SM_PRESET_LOOP = {DOC, REG}) when nothing is saved yet */
+if (!loaded && !tplQ && window.SM_PRESET_LOOP && window.SM_PRESET_LOOP.DOC) {
+  try {
+    const o = JSON.parse(JSON.stringify(window.SM_PRESET_LOOP));
+    if (!cleanLoop(o)) registerDocCustom(o.DOC);
+    if (!cleanLoop(o) && o.DOC.blocks.every(b => EQ[b.type])) {
+      DOC = o.DOC;
+      REG = o.REG;
+      for (const id in REG) ensureVal(id);
+      seedHist();
+      loaded = true;
+    }
+  } catch (e) {}
+}
 if (!loaded) {
   if (tplQ === 'finalversion') loadFinalVersion(); // v9.37 Final Version (the default loop)
   else if (tplQ === 'demoloop3') loadDemoLoop3(); // v9.17 DemoLoop3 (PLCs at their areas)

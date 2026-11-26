@@ -52,10 +52,10 @@ function openReplace(b) {
   }
   const all = Object.keys(EQ).filter(t => rpIsEquipment({ type: t }) && EQ[t].n && t !== b.type && !(EQ[t].hidden));
   const sugg = all.map(t => [t, rpScore(b, t)]).filter(x => x[1] >= 3).sort((x, y) => y[1] - x[1]).slice(0, 12).map(x => x[0]);
-  const card = t => `<button type="button" class="rp-card" data-t="${t}" title="${(EQ[t].n || t).replace(/"/g, '&quot;')}">${rpThumb(t)}<b>${EQ[t].n || t}</b><small>${CATS[EQ[t].cat] || ''}</small></button>`;
+  const card = t => `<button type="button" class="rp-card" data-t="${esc(t)}" title="${esc(EQ[t].n || t)}">${rpThumb(t)}<b>${esc(EQ[t].n || t)}</b><small>${CATS[EQ[t].cat] || ''}</small></button>`;
   openModal(
-    `<h3>Replace ${b.name}</h3>
-     <p class="rp-note">Pick the equipment to put in place of <b>${b.name}</b> (${EQ[b.type].n || b.type}). Its name, readings, data link and
+    `<h3>Replace ${esc(b.name)}</h3>
+     <p class="rp-note">Pick the equipment to put in place of <b>${esc(b.name)}</b> (${esc(EQ[b.type].n || b.type)}). Its name, readings, data link and
      connections are kept; lines move to the matching inlets and outlets. Ctrl+Z undoes it.</p>
      <input id="rpQ" class="rp-q" placeholder="Search equipment (name or category)…" autocomplete="off">
      <div id="rpBody">${sugg.length ? `<h5>Suggested replacements</h5><div class="rp-grid">${sugg.map(card).join('')}</div>` : ''}<h5>All equipment</h5><div class="rp-grid" id="rpAll">${all.slice(0, 160).map(card).join('')}</div></div>`,

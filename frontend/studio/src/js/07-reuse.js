@@ -56,13 +56,51 @@ function catIdx(name) {
   return i;
 }
 const numOrNull = v => (v === '' || v == null || !isFinite(+v) ? null : +v);
-function sanitizeSvg(t) {
-  return String(t || '')
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(href\s*=\s*["'])\s*javascript:[^"']*/gi, '$1#');
+/* v9.55 security — SVG from custom equipment / opened files is parsed into an inert <template> and rebuilt from an
+ * allowlist: unknown elements are dropped, every on* handler is removed, and links may only point inside the drawing
+ * (#id) or to embedded raster images. Replaces the earlier regex filter, which handlers without a leading space slipped past. */
+const SVG_TAGS = new Set('svg g defs symbol use path rect circle ellipse line polyline polygon text tspan textpath title desc lineargradient radialgradient stop clippath mask pattern marker image filter fegaussianblur feoffset feblend fecolormatrix feflood fecomposite femerge femergenode fedropshadow animate animatetransform animatemotion mpath set style'.split(' '));
+/* v10.4 — <style> inside an uploaded SVG is kept only when it cannot load or run anything (no @import, no outside url(),
+ * no expression / behavior / binding / script URLs). 27m-anim-parts.js then scopes it to its own drawing. */
+const SVG_BAD_CSS = /@import|@namespace|url\s*\(\s*['"]?\s*(?!#)|expression\s*\(|behavior\s*:|-moz-binding|javascript:|vbscript:|<\//i;
+const SVG_SAFE_HREF = /^(#[\w.:-]*|data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+\/=\s]+)$/i;
+function svgCleanNode(el) {
+  for (const c of [...el.children]) {
+    const tag = c.localName.toLowerCase();
+    if (!SVG_TAGS.has(tag) || (tag === 'style' && SVG_BAD_CSS.test(c.textContent || ''))) {
+      c.remove();
+      continue;
+    }
+    if (tag === 'style') {
+      c.textContent = c.textContent; // text only: drop any child elements
+      for (const a of [...c.attributes]) c.removeAttribute(a.name);
+      continue;
+    }
+    for (const a of [...c.attributes]) {
+      const n = a.name.toLowerCase(),
+        v = a.value;
+      const bad =
+        n.startsWith('on') ||
+        ((n === 'href' || n.endsWith(':href') || n === 'src') && !SVG_SAFE_HREF.test(v.trim())) ||
+        /javascript:|vbscript:|data:text|expression\s*\(/i.test(v) ||
+        (n === 'style' && /url\s*\(\s*['"]?\s*(?!#)/i.test(v)) ||
+        (/^(animate|animatetransform|animatemotion|set)$/.test(tag) && n === 'attributename' && /^(href|xlink:href|on)/i.test(v.trim()));
+      if (bad) c.removeAttribute(a.name);
+    }
+    svgCleanNode(c);
+  }
 }
+function sanitizeSvg(t) {
+  const tpl = document.createElement('template'); // template content is inert: nothing loads or runs while we clean it
+  tpl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg">' + String(t || '') + '</svg>';
+  const root = tpl.content.querySelector('svg');
+  if (!root) return '';
+  svgCleanNode(root);
+  return root.innerHTML;
+}
+/* colours and images that travel inside a flowsheet file */
+const safeColor = (v, def) => (/^#[0-9a-f]{3,8}$/i.test(String(v || '').trim()) ? String(v).trim() : def);
+const safeImgSrc = v => (/^(data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+\/=\s]+|blob:[\w:\/.-]+)$/i.test(String(v || '').trim()) ? String(v).trim() : '');
 /*
  * An uploaded drawing keeps its own ids, classes and inherited paint.
  *
@@ -112,7 +150,11 @@ function renameIds(markup, suffix) {
       .replace(new RegExp(`(\\sid\\s*=\\s*["'])${safe}(["'])`, 'g'), `$1${to}$2`)
       .replace(new RegExp(`url\\((["']?)#${safe}\\1\\)`, 'g'), `url($1#${to}$1)`)
       .replace(new RegExp(`((?:xlink:)?href\\s*=\\s*["'])#${safe}(["'])`, 'g'), `$1#${to}$2`)
-      .replace(new RegExp(`(\\sbegin\\s*=\\s*["'])${safe}\\.`, 'g'), `$1${to}.`);
+      .replace(new RegExp(`(\\sbegin\\s*=\\s*["'])${safe}\\.`, 'g'), `$1${to}.`)
+      // `#a { fill:red }` inside a <style>: the element was renamed above, so its
+      // id selector must follow or the shape loses its colour and draws black.
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, css =>
+        css.replace(new RegExp(`#${safe}(?![\\w-])`, 'g'), `#${to}`));
   }
   return markup;
 }
@@ -174,7 +216,8 @@ function parseSvg(src, uid) {
   const m = src.match(/<svg[^>]*>/i);
   let vb = null,
     inner = src,
-    inherited = '';
+    inherited = '',
+    rootClass = '';
   if (m) {
     const v = m[0].match(/viewBox\s*=\s*["']([^"']+)["']/i);
     if (v) vb = v[1];
@@ -188,6 +231,10 @@ function parseSvg(src, uid) {
       const got = m[0].match(new RegExp(`\\s${name}\\s*=\\s*["']([^"']*)["']`, 'i'));
       return got ? ` ${name}="${esc(got[1])}"` : '';
     }).join('');
+    // The root's own class: stylesheets are written against it (`.sme .p{fill:var(--sm-body)}`),
+    // and the root itself is dropped, so without it none of those rules match and the drawing is black.
+    const rc = m[0].match(/\sclass\s*=\s*["']([^"']*)["']/i);
+    if (rc) rootClass = rc[1];
     inner = src.replace(/^[\s\S]*?<svg[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
   }
 
@@ -199,7 +246,7 @@ function parseSvg(src, uid) {
 
   return {
     vb: vb || '0 0 100 100',
-    inner: `<g class="${scope}"${inherited}>${body}</g>`,
+    inner: `<g class="${scope}"${inherited}>${rootClass ? `<g class="${esc(rootClass)}">${body}</g>` : body}</g>`,
   };
 }
 function shade(hex, f) {
@@ -210,7 +257,7 @@ function shade(hex, f) {
 }
 function customDraw(d, w, h, b, uid) {
   if (d.shape === 'smlib' && typeof smlibDraw === 'function') return smlibDraw(d, w, h, b); // v2.5 — copy of a SandMan library drawing
-  const c = d.color || '#9aa8ba',
+  const c = safeColor(d.color, '#9aa8ba'),
     k = shade(c, 0.55),
     anim = d.anim || 'none',
     sw = 'stroke-width="1.4"';
@@ -273,8 +320,8 @@ function customDraw(d, w, h, b, uid) {
       break;
     }
     case 'img':
-      s = d.img
-        ? `<image href="${d.img}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="${d.stretch ? 'none' : 'xMidYMid meet'}"/>`
+      s = safeImgSrc(d.img)
+        ? `<image href="${esc(safeImgSrc(d.img))}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="${d.stretch ? 'none' : 'xMidYMid meet'}"/>`
         : `<rect width="${w}" height="${h}" fill="none" stroke="#94a3b8" stroke-dasharray="4 3"/><text x="${w / 2}" y="${h / 2 + 3}" text-anchor="middle" class="t-sm">Upload an image</text>`;
       break;
     case 'base': {
@@ -416,7 +463,53 @@ function syncDocCustom() {
   const used = new Set(DOC.blocks.map(b => b.type));
   DOC.custom = allCustomDefs().filter(d => used.has(d.id) && !d.builtin);
 }
+/* v9.55 security — every flowsheet that comes in (a file, a saved loop, a template, a preset) is checked and cleaned
+ * before use: wrong shapes are refused, markup characters are taken out of names and descriptions, and images,
+ * colours and addresses must be of a safe kind. Returns an error text, or '' when the loop can be used. */
+const NOMARK = v => String(v ?? '').replace(/[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, 300);
+const IDOK = v => typeof v === 'string' && /^[\w.:\- ]{1,80}$/.test(v);
+function cleanDoc(D) {
+  if (!D || typeof D !== 'object' || !Array.isArray(D.blocks)) return 'no equipment list';
+  if (D.blocks.length > 20000) return 'too many items';
+  if (D.name != null) D.name = NOMARK(D.name).slice(0, 120);
+  for (const b of D.blocks) {
+    if (!b || typeof b !== 'object' || !IDOK(b.id) || typeof b.type !== 'string') return 'an item has a bad id or type';
+    if (b.name != null) b.name = NOMARK(b.name).slice(0, 120);
+    for (const k of ['x', 'y', 'w', 'h', 'r']) if (k in b && !Number.isFinite(+b[k])) b[k] = 0;
+    if (b.props != null && typeof b.props !== 'object') b.props = {};
+    if (b.props) for (const k of ['desc', 'title', 'label', 'text', 'note', 'group']) if (typeof b.props[k] === 'string') b.props[k] = NOMARK(b.props[k]);
+  }
+  if (D.custom != null) {
+    if (!Array.isArray(D.custom)) return 'bad custom equipment list';
+    D.custom = D.custom.filter(d => d && typeof d === 'object' && IDOK(d.id));
+    for (const d of D.custom) {
+      if (d.n != null) d.n = NOMARK(d.n).slice(0, 80);
+      if (d.color != null) d.color = safeColor(d.color, '#9aa8ba');
+      if (d.img != null) d.img = safeImgSrc(d.img);
+      if (d.svg != null) d.svg = String(d.svg).slice(0, 600000);
+    }
+  }
+  if (D.refImg && !safeImgSrc(D.refImg.src)) delete D.refImg;
+  if (D.plant && D.plant.cardBase != null && !/^https?:\/\/[^\s"'<>]+$/i.test(String(D.plant.cardBase))) delete D.plant.cardBase;
+  return '';
+}
+function cleanReg(R) {
+  if (!R || typeof R !== 'object' || Array.isArray(R)) return 'no tag list';
+  for (const id of Object.keys(R)) {
+    const t = R[id];
+    if (!IDOK(id) || !t || typeof t !== 'object') {
+      delete R[id];
+      continue;
+    }
+    for (const k of ['desc', 'unit', 'src', 'note']) if (typeof t[k] === 'string') t[k] = NOMARK(t[k]);
+  }
+  return '';
+}
+function cleanLoop(o) {
+  return !o || typeof o !== 'object' ? 'not a flowsheet' : cleanDoc(o.DOC) || cleanReg(o.REG);
+}
 function registerDocCustom(o) {
+  if (o && cleanDoc(o)) return;
   ((o && o.custom) || []).forEach(d => {
     if (!EQ[d.id] || EQ[d.id].custom) regCustom(d);
   });
@@ -1777,6 +1870,8 @@ function importTplForm() {
       const o = JSON.parse($('#iT').value),
         t = o.template || o;
       if (!t.doc || !t.reg || !t.name) throw 0;
+      if (cleanDoc(t.doc) || cleanReg(t.reg)) throw 0; // v9.55 — same checks as File › Open
+      t.name = NOMARK(t.name).slice(0, 120);
       t.id = 't' + Date.now().toString(36);
       TPLS.push(t);
       saveTpls();
@@ -1809,6 +1904,7 @@ function useTplForm(t) {
     } else {
       doc = JSON.parse(JSON.stringify(t.doc));
       reg = JSON.parse(JSON.stringify(t.reg));
+      if (cleanDoc(doc) || cleanReg(reg)) return toast('That template could not be read');
       registerDocCustom(doc);
     }
     const miss = doc.blocks.find(b => !EQ[b.type]);
