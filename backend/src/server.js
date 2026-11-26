@@ -2,6 +2,7 @@ import { createApp } from './app.js'
 import { config, assertSecret, assertDatabase } from './config/index.js'
 import { init, close } from './config/db.js'
 import { startTicketSweeper, purgeTicketsOnce } from './services/ticket-store.js'
+import { startAlertChecker, stopAlertChecker } from './services/alert-checker.js'
 
 /*
  * Checked before anything is listening.
@@ -68,6 +69,8 @@ const app = createApp()
  * way more than once. It is behind `DL_VERBOSE=1` rather than gone.
  */
 const server = app.listen(config.port, () => {
+  // Alerts, emails and ticket days for every published loop, with or without a screen open.
+  startAlertChecker()
   console.log(`\nDigital Loop  http://localhost:${config.port}${config.basePath}\n`)
 
   if (!process.env.DL_VERBOSE) return
@@ -89,6 +92,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     console.log(`\n${signal} received, closing.`)
     clearInterval(sweeper)
+    stopAlertChecker()
     server.close(async () => {
       await close().catch(() => {})
       process.exit(0)

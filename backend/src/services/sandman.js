@@ -136,3 +136,12 @@ export const readValues = ({ foundry, line, tags }) =>
 
 /** Chart data for one tag — the series, and SandMan's own process control. */
 export const readChart = body => ask('/chart', body)
+
+/**
+ * An alert or ticket email, sent by SandMan's own mail server.
+ *
+ * SandMan mails only addresses of its own enabled users of that foundry and
+ * answers `{ sent: [email], refused: { email: reason } }`.
+ */
+export const sendMail = ({ foundry, line, to, subject, text }) =>
+  ask('/notify', { foundry, line, to, subject, text })
