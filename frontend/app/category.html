@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0e2d5c">
-<title>Category · Fountrix Digital Loop</title>
+<title>Process Parameter · Fountrix Digital Loop</title>
 <style>
 /*
  * The category page — what a category QR sticker opens (Sand lab, Melting …).
@@ -45,7 +45,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(
 .hd .where { opacity: .7; font-size: 12.5px; margin-top: 3px; }
 .banner { margin: 12px 0 0; padding: 11px 13px; border-radius: 10px; font-size: 14.5px; }
 .banner.off { background: var(--warn-bg); color: var(--warn); }
-.strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
 .st { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; text-align: center; box-shadow: var(--shadow); }
 .st b { display: block; font: 800 26px/1 var(--mono); }
 .st span { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--mute); text-transform: uppercase; }
@@ -78,7 +78,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(
 </style>
 </head>
 <body>
-<div id="app"><div class="center"><div class="spin"></div>Opening category…</div></div>
+<div id="app"><div class="center"><div class="spin"></div>Opening process parameter…</div></div>
 <script>
 'use strict';
 /*
@@ -123,7 +123,7 @@ function draw() {
   const old = r => r.readAt && Date.now() - new Date(r.readAt).getTime() > 10 * 60000;
   $('#app').innerHTML = `
   <header class="hd" style="--cat:${esc(c.category.color)}"><div class="hd-in"><span class="dot ${status}"></span>
-    <div><div class="k">CATEGORY</div><h1>${esc(c.category.name)}</h1>${c.category.description ? `<div class="sub">${esc(c.category.description)}</div>` : ''}<div class="where">${esc(c.loop.line)} · ${esc(c.loop.name)}</div></div></div></header>
+    <div><div class="k">PROCESS PARAMETER</div><h1>${esc(c.category.name)}</h1>${c.category.description ? `<div class="sub">${esc(c.category.description)}</div>` : ''}<div class="where">${esc(c.loop.line)} · ${esc(c.loop.name)}</div></div></div></header>
   <div class="wrap">
     ${OFFLINE ? `<div class="banner off">Offline — showing the last data from ${esc(ago(new Date(LAST_OK).toISOString()))}. It will refresh when the connection returns.</div>` : ''}
     <div class="strip">
@@ -131,11 +131,10 @@ function draw() {
       <div class="st c2 ${k.warning ? 'on' : ''}"><b>${k.warning}</b><span>Warning</span></div>
       <div class="st c1"><b>${k.near}</b><span>Near</span></div>
       <div class="st c0"><b>${k.ok}</b><span>OK</span></div>
-      <div class="st"><b>${k.noData}</b><span>No data</span></div>
     </div>
     <section class="card"><h2>Parameter · Value · Limits <span class="n">${c.readings.length}</span></h2>
       ${list.length ? `<div class="cols">${list.map(r => `<div class="rd s${r.severity}"><div class="rd-1"><b>${r.calc ? '<span class="fx">ƒx</span>' : ''}${esc(r.label)}<span class="eq">${esc(r.equipment)}</span></b><span class="rd-v">${fmtVal(r)}<small>${esc(r.unit)}</small></span></div>
-        <div class="rd-2"><span>${esc(limText(r))}</span>${r.readAt ? `<span class="${old(r) ? 'stale' : ''}">read ${esc(ago(r.readAt))}</span>` : '<span>no reading yet</span>'}</div></div>`).join('')}</div>` : '<div class="none">No readings in this category yet.</div>'}
+        <div class="rd-2"><span>${esc(limText(r))}</span>${r.readAt ? `<span class="${old(r) ? 'stale' : ''}">read ${esc(ago(r.readAt))}</span>` : '<span>no reading yet</span>'}</div></div>`).join('')}</div>` : '<div class="none">No readings in this process parameter yet.</div>'}
     </section>
     <div class="foot">Fountrix Digital Loop · ${esc(c.loop.foundry)} · updated ${new Date().toLocaleTimeString()}<br><a href="./">Open the whole loop</a> (needs sign-in)</div>
   </div>`;
@@ -152,7 +151,7 @@ async function refresh() {
   } catch (e) {
     if (e.status === 404 || e.status === 410 || e.status === 401) {
       clearInterval(TIMER);
-      $('#app').innerHTML = `<div class="center"><h2 style="color:var(--ink)">${e.status === 401 ? 'Sign in needed' : e.status === 410 ? 'Category removed' : 'QR code not recognised'}</h2><p>${esc(e.message)}</p></div>`;
+      $('#app').innerHTML = `<div class="center"><h2 style="color:var(--ink)">${e.status === 401 ? 'Sign in needed' : e.status === 410 ? 'Process parameter removed' : 'QR code not recognised'}</h2><p>${esc(e.message)}</p></div>`;
       return;
     }
     if (CAT) { OFFLINE = true; draw(); }

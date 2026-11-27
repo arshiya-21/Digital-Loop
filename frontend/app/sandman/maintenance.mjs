@@ -293,7 +293,7 @@ async function registerCategories(readFirst) {
     categoriesKey = key
     call('qcApplyTokens', reply.cards)
   } catch (error) {
-    console.error('Registering category QR stickers failed:', error)
+    console.error('Registering process parameter QR stickers failed:', error)
   }
 }
 

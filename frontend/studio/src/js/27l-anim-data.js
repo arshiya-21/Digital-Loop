@@ -414,7 +414,8 @@ if (typeof lvKey === 'function') {
   lvKey = function (b) {
     const k = lvPrev(b);
     const c = b && adCfg(b);
-    if (!k || !c || c.mode !== 'level' || MODE !== 'monitor') return k;
+    // not `!k`: the base returns '' when the vessel's own level tag has no value — the tag chosen here must still win
+    if (!c || c.mode !== 'level' || MODE !== 'monitor' || !adCanLevel(b)) return k;
     const S = adDecide(b);
     let pct = null;
     if (S && S.v != null && (S.st === 'live' || S.st === 'held' || S.st === 'test')) {
@@ -428,7 +429,7 @@ if (typeof lvKey === 'function') {
     if (pct == null) return k; // no data: the drawing keeps its own level animation
     pct = clamp(pct, 0, 100);
     S.pct = pct;
-    const flow = k.split('~')[1] || 'none';
+    const flow = (k && k.split('~')[1]) || 'none';
     return `${Math.round(pct / 5) * 5}~${flow}`; // 5 % steps: fewer redraws of the picture
   };
 }

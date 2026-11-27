@@ -21,9 +21,9 @@
     }
     const C = qcDoc(),
       base = ($('#mcBase') && $('#mcBase').value.trim()) || mcBase();
-    box.innerHTML = `<div class="note">One sticker per category (${C.length}). Scanning it opens only that category's live readings.</div>
-     ${C.length ? `<div class="mc-grid">${C.map(c => `<div class="mc-q qc-sq" style="--c:${esc(c.color)}"><div class="mc-qr">${mcQr(qcUrl(c, base), 4)}</div><div class="mc-qn">${esc(c.name)}</div><div class="mc-qd">${esc(c.desc || '')}</div><div class="mc-qs">Scan: ${c.tags.length} live reading${c.tags.length === 1 ? '' : 's'}</div></div>`).join('')}</div>` : '<div class="qc-empty"><b>No categories yet</b><p>Click Manage categories to create one (e.g. Sand lab, Pouring).</p></div>'}
-     <div class="mact"><button class="ib" id="qcClose2">Close</button><button class="ib" id="qcMng">Manage categories</button>${C.length ? `<button class="ib pri" id="qcPrintAll2">Print stickers</button>` : ''}</div>`;
+    box.innerHTML = `<div class="note">One sticker per process parameter (${C.length}). Scanning it opens only that process parameter's live readings.</div>
+     ${C.length ? `<div class="mc-grid">${C.map(c => `<div class="mc-q qc-sq" style="--c:${esc(c.color)}"><div class="mc-qr">${mcQr(qcUrl(c, base), 4)}</div><div class="mc-qn">${esc(c.name)}</div><div class="mc-qd">${esc(c.desc || '')}</div><div class="mc-qs">Scan: ${c.tags.length} live reading${c.tags.length === 1 ? '' : 's'}</div></div>`).join('')}</div>` : '<div class="qc-empty"><b>No process parameters yet</b><p>Click Manage process parameters to create one (e.g. Sand lab, Pouring).</p></div>'}
+     <div class="mact"><button class="ib" id="qcClose2">Close</button><button class="ib" id="qcMng">Manage process parameters</button>${C.length ? `<button class="ib pri" id="qcPrintAll2">Print stickers</button>` : ''}</div>`;
     $('#qcClose2').onclick = closeModal;
     $('#qcMng').onclick = () => {
       QCD.mode = 'edit';

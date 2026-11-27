@@ -197,7 +197,7 @@ function rtSend(key, what) {
 function rtOpen(tab) {
   RT.tab = tab || RT.tab;
   openModal(
-    `<div class="rt-h"><h3>Alert routing</h3><span class="note">Who gets an email when an alert fires — by process zone, alert type, severity and category.</span></div>
+    `<div class="rt-h"><h3>Alert routing</h3><span class="note">Who gets an email when an alert fires — by process zone, alert type, severity and process parameter.</span></div>
      <div class="lc2-seg rt-tabs">${[['teams', 'Teams & emails'], ['routing', 'Routing rules'], ['zones', 'Zones'], ['test', 'Test'], ['log', 'Sent log']].map(([k, l]) => `<button data-rtt="${k}" aria-pressed="${RT.tab === k}">${l}</button>`).join('')}</div>
      <div id="rtBody" class="rt-body"></div><div class="mact"><button class="ib pri" id="rtClose">Done</button></div>`,
     'xl',
@@ -232,7 +232,7 @@ function rtRender() {
     const alerts = rtAlertList();
     const sel = (k, i, cur, opts) => `<select data-rtf="${i}|${k}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(cur ?? '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     h = `<div class="note" style="margin-bottom:8px">Every rule that matches an alert adds its teams (one email per alert, no duplicates). A rule for <b>one specific alert</b> replaces the general rules for that alert. Severity = the lowest level that is sent.</div>
-     <div class="rt-tw"><table class="rt-tb"><thead><tr><th>On</th><th>Zone</th><th>Alert type</th><th>Severity</th><th>Category</th><th>Specific alert</th><th>Teams</th><th></th></tr></thead><tbody>${R.rules
+     <div class="rt-tw"><table class="rt-tb"><thead><tr><th>On</th><th>Zone</th><th>Alert type</th><th>Severity</th><th>Process parameter</th><th>Specific alert</th><th>Teams</th><th></th></tr></thead><tbody>${R.rules
        .map(
          (r, i) => `<tr class="${r.on === false ? 'off' : ''}"><td>${tg(r.on !== false, `data-rton="${i}"`)}</td>
          <td>${r.alert ? '<span class="note">—</span>' : sel('zone', i, r.zone || '', [['', 'All zones'], ...Z.map(z => [z.id, afName(z)])])}</td>
@@ -259,7 +259,7 @@ function rtRender() {
       m = info ? rtMatch(info, RT.testSev) : null;
     h = `<div class="rt-test"><select id="rtTA">${alerts.map(([v, l]) => `<option value="${esc(v)}" ${RT.test === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select><div class="lc2-seg">${[[1, 'Advisory'], [2, 'Warning'], [3, 'Critical']].map(([v, l]) => `<button data-rtsv="${v}" aria-pressed="${RT.testSev === v}">${l}</button>`).join('')}</div></div>
      ${info ? `<div class="rt-res"><div><span>Equipment</span><b>${esc(info.b ? info.b.name : '—')}</b></div><div><span>Zone</span><b>${esc(info.zone ? afName(info.zone) : 'not in a zone')}</b>${info.zoneId && R.zoneOff[info.zoneId] ? ' <em class="rt-warn">muted</em>' : ''}</div><div><span>Type</span><b>${RT_KINDS[info.kind]}</b></div>
-       <div><span>Category</span><select id="rtTC">${Object.entries(RT_CATS).map(([k, l]) => `<option value="${k}" ${info.cat === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${info.tagId ? `<small class="note">${R.cat[info.tagId] ? 'set by you' : 'worked out from the tag'}</small>` : ''}</div>
+       <div><span>Process parameter</span><select id="rtTC">${Object.entries(RT_CATS).map(([k, l]) => `<option value="${k}" ${info.cat === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${info.tagId ? `<small class="note">${R.cat[info.tagId] ? 'set by you' : 'worked out from the tag'}</small>` : ''}</div>
        <div><span>Rules</span><b>${m.rules.length ? m.rules.map(r => (r.alert ? 'specific rule' : [r.zone ? afName(B(r.zone) || {}) : 'all zones', r.kind ? RT_KINDS[r.kind] : 'all types', r.cat ? RT_CATS[r.cat] : 'all'].join(' · '))).join(' | ') : 'none match'}</b></div>
        <div><span>Teams</span><b>${m.teams.map(t => esc(t.name) + (t.on === false ? ' (off)' : '')).join(', ') || '—'}</b></div>
        <div><span>Emails</span><b class="mono">${m.emails.map(esc).join(', ') || (m.muted ? 'none — zone muted' : 'none')}</b></div></div>

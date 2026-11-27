@@ -31,7 +31,7 @@ qrCatHtml = function () {
     mids = mb ? new Set((mb.tags || []).map(t => t.id)) : null;
   const C = QS.lock ? all.filter(x => x.id === QS.lock || (QS.catName && x.name.toLowerCase() === String(QS.catName).toLowerCase())).slice(0, 1) : mids ? all.filter(x => x.tags.some(id => mids.has(id))) : all;
   if (!C.length)
-    return `<div class="mc-wrap"><div class="qr-h1">Category</div><p class="mc-none">${QS.lock ? 'This category is no longer set up in the loop. Check the QR sticker.' : mb ? `${esc(mb.name)} is not in any category.` : 'No categories are set up for this loop yet. They are made in QR cards › Category QR.'}</p></div>`;
+    return `<div class="mc-wrap"><div class="qr-h1">Process Parameter</div><p class="mc-none">${QS.lock ? 'This process parameter is no longer set up in the loop. Check the QR sticker.' : mb ? `${esc(mb.name)} is not in any process parameter.` : 'No process parameters are set up for this loop yet. They are made in QR cards › Process Parameter QR.'}</p></div>`;
   let c = C.find(x => x.id === QS.cat);
   if (!c && QS.catName) c = C.find(x => x.name.toLowerCase() === String(QS.catName).toLowerCase());
   if (!c) c = C[0];
@@ -63,7 +63,7 @@ qrCatHtml = function () {
   return `<div class="mc-wrap qx">${C.length < 2 ? '' : `<div class="qr-chips">${C.map(x => `<button data-qrc="${x.id}" class="${x.id === c.id ? 'on' : ''}" style="--c:${esc(x.color)}">${esc(x.name)}</button>`).join('')}</div>`}
    <div class="qx-h"><div class="qx-ht"><div class="qx-hn">${esc(c.name)}</div>${c.desc ? `<div class="qx-hd">${esc(c.desc)}</div>` : ''}</div><div class="qx-cs">${[[cnt[0], 'Critical', 3], [cnt[1], 'Warning', 2], [cnt[2], 'Near', 1], [cnt[3], 'OK', 0]].map(x => `<div class="${x[0] ? 'qt' + x[2] : ''}"><b>${x[0]}</b>${x[1]}</div>`).join('')}</div></div>
    <div class="qx-sec"><span>Live readings</span><span class="qx-live"><i></i>${new Date().toLocaleTimeString('en-GB')}</span></div>
-   <div class="qx-tb"><div class="qx-r qx-hdr"><div class="qx-c1">Parameter</div><div class="qx-c2">Value</div><div class="qx-c3">Limits</div></div>${rows.map(r => r.h).join('')}</div>${rows.length ? '' : '<div class="mc-none">No readings in this category yet.</div>'}${missing > 0 ? `<p class="mc-none">${missing} tag${missing > 1 ? 's are' : ' is'} no longer in the loop.</p>` : ''}
+   <div class="qx-tb"><div class="qx-r qx-hdr"><div class="qx-c1">Parameter</div><div class="qx-c2">Value</div><div class="qx-c3">Limits</div></div>${rows.map(r => r.h).join('')}</div>${rows.length ? '' : '<div class="mc-none">No readings in this process parameter yet.</div>'}${missing > 0 ? `<p class="mc-none">${missing} tag${missing > 1 ? 's are' : ' is'} no longer in the loop.</p>` : ''}
    <div class="mc-foot">ORBIX Digital Loop · ${esc(DOC.name || '')}</div></div>`;
 };
 document.head.insertAdjacentHTML(

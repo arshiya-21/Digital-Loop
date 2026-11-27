@@ -30,7 +30,7 @@ qrCategories.put('/:loopId', async ({ user, params, body }) => {
   const loop = await loopToDesign(user, params.loopId)
   const items = Array.isArray(body.items) ? body.items : null
   if (!items) throw badRequest('invalid_field', '"items" must be a list.')
-  if (items.length > 500) throw badRequest('invalid_field', 'Too many categories.')
+  if (items.length > 500) throw badRequest('invalid_field', 'Too many process parameters.')
 
   const stamp = now()
   return transaction(async tx => {

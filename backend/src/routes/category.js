@@ -37,7 +37,7 @@ async function layoutOf(design) {
 category.get('/:token', async ({ req, params }) => {
   readLimit(req, 'read')
   if (config.machineCards.requireLogin && !readSession(tokenFromRequest(req))) {
-    throw unauthorized('Sign in through SandMan to open this category.')
+    throw unauthorized('Sign in through SandMan to open this process parameter.')
   }
   const token = String(params.token || '')
   if (!/^[A-Za-z0-9_-]{16,64}$/.test(token)) throw notFound('This QR code is not recognised.')
@@ -45,7 +45,7 @@ category.get('/:token', async ({ req, params }) => {
   if (!card) throw notFound('This QR code is not recognised.')
   const design = await db.prepare('SELECT * FROM design WHERE id = ?').get(card.design_id)
   if (!design) throw notFound('This QR code is not recognised.')
-  if (card.retired_at) throw new HttpError(410, 'retired', `The category “${card.name}” has been removed from ${design.name}.`)
+  if (card.retired_at) throw new HttpError(410, 'retired', `The process parameter “${card.name}” has been removed from ${design.name}.`)
 
   const layout = await layoutOf(design)
   const REG = layout.REG || {}

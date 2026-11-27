@@ -608,7 +608,7 @@ function tkwDetail(t) {
    ${t.source === 'manual' ? '' : `<div><span>First / latest trigger</span><b>${emTime(t.first)} · ${emTime(t.last)}</b></div><div><span>Days in a row · times</span><b>${t.days} days · ${t.count}×</b></div>`}
    ${t.wo ? `<div><span>Work order</span><b>${esc(t.wo)}</b></div>` : ''}
   </div>`;
-  const res = t.res ? `<div class="tkw-res"><b>Resolution</b><div><span>Category</span>${esc(t.res.cat)}${t.res.cause ? ` · ${esc(t.res.cause)}` : ''}</div><div><span>Root cause</span>${esc(t.res.root)}</div><div><span>Action taken</span>${esc(t.res.action)}</div>${t.res.prevent ? `<div><span>To prevent it</span>${esc(t.res.prevent)}</div>` : ''}<small>by ${esc(t.res.by)} · ${emTime(t.res.at)}</small></div>` : '';
+  const res = t.res ? `<div class="tkw-res"><b>Resolution</b><div><span>Process parameter</span>${esc(t.res.cat)}${t.res.cause ? ` · ${esc(t.res.cause)}` : ''}</div><div><span>Root cause</span>${esc(t.res.root)}</div><div><span>Action taken</span>${esc(t.res.action)}</div>${t.res.prevent ? `<div><span>To prevent it</span>${esc(t.res.prevent)}</div>` : ''}<small>by ${esc(t.res.by)} · ${emTime(t.res.at)}</small></div>` : '';
   const icon = k => ({ sys: '⚙', esc: '⚠', reopen: '↺', note: '💬' })[k] || '●';
   const tl = `<div class="tkw-tl">${t.hist.slice().reverse().map(h => `<div class="tkw-ev ${h.k || ''}"><i>${icon(h.k)}</i><div><b>${esc(h.by)}</b> <span>${emTime(h.t)}</span><p>${esc(h.text)}</p></div></div>`).join('')}</div>`;
   return `<div class="tkw-dr-h"><div><div class="tkw-dno">${t.no} ${tkwPrio(t.prio)} ${tkwChip(t.status)}${t.reopened ? ` <span class="tkw-re">Reopened ${t.reopened}×</span>` : ''}</div><h3>${esc(t.name)}</h3></div><button class="tkw-x" id="tkwDrX" title="Close">✕</button></div>

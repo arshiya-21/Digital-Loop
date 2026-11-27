@@ -33,7 +33,7 @@ const QCD = { tab: 'machine', sel: null, q: '' };
     const M = document.createElement('div');
     M.id = 'qcM';
     kids.forEach(k => M.appendChild(k));
-    box.innerHTML = `<div class="qc-head"><h3>QR codes</h3><div class="lc2-seg qc-tabs"><button type="button" data-qct="machine">▦ Machine QR</button><button type="button" data-qct="category">▤ Category QR</button></div></div>`;
+    box.innerHTML = `<div class="qc-head"><h3>QR codes</h3><div class="lc2-seg qc-tabs"><button type="button" data-qct="machine">▦ Machine QR</button><button type="button" data-qct="category">▤ Process Parameter QR</button></div></div>`;
     box.appendChild(M);
     const h = M.querySelector('h3');
     if (h) h.remove();
@@ -69,7 +69,7 @@ function qcSave() {
   QCD.dirty = false;
   save();
   if (typeof changed === 'function') changed();
-  toast('Categories saved');
+  toast('Process parameters saved');
   qcRender();
 }
 function qcRender() {
@@ -94,35 +94,35 @@ function qcRender() {
     const picked = new Set(c.tags);
     const tagRow = id => `<label class="qc-tg"><input type="checkbox" data-qtag="${esc(id)}" ${picked.has(id) ? 'checked' : ''}><span>${esc(REG[id].desc || REG[id].short || id)}</span><small class="mono">${esc(id)}</small><b>${esc(tagTxt(id))}</b></label>`;
     ed = `<div class="qc-ed">
-      <div class="qc-f"><div class="fld"><label>Category name</label><input id="qcName" value="${esc(c.name)}" placeholder="e.g. Sand lab"></div>
+      <div class="qc-f"><div class="fld"><label>Process parameter name</label><input id="qcName" value="${esc(c.name)}" placeholder="e.g. Sand lab"></div>
        <div class="fld"><label>Colour</label><div class="qc-sw">${QC_COLORS.map(k => `<button type="button" data-qcc="${k}" class="${c.color === k ? 'on' : ''}" style="background:${k}" aria-label="Colour"></button>`).join('')}</div></div></div>
       <div class="fld"><label>Description <span class="note">shown on the scan page and the sticker</span></label><input id="qcDesc" value="${esc(c.desc || '')}" placeholder="e.g. Green sand properties tested every 2 hours"></div>
-      <div class="qc-tsh"><b>Tags in this category <span class="qc-n">${c.tags.length}</span></b><input id="qcQ" class="ct-in" placeholder="Search tags or equipment…" value="${esc(QCD.q)}"></div>
+      <div class="qc-tsh"><b>Tags in this process parameter <span class="qc-n">${c.tags.length}</span></b><input id="qcQ" class="ct-in" placeholder="Search tags or equipment…" value="${esc(QCD.q)}"></div>
       <div class="qc-tl">${groups.map(g => {
         const all = g.ids.every(id => picked.has(id));
         return `<div class="qc-g"><div class="qc-gh"><b>${esc(g.b.name)}</b><small>${esc(EQ[g.b.type].n || '')}</small><button type="button" class="lk" data-qall="${g.b.id}">${all ? 'Clear' : 'Select all'}</button></div>${g.ids.map(tagRow).join('')}</div>`;
       }).join('') || '<p class="note" style="padding:10px">No tags match.</p>'}</div>
      </div>
-     <div class="qc-pv"><div class="qc-card" style="--c:${esc(c.color)}"><div class="qc-ch">CATEGORY · SCAN ME</div><div class="qc-qr">${mcQr(qcUrl(c, base), 4)}</div><div class="qc-cn">${esc(c.name || 'Untitled')}</div><div class="qc-cd">${esc(c.desc || '')}</div><div class="qc-cf">${c.tags.length} live readings · ${esc(DOC.name || '')}</div></div>
-      <div class="qc-pa"><button class="ib pri" id="qcPrint1">Print this sticker</button><button class="ib" id="qcOpen">Preview scan page</button><button class="ib" id="qcDel" style="color:#b42318">Delete category</button></div>
+     <div class="qc-pv"><div class="qc-card" style="--c:${esc(c.color)}"><div class="qc-ch">PROCESS PARAMETER · SCAN ME</div><div class="qc-qr">${mcQr(qcUrl(c, base), 4)}</div><div class="qc-cn">${esc(c.name || 'Untitled')}</div><div class="qc-cd">${esc(c.desc || '')}</div><div class="qc-cf">${c.tags.length} live readings · ${esc(DOC.name || '')}</div></div>
+      <div class="qc-pa"><button class="ib pri" id="qcPrint1">Print this sticker</button><button class="ib" id="qcOpen">Preview scan page</button><button class="ib" id="qcDel" style="color:#b42318">Delete process parameter</button></div>
       <div class="note mono qc-url">${esc(qcUrl(c, base))}</div></div>`;
   } else
-    ed = `<div class="qc-empty"><b>No categories yet</b><p>A category groups tags from any equipment under one QR — for example <i>Sand lab</i> with moisture, compactability, GCS and permeability from every line. Stick it at the lab, the furnace platform or the pouring station.</p><div><button class="ib pri" id="qcNew2">＋ New category</button> <button class="ib" id="qcAreas2">Start from the process areas</button></div></div>`;
-  box.innerHTML = `<div class="note">Categories group tags from any equipment under one QR code. Scanning it opens the same page as a machine sticker, on its <b>Category</b> tab.</div>
-   <div class="qc-grid"><div class="qc-side">${list}<button type="button" class="qc-add" id="qcNew">＋ New category</button><button type="button" class="lk qc-areas" id="qcAreas">Start from the process areas…</button></div><div class="qc-main">${ed}</div></div>
-   <div class="mact"><span class="qc-st${QCD.dirty ? ' on' : ''}" id="qcSt">${QCD.dirty ? 'Unsaved changes' : 'All changes saved'}</span><button class="ib" id="qcClose">Close</button><button class="ib pri" id="qcSave" ${QCD.dirty ? '' : 'disabled'}>💾 Save</button>${C.length ? `<button class="ib pri" id="qcPrintAll" style="background:#fff;color:#1f6feb">Print all category stickers (${C.length})</button>` : ''}</div>`;
+    ed = `<div class="qc-empty"><b>No process parameters yet</b><p>A process parameter groups tags from any equipment under one QR — for example <i>Sand lab</i> with moisture, compactability, GCS and permeability from every line. Stick it at the lab, the furnace platform or the pouring station.</p><div><button class="ib pri" id="qcNew2">＋ New process parameter</button> <button class="ib" id="qcAreas2">Start from the process areas</button></div></div>`;
+  box.innerHTML = `<div class="note">Process parameters group tags from any equipment under one QR code. Scanning it opens the same page as a machine sticker, on its <b>Process Parameter</b> tab.</div>
+   <div class="qc-grid"><div class="qc-side">${list}<button type="button" class="qc-add" id="qcNew">＋ New process parameter</button><button type="button" class="lk qc-areas" id="qcAreas">Start from the process areas…</button></div><div class="qc-main">${ed}</div></div>
+   <div class="mact"><span class="qc-st${QCD.dirty ? ' on' : ''}" id="qcSt">${QCD.dirty ? 'Unsaved changes' : 'All changes saved'}</span><button class="ib" id="qcClose">Close</button><button class="ib pri" id="qcSave" ${QCD.dirty ? '' : 'disabled'}>💾 Save</button>${C.length ? `<button class="ib pri" id="qcPrintAll" style="background:#fff;color:#1f6feb">Print all process parameter stickers (${C.length})</button>` : ''}</div>`;
   qcBind(c);
 }
 function qcNew(name, tags, color) {
   const C = qcEd();
-  const c = { id: 'cat' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: name || 'New category', color: color || QC_COLORS[C.length % QC_COLORS.length], desc: '', tags: tags || [] };
+  const c = { id: 'cat' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: name || 'New process parameter', color: color || QC_COLORS[C.length % QC_COLORS.length], desc: '', tags: tags || [] };
   C.push(c);
   return c;
 }
 function qcBind(c) {
   const on = (s, f) => $(s) && ($(s).onclick = f);
   on('#qcClose', () => {
-    if (QCD.dirty && !confirm('You have unsaved category changes. Close without saving?')) return;
+    if (QCD.dirty && !confirm('You have unsaved process parameter changes. Close without saving?')) return;
     QCD.draft = null;
     QCD.dirty = false;
     closeModal();
@@ -153,13 +153,13 @@ function qcBind(c) {
     });
     qcDirty();
     QCD.sel = qcEd()[qcEd().length - n] ? qcEd()[qcEd().length - n].id : QCD.sel;
-    toast(n ? `${n} categor${n === 1 ? 'y' : 'ies'} made from the process areas — remove the tags you do not need` : 'Every process area already has a category');
+    toast(n ? `${n} process parameter${n === 1 ? '' : 's'} made from the process areas — remove the tags you do not need` : 'Every process area already has a process parameter');
     qcRender();
   };
   on('#qcAreas', areas);
   on('#qcAreas2', areas);
   $$('#qcC [data-qcs]').forEach(b => (b.onclick = () => ((QCD.sel = b.dataset.qcs), (QCD.q = ''), qcRender())));
-  on('#qcPrintAll', () => (QCD.dirty ? toast('Save the categories before printing') : qcPrint(qcEd())));
+  on('#qcPrintAll', () => (QCD.dirty ? toast('Save the process parameters before printing') : qcPrint(qcEd())));
   if (!c) return;
   const nm = $('#qcName');
   nm.oninput = () => {
@@ -203,10 +203,10 @@ function qcBind(c) {
     qcDirty();
     qcRender();
   }));
-  on('#qcPrint1', () => (QCD.dirty ? toast('Save before printing — the sticker must match the saved category') : qcPrint([c])));
+  on('#qcPrint1', () => (QCD.dirty ? toast('Save before printing — the sticker must match the saved process parameter') : qcPrint([c])));
   on('#qcOpen', () => QCD.dirty ? toast('Save first to preview the scan page') : (closeModal(), qrShell({ tab: 'category', cat: c.id, lock: c.id, machine: null })));
   on('#qcDel', () => {
-    if (!confirm(`Delete the category “${c.name}”? Printed stickers for it will stop working.`)) return;
+    if (!confirm(`Delete the process parameter “${c.name}”? Printed stickers for it will stop working.`)) return;
     
     QCD.draft = qcEd().filter(x => x.id !== c.id);
     QCD.sel = null;
@@ -217,11 +217,11 @@ function qcBind(c) {
 function qcPrint(list) {
   const base = ($('#mcBase') && $('#mcBase').value.trim()) || mcBase();
   const st = list
-    .map(c => `<div class="s" style="--c:${esc(c.color)}"><div class="k">CATEGORY · SCAN ME</div><div class="q">${mcQr(qcUrl(c, base), 4)}</div><div class="n">${esc(c.name)}</div>${c.desc ? `<div class="d">${esc(c.desc)}</div>` : ''}<div class="a">${c.tags.length} live readings · ${esc(DOC.name || '')}</div></div>`)
+    .map(c => `<div class="s" style="--c:${esc(c.color)}"><div class="k">PROCESS PARAMETER · SCAN ME</div><div class="q">${mcQr(qcUrl(c, base), 4)}</div><div class="n">${esc(c.name)}</div>${c.desc ? `<div class="d">${esc(c.desc)}</div>` : ''}<div class="a">${c.tags.length} live readings · ${esc(DOC.name || '')}</div></div>`)
     .join('');
   const w = window.open('', '_blank');
   if (!w) return toast('Allow pop-ups to print the stickers');
-  w.document.write(`<!doctype html><meta charset="utf-8"><title>Category QR stickers — ${esc(DOC.name || '')}</title><style>@page{size:A4;margin:10mm}body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm}
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Process Parameter QR stickers — ${esc(DOC.name || '')}</title><style>@page{size:A4;margin:10mm}body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm}
   .s{border:2.5px solid var(--c);border-radius:4mm;padding:4mm;text-align:center;break-inside:avoid}.k{font-weight:800;font-size:8.5pt;letter-spacing:.12em;color:var(--c)}.q svg{width:46mm;height:46mm}.n{font-weight:800;font-size:16pt;color:#0f172a}.d{font-size:9pt;color:#334155;margin-top:1mm}.a{font-size:8pt;color:#64748b;margin-top:1.5mm}</style><div class="g">${st}</div><script>onload=()=>setTimeout(()=>print(),300)<\/script>`);
   w.document.close();
 }
@@ -237,7 +237,7 @@ function qrShell(o) {
     document.body.insertAdjacentHTML('beforeend', '<div id="qrTabs"></div><div id="qrCat" class="qr-pane"></div>');
     tb = $('#qrTabs');
   }
-  tb.innerHTML = `<div class="qr-in"><div class="qr-brand"><b>ORBIX</b><span>${esc(DOC.name || 'Digital Loop')}</span></div><div class="qr-tabs" role="tablist"><button role="tab" data-qrt="machine" aria-selected="${QS.tab === 'machine'}">Machine</button><button role="tab" data-qrt="category" aria-selected="${QS.tab === 'category'}">Category</button></div></div>`;
+  tb.innerHTML = `<div class="qr-in"><div class="qr-brand"><b>ORBIX</b><span>${esc(DOC.name || 'Digital Loop')}</span></div><div class="qr-tabs" role="tablist"><button role="tab" data-qrt="machine" aria-selected="${QS.tab === 'machine'}">Machine</button><button role="tab" data-qrt="category" aria-selected="${QS.tab === 'category'}">Process Parameter</button></div></div>`;
   $$('#qrTabs [data-qrt]').forEach(b => (b.onclick = () => qrShell({ tab: b.dataset.qrt })));
   clearInterval(QS.t);
   const mc = $('#mcard'),
@@ -300,7 +300,7 @@ function qrCatHtml() {
     mids = mb ? new Set((mb.tags || []).map(t => t.id)) : null;
   const C = QS.lock ? all.filter(x => x.id === QS.lock || (QS.catName && x.name.toLowerCase() === String(QS.catName).toLowerCase())).slice(0, 1) : mids ? all.filter(x => x.tags.some(id => mids.has(id))) : all;
   if (!C.length)
-    return `<div class="mc-wrap"><div class="qr-h1">Category</div><p class="mc-none">${QS.lock ? 'This category is no longer set up in the loop. Check the QR sticker.' : mb ? `${esc(mb.name)} is not in any category.` : 'No categories are set up for this loop yet. They are made in QR cards › Category QR.'}</p></div>`;
+    return `<div class="mc-wrap"><div class="qr-h1">Process Parameter</div><p class="mc-none">${QS.lock ? 'This process parameter is no longer set up in the loop. Check the QR sticker.' : mb ? `${esc(mb.name)} is not in any process parameter.` : 'No process parameters are set up for this loop yet. They are made in QR cards › Process Parameter QR.'}</p></div>`;
   let c = C.find(x => x.id === QS.cat);
   if (!c && QS.catName) c = C.find(x => x.name.toLowerCase() === String(QS.catName).toLowerCase());
   if (!c) c = C[0];
@@ -317,7 +317,7 @@ function qrCatHtml() {
   const missing = c.tags.length - rows.length;
   return `<div class="mc-wrap">${C.length < 2 ? '' : `<div class="qr-chips">${C.map(x => `<button data-qrc="${x.id}" class="${x.id === c.id ? 'on' : ''}" style="--c:${esc(x.color)}">${esc(x.name)}</button>`).join('')}</div>`}
    <div class="qr-ch" style="--c:${esc(c.color)}"><div><div class="qr-cn">${esc(c.name)}</div>${c.desc ? `<div class="qr-cd">${esc(c.desc)}</div>` : ''}</div><div class="qr-sum">${cnt[0] ? `<span class="s3">${cnt[0]} alarm</span>` : ''}${cnt[1] ? `<span class="s2">${cnt[1]} warning</span>` : ''}${cnt[2] ? `<span class="s1">${cnt[2]} near limit</span>` : ''}<span class="s0">${cnt[3]} in limits</span></div></div>
-   <div class="mc-sec">Live readings · ${rows.length}</div>${rows.map(r => r.h).join('') || '<div class="mc-none">No readings in this category yet.</div>'}${missing > 0 ? `<p class="mc-none">${missing} tag${missing > 1 ? 's are' : ' is'} no longer in the loop.</p>` : ''}
+   <div class="mc-sec">Live readings · ${rows.length}</div>${rows.map(r => r.h).join('') || '<div class="mc-none">No readings in this process parameter yet.</div>'}${missing > 0 ? `<p class="mc-none">${missing} tag${missing > 1 ? 's are' : ' is'} no longer in the loop.</p>` : ''}
    <div class="mc-foot">ORBIX Digital Loop · ${esc(DOC.name || '')} · updated ${new Date().toLocaleTimeString('en-GB')}</div></div>`;
 }
 function qrPaneBind() {
@@ -382,11 +382,11 @@ setTimeout(() => {
   /* a separate Category QR button right after Machine QR in the ribbon */
   const v = $('#vQR');
   if (v && !$('#vCQR')) {
-    v.insertAdjacentHTML('afterend', `<button class="ib rbig" id="vCQR" title="Category QR — one sticker per category (Sand lab, Melting, Pouring …); scanning it shows that category's tags"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><path d="M5.5 5.5h2v2h-2z"/><path d="M14 4h7M14 7.5h5M3 14h18M3 17.5h18M3 21h12"/></svg><span class="rl">Category QR</span></button>`);
+    v.insertAdjacentHTML('afterend', `<button class="ib rbig" id="vCQR" title="Process Parameter QR — one sticker per process parameter (Sand lab, Melting, Pouring …); scanning it shows its tags"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><path d="M5.5 5.5h2v2h-2z"/><path d="M14 4h7M14 7.5h5M3 14h18M3 17.5h18M3 21h12"/></svg><span class="rl">Process Parameter QR</span></button>`);
     $('#vCQR').onclick = () => mcQrSheet('category');
   }
   const p = $('#pQR');
-  if (p) p.title = 'QR codes — one per machine, and one per category (Sand lab, Melting, Pouring …)';
+  if (p) p.title = 'QR codes — one per machine, and one per process parameter (Sand lab, Melting, Pouring …)';
 }, 0);
 
 document.head.insertAdjacentHTML(

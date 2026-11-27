@@ -57,7 +57,7 @@ function openReplace(b) {
     `<h3>Replace ${esc(b.name)}</h3>
      <p class="rp-note">Pick the equipment to put in place of <b>${esc(b.name)}</b> (${esc(EQ[b.type].n || b.type)}). Its name, readings, data link and
      connections are kept; lines move to the matching inlets and outlets. Ctrl+Z undoes it.</p>
-     <input id="rpQ" class="rp-q" placeholder="Search equipment (name or category)…" autocomplete="off">
+     <input id="rpQ" class="rp-q" placeholder="Search equipment (name or process parameter)…" autocomplete="off">
      <div id="rpBody">${sugg.length ? `<h5>Suggested replacements</h5><div class="rp-grid">${sugg.map(card).join('')}</div>` : ''}<h5>All equipment</h5><div class="rp-grid" id="rpAll">${all.slice(0, 160).map(card).join('')}</div></div>`,
     'xl'
   );
